@@ -345,8 +345,9 @@ async function regSc(){
   try{
     const doc=await sR(npsn).get();
     if(doc.exists){hd();return tt('NPSN sudah terdaftar!','er')}
+    // Menyimpan data sekolah tanpa soal otomatis (seedEx dihapus)
     await sR(npsn).set({npsn,nama,kota,prov,adminUser:user,adminPass:pass,isPusat:false,createdAt:Date.now()});
-    await seedEx(npsn);hd();tt('Sekolah berhasil didaftarkan!');
+    hd();tt('Sekolah berhasil didaftarkan! Silakan hubungi Admin Pusat untuk input soal.');
     $('aSN').value=npsn;$('aSU').value=user;['rN','rS','rK','rP','rU','rW'].forEach(i=>$(i).value='');go('pLSA');
   }catch(e){hd();tt('Gagal menyimpan: '+e.message,'er')}
 }
@@ -434,21 +435,6 @@ async function loadD(npsn){
   D.ex=a.docs.map(d=>({id:d.id,...d.data()}));
   D.rs=b.docs.map(d=>({id:d.id,...d.data()}));
   D.ss=c.docs.map(d=>({id:d.id,...d.data()}));
-}
-
-// Seeder Soal Awal
-async function seedEx(npsn){
-  const ds=[
-    {k:1,m:'Matematika',t:20,q:[{t:'Berapa hasil dari 5 + 3 ?',o:['6','7','8'],a:2,type:'pg'},{t:'Berapa hasil dari 10 - 4 ?',o:['5','6','7'],a:1,type:'pg'},{t:'Urutan bilangan yang benar ...',o:['1,3,2','2,4,1','1,2,3'],a:2,type:'pg'},{t:'Bilangan setelah 7 adalah ...',o:['5','6','8'],a:2,type:'pg'},{t:'Jumlah jari tangan kanan?',o:['3','4','5'],a:2,type:'pg'}]},
-    {k:2,m:'Matematika',t:25,q:[{t:'12 + 15 = ...',o:['25','27','28'],a:1,type:'pg'},{t:'30 - 17 = ...',o:['11','12','13'],a:2,type:'pg'},{t:'8 x 3 = ...',o:['21','24','27'],a:1,type:'pg'},{t:'20 : 4 = ...',o:['4','5','6'],a:1,type:'pg'},{t:'Bilangan ganjil antara 10 dan 16 ...',o:['10,12','11,13','12,14'],a:1,type:'pg'}]},
-    {k:3,m:'IPAS',t:25,q:[{t:'Bagian tumbuhan menyerap air ...',o:['Daun','Batang','Akar','Bunga'],a:2,type:'pg'},{t:'Hewan mamalia adalah ...',o:['Ular','Katak','Kucing','Ikan'],a:2,type:'pg'},{t:'Energi utama fotosintesis ...',o:['Air','Oksigen','Cahaya matahari','Karbon dioksida'],a:2,type:'pg'},{t:'Rantai makanan benar ...',o:['Rumput-Ular-Belalang','Belalang-Rumput-Katak-Ular','Rumput-Belalang-Katak-Ular','Ular-Katak-Belalang-Rumput'],a:2,type:'pg'},{t:'Penghantar listrik ...',o:['Kayu','Kaca','Plastik','Besi'],a:3,type:'pg'}]},
-    {k:4,m:'Bahasa Indonesia',t:25,q:[{t:'Kata baku "nasehat" ...',o:['Nasihat','Nasehat','Nasyihat','Nashehat'],a:0,type:'pg'},{t:'Sinonim "pandai" ...',o:['Bodoh','Cerdas','Malas','Lambat'],a:1,type:'pg'},{t:'Antonim "rajin" ...',o:['Pintar','Cerdas','Malas','Hebat'],a:2,type:'pg'},{t:'Kalimat efektif ...',o:['Saya pergi ke sekolah setiap hari pada pagi hari','Setiap hari saya pergi ke sekolah pada pagi hari','Pagi hari setiap hari saya ke sekolah pergi','Ke sekolah saya pergi setiap hari'],a:1,type:'pg'},{t:'Tanda baca akhir kalimat tanya ...',o:['Titik','Koma','Tanda seru','Tanda tanya'],a:3,type:'pg'}]},
-    {k:5,m:'Pendidikan Pancasila',t:30,q:[{t:'Sila pertama Pancasila ...',o:['Ketuhanan YME','Kemanusiaan adil beradab','Persatuan Indonesia','Kerakyatan dipimpin hikmat'],a:0,type:'pg'},{t:'Lambang sila kedua ...',o:['Bintang','Rantai','Pohon','Kepala Banteng'],a:1,type:'pg'},{t:'Semboyan NKRI ...',o:['Bhinneka Tunggal Ika','Tut Wuri Handayani','Kartika Eka Paksi','Jalesveva Jayamahe'],a:0,type:'pg'},{t:'Sila yang mengajarkan toleransi ...',o:['1','2','3','4'],a:0,type:'pg'},{t:'Sikap sesuai sila ke-3 ...',o:['Suka berkelahi','Menghargai perbedaan','Cinta tanah air','Menghina teman'],a:2,type:'pg'}]},
-    {k:6,m:'IPAS',t:30,q:[{t:'Planet terbesar di tata surya ...',o:['Mars','Jupiter','Saturnus','Neptunus'],a:1,type:'pg'},{t:'Gas menjadi cair disebut ...',o:['Menguap','Membeku','Mengembun','Menyublim'],a:2,type:'pg'},{t:'Energi terbarukan ...',o:['Batu bara','Minyak bumi','Sinar matahari','Gas alam'],a:2,type:'pg'},{t:'Tata surya berputar mengelilingi ...',o:['Bulan','Matahari','Bintang','Komet'],a:1,type:'pg'},{t:'Perpindahan kalor radiasi ...',o:['Air mendidih','Setrika panas','Panas matahari','Es mencair di tangan'],a:2,type:'pg'}]}
-  ];
-  const bat=db.batch();
-  ds.forEach(d=>{const id=uid();bat.set(eR(npsn).doc(id),{id,kelas:d.k,mapel:d.m,timeLimit:d.t,questions:d.q.map(q=>({id:uid(),text:q.t,options:q.o,answer:q.a,type:'pg'}))})});
-  await bat.commit();
 }
 
 // Ujian
