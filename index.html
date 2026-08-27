@@ -83,6 +83,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .json-ta{width:100%;min-height:220px;padding:14px;border:2.5px solid var(--bd);border-radius:12px;font-family:'Courier New',monospace;font-size:.78rem;line-height:1.5;background:#1e1e1e;color:#d4d4d4;resize:vertical;tab-size:2}
 .json-ta:focus{outline:none;border-color:var(--ac2)}
 .pd .q-img-print{max-width:160px;max-height:120px;object-fit:contain}
+.pd .essay-block { page-break-inside: avoid; margin-bottom: 12px; border: 1px solid #ddd; padding: 10px; border-radius: 6px; }
 .tag-img{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;background:rgba(0,180,216,.1);color:var(--ac2);font-size:.7rem;font-weight:700;margin-left:6px}
 .tag-pusat{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:6px;background:rgba(99,102,241,.1);color:var(--pr);font-size:.7rem;font-weight:700;margin-left:6px}
 @media(max-width:768px){.sb{width:52px;padding:12px 5px}.sb a span,.sb .sl{display:none}.sb a{justify-content:center;padding:10px}.bt{padding:10px 18px;font-size:.88rem}.cd{padding:16px;border-radius:15px}.mc{padding:20px;border-radius:18px;max-width:95vw}.pd{width:100%;padding:10mm;font-size:9pt;min-height:auto}.q-img{max-height:180px}}
@@ -406,8 +407,8 @@ async function finEx(){
 
 function showR(r){
   go('pRE');let g,c,em,msg;const sc=r.score||0;
-  if(sc>=90){g='A';c='#22C55E';em='🎉';msg='Luar Biasa!'}else if(sc>=80){g='B';c='#00B4D8';em='😊';msg='Bagus!'}else if(sc>=70){g='C';c='#EAB308';em='👍';msg='Cukup Baik!'}else if(sc>=60){g='D';c='#FF6B35';em='💪';msg='Jangan Menyerah!'}else{g='E';c='#EF4444';em='📚';msg='Ayo Belajar Lebih Giat!'}
   if(r.essays&&r.essays.length>0){em='⏳';c='#3B82F6';msg='Uraian akan dikoreksi Admin.';g='?';}
+  else if(sc>=90){g='A';c='#22C55E';em='🎉';msg='Luar Biasa!';}else if(sc>=80){g='B';c='#00B4D8';em='😊';msg='Bagus!';}else if(sc>=70){g='C';c='#EAB308';em='👍';msg='Cukup Baik!';}else if(sc>=60){g='D';c='#FF6B35';em='💪';msg='Jangan Menyerah!';}else{g='E';c='#EF4444';em='📚';msg='Ayo Belajar Lebih Giat!';}
   const tm=Math.floor(r.timeUsed/60),ts=r.timeUsed%60;if(sc>=80&&!r.essays)cft();
   $('rC').innerHTML=`<div class="schb mb-4" style="background:rgba(255,107,53,.08);color:var(--ac)"><i class="fas fa-school"></i> ${D.sch.nama}</div>
   <div style="font-size:3rem;margin-bottom:6px">${em}</div><h2 style="font-size:1.25rem;margin-bottom:4px">Hasil Ujian</h2>
@@ -420,7 +421,7 @@ function showR(r){
     <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Waktu</p><p style="font-size:.9rem;font-weight:800">${tm}:${String(ts).padStart(2,'0')}</p></div>
   </div>
   <div class="flex gap-3 justify-center flex-wrap">
-    ${r.essays&&r.essays.length>0?'':`<button class="bt bt5 bts" onclick="cPDF('${r.id}')"><i class="fas fa-file-pdf"></i> Cetak PDF</button>`}
+    <button class="bt bt5 bts" onclick="cPDF('${r.id}')"><i class="fas fa-file-pdf"></i> Cetak PDF</button>
     <button class="bt bt3 bts" onclick="go('pSD');renderSD()"><i class="fas fa-arrow-left"></i> Kembali</button>
     <button class="bt bt2 bts" onclick="outS()"><i class="fas fa-sign-out-alt"></i> Keluar</button>
   </div>`;
@@ -433,7 +434,10 @@ async function cPDF(rid){
   const d=new Date(r.timestamp),tgl=d.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
   let grade,label;if(r.score>=90){grade='A';label='Sangat Baik'}else if(r.score>=80){grade='B';label='Baik'}else if(r.score>=70){grade='C';label='Cukup'}else if(r.score>=60){grade='D';label='Kurang'}else{grade='E';label='Sangat Kurang'}
   const tm=Math.floor(r.timeUsed/60),ts=r.timeUsed%60;
-  let essayHtml='';if(r.essays&&r.essays.length>0){r.essays.forEach((e,i)=>{essayHtml+=`<div style="margin-bottom:12px;border-bottom:1px solid #ccc;padding-bottom:8px"><p style="font-weight:bold">${i+1}. ${e.text}</p><p><b>Kunci:</b> ${e.key||'-'}</p><p><b>Jawaban:</b> ${e.answer||'-'}</p><p><b>Nilai:</b> ${e.score}/100</p></div>`;});}
+  let essayHtml='';if(r.essays&&r.essays.length>0){r.essays.forEach((e,i)=>{
+    const status = e.graded ? `<b>Nilai:</b> ${e.score}/100` : `<b style="color:#dc2626">Menunggu Koreksi</b>`;
+    essayHtml+=`<div class="essay-block"><p style="font-weight:bold">${i+1}. ${e.text}</p><p><b>Kunci:</b> ${e.key||'-'}</p><p><b>Jawaban:</b> ${e.answer||'-'}</p><p>${status}</p></div>`;
+  });}
   const box=$('pB');box.style.left='0';box.style.top='0';box.style.zIndex='9999';
   box.innerHTML=`<div class="pd" id="pdE"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><p style="font-size:9pt;color:#555">NPSN: ${sch.npsn}</p><h2 style="font-size:14pt;margin:2px 0">${sch.nama.toUpperCase()}</h2><p style="font-size:9pt;color:#555">${sch.kota}, ${sch.prov}</p><p style="font-size:12pt;margin:8px 0 0;font-weight:700">LAPORAN HASIL PTS</p></div>
   <table style="border:none;margin-bottom:14px"><tr><td style="border:none;padding:2px 8px;width:140px;font-weight:700">Nama</td><td style="border:none;padding:2px 8px">: ${r.nama}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">NIS</td><td style="border:none;padding:2px 8px">: ${r.nis}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">Kelas</td><td style="border:none;padding:2px 8px">: ${r.kelas}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">Ortu/Wali</td><td style="border:none;padding:2px 8px">: ${ortu}</td></tr></table>
@@ -500,7 +504,7 @@ async function lihatSoalSekolah(npsn,nama){
     h+=`<div class="cd" style="padding:14px 18px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt)">(${mo} opsi)</span>${ex.fromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Pusat</span>':''}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m</p></div></div><div class="flex gap-2"><button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}','${npsn}')"><i class="fas fa-file-pdf"></i> Cetak</button><button class="bt bt4 btx" onclick="doHapusSoalSch('${ex.id}','${npsn}','${nama}')"><i class="fas fa-trash"></i></button></div></div></div>`;});h+=`</div>`;}
   h+=`</div>`;c.innerHTML=h;
 }
-async function doHapusSoalSch(exId,npsn,nama){oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus soal dari ${nama}?</h3><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();ld('Menghapus...');eR('${npsn}').doc('${exId}').delete().then(()=>{hd();tt('Dihapus!');lihatSoalSekolah('${npsn}','${nama}')}).catch(e=>{hd();tt('Gagal: '+e.message,'er')})">Hapus</button></div></div>`);}
+async function doHapusSoalSch(exId,npsn,nama){oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus soal dari ${nama}?</h3><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();ld('Menghapus...');eR('${npsn}').doc('${exId}').delete().then(()=>{hd();tt('Dihapus!');lihatSoalSekolah('${npsn}','${nama}')}).catch(e=>{hd();tt('Gagal: '+e.message,'er')})">Hapus</button></div></div>`)}
 
 /* ================================================================
    KELOLA SOAL
@@ -808,11 +812,9 @@ function validateAndImport(){
 
 function doImportJSON(){
   const data=window._pendingImport;if(!data)return;const mo=maxOpts(data.kelas);
-  const questions=data.questions.map(q=>{const obj={id:uid(),text:q.text,image:q.image||'',type:q.type||'pg'};
-    if(obj.type==='essay'){obj.key=q.key||'';}else{obj.options=q.options.map(o=>typeof o==='object'&&o.image?{text:o.text||'',image:o.image}:typeof o==='object'?o.text||'':String(o));obj.answer=parseInt(q.answer)||0;if(obj.answer>=obj.options.length)obj.answer=0;}return obj;});
+  const questions=data.questions.map(q=>{const obj={id:uid(),text:q.text,image:q.image||'',type:q.type||'pg'};if(obj.type==='essay'){obj.key=q.key||'';}else{obj.options=q.options.map(o=>typeof o==='object'&&o.image?{text:o.text||'',image:o.image}:typeof o==='object'?o.text||'':String(o));obj.answer=parseInt(q.answer)||0;if(obj.answer>=obj.options.length)obj.answer=0;}return obj;});
   const id=uid();const exam={id,mapel:data.mapel,kelas:data.kelas,timeLimit:data.timeLimit||60,questions,createdAt:Date.now()};
-  if(D.isPusat){D.ex.push(exam);cMo();tt(questions.length+' soal diimport ke memori!');renderSoal($('aC'));}
-  else{ld('Mengimport...');eR(D.sch.npsn).doc(id).set(exam).then(()=>{D.ex.push(exam);hd();cMo();tt(questions.length+' soal diimport!');renderSoal($('aC'));}).catch(e=>{hd();tt('Gagal: '+e.message,'er')});}
+  if(D.isPusat){D.ex.push(exam);cMo();tt(questions.length+' soal diimport ke memori!');renderSoal($('aC'));}else{ld('Mengimport...');eR(D.sch.npsn).doc(id).set(exam).then(()=>{D.ex.push(exam);hd();cMo();tt(questions.length+' soal diimport!');renderSoal($('aC'));}).catch(e=>{hd();tt('Gagal: '+e.message,'er')});}
 }
 
 /* ===== HASIL UJIAN ===== */
