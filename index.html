@@ -69,6 +69,11 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .spn{width:36px;height:36px;border:4px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto}
 .lo{position:fixed;inset:0;background:rgba(255,248,240,.92);z-index:10000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 .lo.on{display:flex}
+.pd{width:210mm;min-height:297mm;padding:18mm;font-family:'Nunito',sans-serif;color:#000;background:#fff;font-size:11pt;line-height:1.6}
+.pd h2{font-family:'Fredoka';font-size:15pt;margin-bottom:4px}
+.pd table{width:100%;border-collapse:collapse;margin:10px 0}
+.pd th,.pd td{border:1px solid #333;padding:5px 10px;text-align:left;font-size:10pt}
+.pd th{background:#f0f0f0;font-weight:700}
 .schb{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:10px;font-size:.78rem;font-weight:700}
 .step-box{background:var(--bg);border:2px dashed var(--bd);border-radius:16px;padding:20px;text-align:center}
 .step-box.active{border-color:var(--ac);border-style:solid;background:rgba(255,107,53,.04)}
@@ -77,9 +82,11 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .q-img{max-width:100%;max-height:280px;border-radius:12px;border:2px solid var(--bd);margin:8px 0;display:block;object-fit:contain;background:#f9f6f2}
 .json-ta{width:100%;min-height:220px;padding:14px;border:2.5px solid var(--bd);border-radius:12px;font-family:'Courier New',monospace;font-size:.78rem;line-height:1.5;background:#1e1e1e;color:#d4d4d4;resize:vertical;tab-size:2}
 .json-ta:focus{outline:none;border-color:var(--ac2)}
+.pd .q-img-print{max-width:160px;max-height:120px;object-fit:contain}
+.pd .essay-block { page-break-inside: avoid; margin-bottom: 12px; border: 1px solid #ddd; padding: 10px; border-radius: 6px; }
 .tag-img{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;background:rgba(0,180,216,.1);color:var(--ac2);font-size:.7rem;font-weight:700;margin-left:6px}
 .tag-pusat{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:6px;background:rgba(99,102,241,.1);color:var(--pr);font-size:.7rem;font-weight:700;margin-left:6px}
-@media(max-width:768px){.sb{width:52px;padding:12px 5px}.sb a span,.sb .sl{display:none}.sb a{justify-content:center;padding:10px}.bt{padding:10px 18px;font-size:.88rem}.cd{padding:16px;border-radius:15px}.mc{padding:20px;border-radius:18px;max-width:95vw}.q-img{max-height:180px}}
+@media(max-width:768px){.sb{width:52px;padding:12px 5px}.sb a span,.sb .sl{display:none}.sb a{justify-content:center;padding:10px}.bt{padding:10px 18px;font-size:.88rem}.cd{padding:16px;border-radius:15px}.mc{padding:20px;border-radius:18px;max-width:95vw}.pd{width:100%;padding:10mm;font-size:9pt;min-height:auto}.q-img{max-height:180px}}
 </style>
 </head>
 <body>
@@ -92,7 +99,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
   <div class="cd asu" style="max-width:560px;width:100%;margin:16px">
     <div class="text-center mb-6"><div style="font-size:3rem;margin-bottom:8px"><i class="fas fa-shield-halved" style="color:var(--ac)"></i></div><h2 style="font-size:1.4rem;margin-bottom:6px">Setup Firebase Rules</h2><p style="color:var(--mt);font-size:.85rem">Langkah pertama: atur akses database</p></div>
     <div class="grid gap-4 mb-6">
-      <div class="step-box" id="step1"><div class="step-num">1</div><h4 style="font-size:.95rem;margin-bottom:4px">Buka Firebase Console</h4><p style="color:var(--mt);font-size:.82rem;margin-bottom:10px">Login akun Google</p><a href="https://console.firebase.google.com/project/pts2026-fb4d7/firestore/rules" target="_blank" class="bt bt1" style="padding:10px 20px;font-size:.88rem;justify-content:center;width:100%"><i class="fas fa-external-link-alt"></i> Buka Firebase Console</a></div>
+      <div class="step-box" id="step1"><div class="step-num">1</div><h4 style="font-size:.95rem;margin-bottom:4px">Buka Firebase Console</h4><p style="color:var(--mt);font-size:.82rem;margin-bottom:10px">Login akun Google yang sama</p><a href="https://console.firebase.google.com/project/pts2026-fb4d7/firestore/rules" target="_blank" class="bt bt1" style="padding:10px 20px;font-size:.88rem;justify-content:center;width:100%"><i class="fas fa-external-link-alt"></i> Buka Firebase Console</a></div>
       <div class="step-box" id="step2"><div class="step-num">2</div><h4 style="font-size:.95rem;margin-bottom:4px">Ganti Rules</h4><p style="color:var(--mt);font-size:.82rem;margin-bottom:8px">Hapus semua, paste:</p>
         <div style="background:#1e1e1e;color:#d4d4d4;border-radius:12px;padding:16px;text-align:left;font-family:monospace;font-size:.78rem;line-height:1.6;position:relative;overflow:hidden">
           <button onclick="navigator.clipboard.writeText($('rulesCode').textContent).then(()=>tt('Disalin!'))" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,.15);color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.72rem;font-family:'Nunito'"><i class="fas fa-copy"></i> Salin</button>
@@ -250,7 +257,9 @@ const MP=[
   {v:'Bahasa Sunda',l:'B. Sunda',ic:'fa-comment-dots',c:'#14B8A6'}
 ];
 const OL_FULL=['A','B','C','D','E','F'];
-function maxOpts(k){return k<=2?3:4}
+
+/* Jumlah opsi maksimal berdasarkan kelas */
+function maxOpts(kelas){ return kelas <= 2 ? 3 : 4; }
 
 let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],allSchools:[],cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1,editTargetNpsn:null,editKelas:3};
 
@@ -268,12 +277,6 @@ function rR(n){return db.collection('schools').doc(n).collection('results')}
 function wR(n){return db.collection('schools').doc(n).collection('students')}
 function $(id){return document.getElementById(id)}
 function $v(id){return $(id).value.trim()}
-
-/* Cek apakah hasil masih menunggu koreksi essay */
-function isWaitingGrade(r){
-  if(!r.essays||r.essays.length===0) return false;
-  return r.essays.some(e=>!e.graded);
-}
 
 async function checkRules(){
   const msg=$('setupMsg');msg.style.display='block';
@@ -320,6 +323,7 @@ async function logA(){
     aTab('d',document.querySelector('#aSB a'));tt('Selamat datang, Admin '+sch.nama+'!');
   }catch(e){hd();tt('Gagal: '+e.message,'er')}
 }
+
 function outA(){D.aIn=false;D.sch=null;D.isPusat=false;D.ex=[];D.rs=[];D.ss=[];D.allSchools=[];go('pH');tt('Keluar','in')}
 
 async function loadSiswaInit(){
@@ -371,11 +375,17 @@ function rQ(){
   let h=`<div class="asu"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p><h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:4px">${q.text}</h3>`;
   if(q.image)h+=`<img src="${q.image}" class="q-img" alt="Gambar" onerror="this.style.display='none'">`;
   h+=`<div class="grid gap-3" style="margin-top:12px">`;
-  if(q.type==='essay'){h+=`<textarea class="ip" id="ansEss" rows="5" placeholder="Tulis jawaban uraian..." oninput="D.an[${i}]=$('ansEss').value">${D.an[i]||''}</textarea>`;}
-  else{q.options.forEach((o,j)=>{let optText='',optImg='';if(typeof o==='object'&&o!==null){optText=o.text||'';optImg=o.image||'';}else{optText=String(o);}
-    let inner='';if(optImg)inner+=`<img src="${optImg}" class="oc-img" alt="${OL_FULL[j]}" onerror="this.style.display='none'">`;
-    inner+=`<span class="lt">${OL_FULL[j]}</span><span style="flex:1">${optText}</span>`;
-    h+=`<div class="oc ${D.an[i]===j?'sl':''}" onclick="pA(${j})">${inner}</div>`;});}
+  if(q.type==='essay'){
+    h+=`<textarea class="ip" id="ansEss" rows="5" placeholder="Tulis jawaban uraian..." oninput="D.an[${i}]=$('ansEss').value">${D.an[i]||''}</textarea>`;
+  }else{
+    q.options.forEach((o,j)=>{
+      let optText='',optImg='';
+      if(typeof o==='object'&&o!==null){optText=o.text||'';optImg=o.image||'';}else{optText=String(o);}
+      let inner='';if(optImg)inner+=`<img src="${optImg}" class="oc-img" alt="${OL_FULL[j]}" onerror="this.style.display='none'">`;
+      inner+=`<span class="lt">${OL_FULL[j]}</span><span style="flex:1">${optText}</span>`;
+      h+=`<div class="oc ${D.an[i]===j?'sl':''}" onclick="pA(${j})">${inner}</div>`;
+    });
+  }
   h+=`</div></div>`;$('eA').innerHTML=h;
   $('eN').innerHTML=`<button class="bt bt3 bts" onclick="pvQ()" ${i===0?'disabled style="opacity:.4;pointer-events:none"':''}><i class="fas fa-arrow-left"></i> Sebelumnya</button>
   <div class="flex gap-1 flex-wrap justify-center">${ex.questions.map((_,j)=>`<div onclick="jQ(${j})" style="width:27px;height:27px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:800;cursor:pointer;transition:all .2s;${j===i?'background:var(--ac);color:#fff':D.an[j]!==undefined?'background:rgba(34,197,94,.15);color:#16a34a':'background:var(--bd);color:var(--mt)'}">${j+1}</div>`).join('')}</div>
@@ -396,23 +406,14 @@ async function finEx(){
 }
 
 function showR(r){
-  go('pRE');
-  /* PERBAIKAN: gunakan isWaitingGrade() bukan cek array essays saja */
-  const waiting = isWaitingGrade(r);
-  const sc=r.score||0;
-  let g,c,em,msg;
-  if(waiting){g='?';c='#3B82F6';em='⏳';msg='Jawaban uraian sedang dikoreksi Admin/Guru.';}
-  else if(sc>=90){g='A';c='#22C55E';em='🎉';msg='Luar Biasa!';}
-  else if(sc>=80){g='B';c='#00B4D8';em='😊';msg='Bagus!';}
-  else if(sc>=70){g='C';c='#EAB308';em='👍';msg='Cukup Baik!';}
-  else if(sc>=60){g='D';c='#FF6B35';em='💪';msg='Jangan Menyerah!';}
-  else{g='E';c='#EF4444';em='📚';msg='Ayo Belajar Lebih Giat!';}
-  const tm=Math.floor(r.timeUsed/60),ts=r.timeUsed%60;
-  if(!waiting&&sc>=80)cft();
+  go('pRE');let g,c,em,msg;const sc=r.score||0;
+  if(r.essays&&r.essays.length>0){em='⏳';c='#3B82F6';msg='Uraian akan dikoreksi Admin.';g='?';}
+  else if(sc>=90){g='A';c='#22C55E';em='🎉';msg='Luar Biasa!';}else if(sc>=80){g='B';c='#00B4D8';em='😊';msg='Bagus!';}else if(sc>=70){g='C';c='#EAB308';em='👍';msg='Cukup Baik!';}else if(sc>=60){g='D';c='#FF6B35';em='💪';msg='Jangan Menyerah!';}else{g='E';c='#EF4444';em='📚';msg='Ayo Belajar Lebih Giat!';}
+  const tm=Math.floor(r.timeUsed/60),ts=r.timeUsed%60;if(sc>=80&&!r.essays)cft();
   $('rC').innerHTML=`<div class="schb mb-4" style="background:rgba(255,107,53,.08);color:var(--ac)"><i class="fas fa-school"></i> ${D.sch.nama}</div>
   <div style="font-size:3rem;margin-bottom:6px">${em}</div><h2 style="font-size:1.25rem;margin-bottom:4px">Hasil Ujian</h2>
   <p style="color:var(--mt);font-size:.82rem;margin-bottom:18px">${r.mapel} — Kelas ${r.kelas}</p>
-  <div class="flex justify-center mb-5"><div class="rc" style="border-color:${c}"><span class="sc" style="color:${c}">${waiting?'?':sc}</span><span class="rl" style="color:${c}">Grade ${g}</span></div></div>
+  <div class="flex justify-center mb-5"><div class="rc" style="border-color:${c}"><span class="sc" style="color:${c}">${r.essays&&r.essays.length>0?'?':r.score}</span><span class="rl" style="color:${c}">Grade ${g}</span></div></div>
   <p style="font-size:.95rem;font-weight:700;margin-bottom:18px;color:${c}">${msg}</p>
   <div class="grid grid-cols-3 gap-3 mb-6">
     <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Benar</p><p style="font-size:1.15rem;font-weight:800;color:#22C55E">${r.correct}</p></div>
@@ -420,135 +421,31 @@ function showR(r){
     <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Waktu</p><p style="font-size:.9rem;font-weight:800">${tm}:${String(ts).padStart(2,'0')}</p></div>
   </div>
   <div class="flex gap-3 justify-center flex-wrap">
-    <button class="bt bt5 bts" onclick="cPDFSiswa('${r.nis}')"><i class="fas fa-file-pdf"></i> Cetak PDF</button>
+    <button class="bt bt5 bts" onclick="cPDF('${r.id}')"><i class="fas fa-file-pdf"></i> Cetak PDF</button>
     <button class="bt bt3 bts" onclick="go('pSD');renderSD()"><i class="fas fa-arrow-left"></i> Kembali</button>
     <button class="bt bt2 bts" onclick="outS()"><i class="fas fa-sign-out-alt"></i> Keluar</button>
   </div>`;
 }
 function cft(){const cols=['#FF6B35','#00B4D8','#22C55E','#EAB308','#A855F7','#EF4444','#FF69B4'];for(let i=0;i<40;i++){const el=document.createElement('div');el.className='cp';el.style.left=Math.random()*100+'vw';el.style.background=cols[Math.floor(Math.random()*cols.length)];el.style.borderRadius=Math.random()>.5?'50%':'2px';el.style.width=(6+Math.random()*8)+'px';el.style.height=(6+Math.random()*8)+'px';el.style.animationDuration=(2+Math.random()*2)+'s';el.style.animationDelay=(Math.random()*1.5)+'s';document.body.appendChild(el);setTimeout(()=>el.remove(),5000)}}
 
-/* ============================================================
-   CETAK PDF HASIL — GABUNGKAN SEMUA MAPEL PER SISWA
-   ============================================================ */
-async function cPDFSiswa(nis){
-  const stu=D.ss.find(s=>s.nis===nis);if(!stu)return;
-  const sch=D.sch;
-  /* Ambil SEMUA hasil ujian siswa ini, kelompokkan per mapel */
-  const results=D.rs.filter(r=>r.nis===nis);
-  if(results.length===0)return tt('Belum ada hasil ujian!','er');
-
-  /* Kelompokkan per mapel, urutkan alphabet */
-  const byMapel={};
-  results.forEach(r=>{
-    const k=r.mapel;if(!byMapel[k])byMapel[k]=[];byMapel[k].push(r);
-  });
-  const mapelKeys=Object.keys(byMapel).sort();
-
-  /* Hitung rata-rata keseluruhan */
-  const allScored=results.filter(r=>!isWaitingGrade(r));
-  const rataRata=allScored.length?Math.round(allScored.reduce((a,r)=>a+(r.score||0),0)/allScored.length):0;
-
-  const d=new Date();const tgl=d.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
-
-  const box=$('pB');box.style.left='0';box.style.top='0';box.style.zIndex='9999';
-
-  let tableRows='';
-  mapelKeys.forEach((mapel,idx)=>{
-    const r=byMapel[mapel][0]; // Ambil hasil pertama per mapel
-    const waiting=isWaitingGrade(r);
-    const sc=r.score||0;
-    let grade,label;
-    if(waiting){grade='-';label='Menunggu Koreksi';}
-    else if(sc>=90){grade='A';label='Sangat Baik';}
-    else if(sc>=80){grade='B';label='Baik';}
-    else if(sc>=70){grade='C';label='Cukup';}
-    else if(sc>=60){grade='D';label='Kurang';}
-    else{grade='E';label='Sangat Kurang';}
-    tableRows+=`<tr>
-      <td style="text-align:center">${idx+1}</td>
-      <td>${mapel}</td>
-      <td style="text-align:center">${r.total}</td>
-      <td style="text-align:center">${r.correct}</td>
-      <td style="text-align:center">${r.total-r.correct}</td>
-      <td style="text-align:center;font-weight:800">${waiting?'-':sc}</td>
-      <td style="text-align:center;font-weight:800">${grade}</td>
-      <td style="text-align:center">${label}</td>
-    </tr>`;
-  });
-
-  box.innerHTML=`<div style="width:210mm;padding:18mm;font-family:'Nunito',sans-serif;color:#000;background:#fff;font-size:11pt;line-height:1.6">
-    <div style="text-align:center;border-bottom:3px double #333;padding-bottom:12px;margin-bottom:16px">
-      <p style="font-size:9pt;margin:0;color:#555">NPSN: ${sch.npsn}</p>
-      <h2 style="font-family:'Fredoka';font-size:15pt;margin:4px 0">${sch.nama.toUpperCase()}</h2>
-      <p style="font-size:9pt;margin:0;color:#555">${sch.kota}, ${sch.prov}</p>
-      <p style="font-family:'Fredoka';font-size:13pt;margin:10px 0 2px;font-weight:700">LAPORAN HASIL PENILAIAN TENGAH SEMESTER</p>
-      <p style="font-size:10pt;margin:2px 0 0;color:#555">Tahun Pelajaran 2024/2025</p>
-    </div>
-    <table style="border:none;margin-bottom:16px">
-      <tr><td style="border:none;padding:3px 8px;width:140px;font-weight:700">Nama Siswa</td><td style="border:none;padding:3px 8px">: ${stu.nama}</td></tr>
-      <tr><td style="border:none;padding:3px 8px;font-weight:700">NIS</td><td style="border:none;padding:3px 8px">: ${stu.nis}</td></tr>
-      <tr><td style="border:none;padding:3px 8px;font-weight:700">Kelas</td><td style="border:none;padding:3px 8px">: ${stu.kelas}</td></tr>
-      <tr><td style="border:none;padding:3px 8px;font-weight:700">Orang Tua/Wali</td><td style="border:none;padding:3px 8px">: ${stu.ortu||'-'}</td></tr>
-      <tr><td style="border:none;padding:3px 8px;font-weight:700">Rata-rata Nilai</td><td style="border:none;padding:3px 8px;font-weight:800">: ${rataRata}</td></tr>
-    </table>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
-      <thead>
-        <tr style="background:#f0f0f0">
-          <th style="border:1px solid #333;padding:6px 8px;text-align:center;width:30px">No</th>
-          <th style="border:1px solid #333;padding:6px 8px;text-align:left">Mata Pelajaran</th>
-          <th style="border:1px solid #333;padding:6px 8px;text-align:center;width:40px">Soal</th>
-          <th style="border:1px solid #333;padding:6px 8px;text-align:center;width:40px">Benar</th>
-          <th style="border:1px solid #333;padding:6px 8px;text-align:center;width:40px">Salah</th>
-          <th style="border:1px solid #333;padding:6px 8px;text-align:center;width:45px">Nilai</th>
-          <th style="border:1px solid #333;padding:6px 8px;text-align:center;width:40px">Grade</th>
-          <th style="border:1px solid #333;padding:6px 8px;text-align:left">Keterangan</th>
-        </tr>
-      </thead>
-      <tbody>${tableRows}</tbody>
-    </table>
-    <table style="border:none;margin-bottom:8px">
-      <tr><td style="border:none;padding:3px 8px;font-weight:700;width:140px">Tanggal Cetak</td><td style="border:none;padding:3px 8px">: ${tgl}</td></tr>
-    </table>
-    <div style="margin-top:40px;display:flex;justify-content:space-between">
-      <div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Orang Tua/Wali</p><div style="height:60px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:4px">(____________________)</p><p style="font-size:8pt;color:#666">${stu.ortu||''}</p></div>
-      <div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Wali Kelas</p><div style="height:60px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:4px">(____________________)</p></div>
-      <div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Kepala Sekolah</p><div style="height:60px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:4px">(____________________)</p><p style="font-size:8pt;color:#666">NIP. ........................</p></div>
-    </div>
-  </div>`;
-
-  tt('Membuat PDF...','in');
-  try{
-    await html2pdf().set({
-      margin:10,
-      filename:`Laporan_UTS_${stu.nama}_Kelas${stu.kelas}.pdf`,
-      image:{type:'jpeg',quality:.98},
-      html2canvas:{scale:2,useCORS:true},
-      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
-    }).from(box.firstElementChild).save();
-    tt('PDF berhasil diunduh!');
-  }catch(e){tt('Gagal: '+e.message,'er')}
-  box.style.left='-9999px';box.style.zIndex='-1';
-}
-
-/* Fungsi lama untuk cetak per mapel (dipakai Admin) */
 async function cPDF(rid){
   const r=D.rs.find(x=>x.id===rid);if(!r)return;
   const stu=D.ss.find(s=>s.nis===r.nis);const ortu=stu?stu.ortu:'-';const sch=D.sch;
   const d=new Date(r.timestamp),tgl=d.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
-  const sc=r.score||0;let grade,label;
-  if(sc>=90){grade='A';label='Sangat Baik'}else if(sc>=80){grade='B';label='Baik'}else if(sc>=70){grade='C';label='Cukup'}else if(sc>=60){grade='D';label='Kurang'}else{grade='E';label='Sangat Kurang'}
+  let grade,label;if(r.score>=90){grade='A';label='Sangat Baik'}else if(r.score>=80){grade='B';label='Baik'}else if(r.score>=70){grade='C';label='Cukup'}else if(r.score>=60){grade='D';label='Kurang'}else{grade='E';label='Sangat Kurang'}
   const tm=Math.floor(r.timeUsed/60),ts=r.timeUsed%60;
-  let essayHtml='';if(r.essays&&r.essays.length>0){r.essays.forEach((e,i)=>{essayHtml+=`<div style="margin-bottom:12px;border-bottom:1px solid #ccc;padding-bottom:8px"><p style="font-weight:bold">${i+1}. ${e.text}</p><p><b>Kunci:</b> ${e.key||'-'}</p><p><b>Jawaban:</b> ${e.answer||'-'}</p><p><b>Nilai:</b> ${e.score}/100</p></div>`;});}
+  let essayHtml='';if(r.essays&&r.essays.length>0){r.essays.forEach((e,i)=>{
+    const status = e.graded ? `<b>Nilai:</b> ${e.score}/100` : `<b style="color:#dc2626">Menunggu Koreksi</b>`;
+    essayHtml+=`<div class="essay-block"><p style="font-weight:bold">${i+1}. ${e.text}</p><p><b>Kunci:</b> ${e.key||'-'}</p><p><b>Jawaban:</b> ${e.answer||'-'}</p><p>${status}</p></div>`;
+  });}
   const box=$('pB');box.style.left='0';box.style.top='0';box.style.zIndex='9999';
-  box.innerHTML=`<div style="width:210mm;padding:18mm;font-family:'Nunito',sans-serif;color:#000;background:#fff;font-size:11pt;line-height:1.6">
-    <div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><p style="font-size:9pt;color:#555">NPSN: ${sch.npsn}</p><h2 style="font-family:'Fredoka';font-size:14pt;margin:2px 0">${sch.nama.toUpperCase()}</h2><p style="font-size:9pt;color:#555">${sch.kota}, ${sch.prov}</p><p style="font-family:'Fredoka';font-size:12pt;margin:8px 0 0;font-weight:700">LAPORAN HASIL PTS</p></div>
-    <table style="border:none;margin-bottom:14px"><tr><td style="border:none;padding:2px 8px;width:140px;font-weight:700">Nama</td><td style="border:none;padding:2px 8px">: ${r.nama}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">NIS</td><td style="border:none;padding:2px 8px">: ${r.nis}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">Kelas</td><td style="border:none;padding:2px 8px">: ${r.kelas}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">Ortu/Wali</td><td style="border:none;padding:2px 8px">: ${ortu}</td></tr></table>
-    <table><thead><tr><th>No</th><th>Mapel</th><th>Soal</th><th>Benar</th><th>Salah</th><th>Nilai</th><th>Grade</th><th>Ket</th></tr></thead><tbody><tr><td>1</td><td>${r.mapel}</td><td>${r.total}</td><td>${r.correct}</td><td>${r.total-r.correct}</td><td style="font-weight:800">${sc}</td><td>${grade}</td><td>${label}</td></tr></tbody></table>
-    <table style="border:none;margin-top:12px"><tr><td style="border:none;padding:2px 8px;font-weight:700">Waktu</td><td style="border:none;padding:2px 8px">: ${tm}m ${ts}s</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">Tanggal</td><td style="border:none;padding:2px 8px">: ${tgl}</td></tr></table>
-    ${essayHtml}
-    <div style="margin-top:36px;display:flex;justify-content:space-between"><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Ortu</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Guru</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Kepsek</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div></div></div>`;
+  box.innerHTML=`<div class="pd" id="pdE"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><p style="font-size:9pt;color:#555">NPSN: ${sch.npsn}</p><h2 style="font-size:14pt;margin:2px 0">${sch.nama.toUpperCase()}</h2><p style="font-size:9pt;color:#555">${sch.kota}, ${sch.prov}</p><p style="font-size:12pt;margin:8px 0 0;font-weight:700">LAPORAN HASIL PTS</p></div>
+  <table style="border:none;margin-bottom:14px"><tr><td style="border:none;padding:2px 8px;width:140px;font-weight:700">Nama</td><td style="border:none;padding:2px 8px">: ${r.nama}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">NIS</td><td style="border:none;padding:2px 8px">: ${r.nis}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">Kelas</td><td style="border:none;padding:2px 8px">: ${r.kelas}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">Ortu/Wali</td><td style="border:none;padding:2px 8px">: ${ortu}</td></tr></table>
+  <table><thead><tr><th>No</th><th>Mapel</th><th>Soal</th><th>Benar</th><th>Salah</th><th>Nilai</th><th>Grade</th><th>Ket</th></tr></thead><tbody><tr><td>1</td><td>${r.mapel}</td><td>${r.total}</td><td>${r.correct}</td><td>${r.total-r.correct}</td><td style="font-weight:800">${r.score}</td><td>${grade}</td><td>${label}</td></tr></tbody></table>
+  <table style="border:none;margin-top:12px"><tr><td style="border:none;padding:2px 8px;font-weight:700">Waktu</td><td style="border:none;padding:2px 8px">: ${tm}m ${ts}s</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">Tanggal</td><td style="border:none;padding:2px 8px">: ${tgl}</td></tr></table>
+  ${essayHtml}<div style="margin-top:36px;display:flex;justify-content:space-between"><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Orang Tua</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Guru Mapel</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Kepala Sekolah</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div></div></div>`;
   tt('Membuat PDF...','in');
-  try{await html2pdf().set({margin:10,filename:`UTS_${r.nama}_${r.mapel}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(box.firstElementChild).save();tt('PDF berhasil!')}catch(e){tt('Gagal: '+e.message,'er')}
+  try{await html2pdf().set({margin:10,filename:`UTS_${r.nama}_${r.mapel}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdE')).save();tt('PDF berhasil!')}catch(e){tt('Gagal: '+e.message,'er')}
   box.style.left='-9999px';box.style.zIndex='-1';
 }
 
@@ -556,10 +453,10 @@ async function cSoalPDF(exId,targetNpsn){
   let ex;if(targetNpsn){const snap=await eR(targetNpsn).doc(exId).get();if(!snap.exists)return tt('Tidak ditemukan!','er');ex={id:snap.id,...snap.data()};}else{ex=D.ex.find(e=>e.id===exId);}
   if(!ex)return;const sch=D.isPusat?{npsn:targetNpsn,nama:targetNpsn,kota:'',prov:''}:D.sch;
   const box=$('pB');box.style.left='0';box.style.top='0';box.style.zIndex='9999';let soalHtml='';
-  ex.questions.forEach((q,i)=>{soalHtml+=`<div style="page-break-inside:avoid;margin-bottom:16px"><p style="font-weight:bold;margin-bottom:4px">${i+1}. ${q.text}</p>`;if(q.image)soalHtml+=`<img src="${q.image}" style="max-width:160px;max-height:120px;object-fit:contain;margin:6px 0;display:block"><br>`;if(q.type==='pg'&&q.options){q.options.forEach((o,j)=>{let txt=typeof o==='object'?o.text:o;soalHtml+=`<p style="margin-left:24px;margin-bottom:2px">${OL_FULL[j]}. ${txt}</p>`;});}soalHtml+=`</div>`;});
-  box.innerHTML=`<div style="width:210mm;padding:18mm;font-family:'Nunito',sans-serif;color:#000;background:#fff;font-size:11pt;line-height:1.6"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><p style="font-size:9pt;color:#555">NPSN: ${sch.npsn}</p><h2 style="font-family:'Fredoka';font-size:14pt;margin:2px 0">${sch.nama.toUpperCase()}</h2><p style="font-family:'Fredoka';font-size:12pt;margin:8px 0 0;font-weight:700">SOAL PTS</p><p style="font-size:10pt;margin:4px 0 0">${ex.mapel} — Kelas ${ex.kelas}</p><p style="font-size:9pt;color:#555">Waktu: ${ex.timeLimit}m | ${ex.questions.length} soal | ${maxOpts(ex.kelas)} opsi</p></div>${soalHtml}</div>`;
+  ex.questions.forEach((q,i)=>{soalHtml+=`<div style="page-break-inside:avoid;margin-bottom:16px"><p style="font-weight:bold;margin-bottom:4px">${i+1}. ${q.text}</p>`;if(q.image)soalHtml+=`<img src="${q.image}" class="q-img-print" style="margin:6px 0;display:block"><br>`;if(q.type==='pg'&&q.options){q.options.forEach((o,j)=>{let txt=typeof o==='object'?o.text:o;soalHtml+=`<p style="margin-left:24px;margin-bottom:2px">${OL_FULL[j]}. ${txt}</p>`;});}soalHtml+=`</div>`;});
+  box.innerHTML=`<div class="pd" id="pdS"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><p style="font-size:9pt;color:#555">NPSN: ${sch.npsn}</p><h2 style="font-size:14pt;margin:2px 0">${sch.nama.toUpperCase()}</h2><p style="font-size:12pt;margin:8px 0 0;font-weight:700">SOAL PTS</p><p style="font-size:10pt;margin:4px 0 0">${ex.mapel} — Kelas ${ex.kelas}</p><p style="font-size:9pt;color:#555">Waktu: ${ex.timeLimit}m | ${ex.questions.length} soal | Opsi: ${maxOpts(ex.kelas)}</p></div>${soalHtml}</div>`;
   tt('Membuat PDF...','in');
-  try{await html2pdf().set({margin:10,filename:`Soal_${ex.mapel}_K${ex.kelas}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(box.firstElementChild).save();tt('PDF soal berhasil!')}catch(e){tt('Gagal: '+e.message,'er')}
+  try{await html2pdf().set({margin:10,filename:`Soal_${ex.mapel}_K${ex.kelas}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdS')).save();tt('PDF soal berhasil!')}catch(e){tt('Gagal: '+e.message,'er')}
   box.style.left='-9999px';box.style.zIndex='-1';
 }
 
@@ -591,8 +488,8 @@ function renderDash(c){
     h+=`</div>`;
   }else if(D.ex.length>0){
     h+=`<h3 style="font-size:1rem;margin-bottom:10px"><i class="fas fa-list mr-2" style="color:var(--ac)"></i>Paket Ujian</h3><div class="grid gap-3">`;
-    D.ex.forEach(ex=>{const m=gm(ex.mapel);const done=D.rs.filter(r=>r.examId===ex.id).length;
-      h+=`<div class="cd" style="padding:14px 18px;cursor:pointer;border-left:5px solid ${m.c}" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(${maxOpts(ex.kelas)} opsi)</span></p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${done}x dikerjakan</p></div></div></div>`;});
+    D.ex.forEach(ex=>{const m=gm(ex.mapel);const done=D.rs.filter(r=>r.examId===ex.id).length;const mo=maxOpts(ex.kelas);
+      h+=`<div class="cd" style="padding:14px 18px;cursor:pointer;border-left:5px solid ${m.c}" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(${mo} opsi)</span></p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${done}x dikerjakan</p></div></div></div>`;});
     h+=`</div>`;
   }else{h+=`<div class="cd" style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px;opacity:.3"><i class="fas fa-inbox"></i></div><p style="font-weight:700;color:var(--mt);margin-bottom:12px">Belum Ada Paket Ujian</p><button class="bt bt1" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><i class="fas fa-plus"></i> Buat Soal</button></div>`;}
   h+=`</div>`;c.innerHTML=h;
@@ -603,11 +500,11 @@ async function lihatSoalSekolah(npsn,nama){
   let h=`<div class="asu"><button class="bt bt3 bts mb-4" onclick="aTab('d',document.querySelectorAll('#aSB a')[0])"><i class="fas fa-arrow-left"></i> Kembali</button>
     <h2 style="font-size:1.3rem;margin-bottom:4px"><i class="fas fa-school mr-2" style="color:var(--ac)"></i>${nama}</h2><p style="color:var(--mt);font-size:.85rem;margin-bottom:20px">NPSN: ${npsn} — ${exs.length} paket</p>`;
   if(exs.length===0){h+=`<div class="cd" style="text-align:center;padding:30px"><p style="color:var(--mt)">Belum ada soal.</p></div>`;}
-  else{h+=`<div class="grid gap-3">`;exs.forEach(ex=>{const m=gm(ex.mapel);
-    h+=`<div class="cd" style="padding:14px 18px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas}${ex.fromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Pusat</span>':''}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m</p></div></div><div class="flex gap-2"><button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}','${npsn}')"><i class="fas fa-file-pdf"></i> Cetak</button><button class="bt bt4 btx" onclick="doHapusSoalSch('${ex.id}','${npsn}','${nama}')"><i class="fas fa-trash"></i></button></div></div></div>`;});h+=`</div>`;}
+  else{h+=`<div class="grid gap-3">`;exs.forEach(ex=>{const m=gm(ex.mapel);const mo=maxOpts(ex.kelas);
+    h+=`<div class="cd" style="padding:14px 18px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt)">(${mo} opsi)</span>${ex.fromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Pusat</span>':''}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m</p></div></div><div class="flex gap-2"><button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}','${npsn}')"><i class="fas fa-file-pdf"></i> Cetak</button><button class="bt bt4 btx" onclick="doHapusSoalSch('${ex.id}','${npsn}','${nama}')"><i class="fas fa-trash"></i></button></div></div></div>`;});h+=`</div>`;}
   h+=`</div>`;c.innerHTML=h;
 }
-async function doHapusSoalSch(exId,npsn,nama){oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus soal dari ${nama}?</h3><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();ld('Menghapus...');eR('${npsn}').doc('${exId}').delete().then(()=>{hd();tt('Dihapus!');lihatSoalSekolah('${npsn}','${nama}')}).catch(e=>{hd();tt('Gagal: '+e.message,'er')})">Hapus</button></div></div>`);}
+async function doHapusSoalSch(exId,npsn,nama){oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus soal dari ${nama}?</h3><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();ld('Menghapus...');eR('${npsn}').doc('${exId}').delete().then(()=>{hd();tt('Dihapus!');lihatSoalSekolah('${npsn}','${nama}')}).catch(e=>{hd();tt('Gagal: '+e.message,'er')})">Hapus</button></div></div>`)}
 
 /* ================================================================
    KELOLA SOAL
@@ -619,39 +516,82 @@ function renderSoal(c){
       <button class="bt bt2 bts" onclick="showImportJSON()"><i class="fas fa-file-import"></i> Import JSON</button>
       <button class="bt bt5 bts" onclick="showContohJSON()"><i class="fas fa-code"></i> Contoh JSON</button>
       <button class="bt bt1 bts" onclick="showBuatUjian()"><i class="fas fa-plus"></i> Buat Ujian</button>
-    </div></div>`;
-  if(D.ex.length===0){h+=`<div class="cd" style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px;opacity:.3"><i class="fas fa-file-alt"></i></div><p style="font-weight:700;color:var(--mt);margin-bottom:8px">${D.isPusat?'Belum ada soal di memori':'Belum ada soal'}</p></div>`;}
-  else{h+=`<div class="grid gap-3">`;D.ex.forEach(ex=>{const m=gm(ex.mapel);const isFP=!!ex.fromPusat;
-    h+=`<div class="cd" style="padding:16px 20px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:46px;height:46px;border-radius:12px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center;font-size:1.2rem"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800;font-size:1rem">${ex.mapel}${isFP&&!D.isPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Dari Pusat</span>':''}</p><p style="font-size:.78rem;color:var(--mt)">Kelas ${ex.kelas} · ${maxOpts(ex.kelas)} opsi · ${ex.questions.length} soal · ${ex.timeLimit}m</p></div></div><div class="flex gap-2 flex-wrap">`;
-    if(D.isPusat){h+=`<button class="bt bt2 btx" onclick="editUjian('${ex.id}',true)"><i class="fas fa-edit"></i> Edit</button><button class="bt bt1 btx" onclick="sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Sebar</button><button class="bt bt4 btx" onclick="D.ex=D.ex.filter(e=>e.id!=='${ex.id}');renderSoal($('aC'));tt('Dihapus dari memori')"><i class="fas fa-trash"></i></button>`;}
-    else{if(isFP){h+=`<span style="font-size:.72rem;color:var(--pr);font-weight:700;background:rgba(99,102,241,.08);padding:4px 10px;border-radius:8px"><i class="fas fa-lock mr-1"></i>Tidak bisa diedit</span><button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button><button class="bt bt4 btx" onclick="hapusUjian('${ex.id}')"><i class="fas fa-trash"></i> Hapus</button>`;}
-    else{h+=`<button class="bt bt2 btx" onclick="editUjian('${ex.id}',false)"><i class="fas fa-edit"></i> Edit</button><button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button><button class="bt bt4 btx" onclick="hapusUjian('${ex.id}')"><i class="fas fa-trash"></i> Hapus</button>`;}}
-    h+=`</div></div></div>`;});h+=`</div>`;}
+    </div>
+  </div>`;
+
+  if(D.ex.length===0){
+    h+=`<div class="cd" style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px;opacity:.3"><i class="fas fa-file-alt"></i></div><p style="font-weight:700;color:var(--mt);margin-bottom:8px">${D.isPusat?'Belum ada soal di memori':'Belum ada soal di sekolah ini'}</p><p style="font-size:.85rem;color:var(--mt)">${D.isPusat?'Buat soal baru atau import JSON, lalu sebar ke sekolah.':'Soal dari Admin Pusat akan muncul setelah disebarkan.'}</p></div>`;
+  }else{
+    h+=`<div class="grid gap-3">`;
+    D.ex.forEach(ex=>{
+      const m=gm(ex.mapel);const mo=maxOpts(ex.kelas);const hasImg=ex.questions.some(q=>q.image||(q.options&&q.options.some(o=>typeof o==='object'&&o.image)));
+      const isFromPusat=!!ex.fromPusat;
+      h+=`<div class="cd" style="padding:16px 20px"><div class="flex items-center justify-between flex-wrap gap-3">
+        <div class="flex items-center gap-3">
+          <div style="width:46px;height:46px;border-radius:12px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center;font-size:1.2rem"><i class="fas ${m.ic}"></i></div>
+          <div>
+            <p style="font-weight:800;font-size:1rem">${ex.mapel} ${hasImg?'<span class="tag-img"><i class="fas fa-image"></i></span>':''}${isFromPusat&&!D.isPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Dari Pusat</span>':''}</p>
+            <p style="font-size:.78rem;color:var(--mt)">Kelas ${ex.kelas} · ${mo} opsi · ${ex.questions.length} soal · ${ex.timeLimit}m</p>
+          </div>
+        </div>
+        <div class="flex gap-2 flex-wrap">`;
+      
+      if(D.isPusat){
+        /* ADMIN PUSAT: bisa edit & sebar */
+        h+=`<button class="bt bt2 btx" onclick="editUjian('${ex.id}',true)"><i class="fas fa-edit"></i> Edit</button>
+          <button class="bt bt1 btx" onclick="sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Sebar</button>
+          <button class="bt bt4 btx" onclick="D.ex=D.ex.filter(e=>e.id!=='${ex.id}');renderSoal($('aC'));tt('Dihapus dari memori')"><i class="fas fa-trash"></i></button>`;
+      }else{
+        /* ADMIN SEKOLAH: cek apakah soal dari pusat */
+        if(isFromPusat){
+          /* Soal dari pusat: TIDAK BISA EDIT, hanya bisa hapus */
+          h+=`<span style="font-size:.72rem;color:var(--pr);font-weight:700;background:rgba(99,102,241,.08);padding:4px 10px;border-radius:8px"><i class="fas fa-lock mr-1"></i>Tidak bisa diedit</span>
+            <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button>
+            <button class="bt bt4 btx" onclick="hapusUjian('${ex.id}')"><i class="fas fa-trash"></i> Hapus</button>`;
+        }else{
+          /* Soal buatan sendiri: bisa edit */
+          h+=`<button class="bt bt2 btx" onclick="editUjian('${ex.id}',false)"><i class="fas fa-edit"></i> Edit</button>
+            <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button>
+            <button class="bt bt4 btx" onclick="hapusUjian('${ex.id}')"><i class="fas fa-trash"></i> Hapus</button>`;
+        }
+      }
+      h+=`</div></div></div>`;
+    });
+    h+=`</div>`;
+  }
   h+=`</div>`;c.innerHTML=h;
 }
 
 /* ===== SEBAR KE SEKOLAH ===== */
 function sebarKeSekolah(exId){
-  const ex=D.ex.find(e=>e.id===exId);if(!ex)return;if(D.allSchools.length===0)return tt('Belum ada sekolah!','er');
+  const ex=D.ex.find(e=>e.id===exId);if(!ex)return;
+  if(D.allSchools.length===0)return tt('Belum ada sekolah terdaftar!','er');
+  const mo=maxOpts(ex.kelas);
   let h=`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-share-alt mr-2" style="color:var(--ac)"></i>Sebar ke Sekolah</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
-    <div class="cd mb-4" style="background:var(--bg);border-color:var(--ac)"><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas}</p><p style="font-size:.82rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${maxOpts(ex.kelas)} opsi</p></div>
-    <p class="mb-3 font-bold" style="font-size:.88rem">Pilih Sekolah:</p>
+    <div class="cd mb-4" style="background:var(--bg);border-color:var(--ac)"><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas}</p><p style="font-size:.82rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${mo} opsi per soal</p></div>
+    <p class="mb-3 font-bold" style="font-size:.88rem">Pilih Sekolah Tujuan:</p>
     <div class="mb-3 flex gap-2"><button class="bt bt1 bts" onclick="document.querySelectorAll('.sch-chk').forEach(c=>{c.checked=true})"><i class="fas fa-check-double"></i> Semua</button><button class="bt bt3 bts" onclick="document.querySelectorAll('.sch-chk').forEach(c=>{c.checked=false})"><i class="fas fa-times"></i> Batal</button></div>
-    <div class="grid gap-2 mb-4" style="max-height:300px;overflow-y:auto">`;
-  D.allSchools.forEach(s=>{h+=`<label class="cd" style="padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;margin:0"><input type="checkbox" class="sch-chk" value="${s.npsn}" style="width:18px;height:18px;accent-color:var(--ac)"><div style="flex:1"><p style="font-weight:700;font-size:.88rem">${s.nama}</p><p style="font-size:.72rem;color:var(--mt)">NPSN: ${s.npsn} · ${s.kota}</p></div></label>`;});
-  h+=`</div><div id="sebarInfo" style="display:none;margin-bottom:12px"></div><button class="bt bt1 w-full justify-center" onclick="doSebarKeSekolah('${exId}')"><i class="fas fa-cloud-upload-alt"></i> Sebarkan</button></div>`;oMo(h);
+    <div class="grid gap-2 mb-4" style="max-height:300px;overflow-y:auto" id="schCheckList">`;
+  D.allSchools.forEach(s=>{h+=`<label class="cd" style="padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;margin:0"><input type="checkbox" class="sch-chk" value="${s.npsn}" style="width:18px;height:18px;accent-color:var(--ac);cursor:pointer"><div style="flex:1"><p style="font-weight:700;font-size:.88rem">${s.nama}</p><p style="font-size:.72rem;color:var(--mt)">NPSN: ${s.npsn} · ${s.kota}</p></div></label>`;});
+  h+=`</div><div id="sebarInfo" style="display:none;margin-bottom:12px"></div>
+    <button class="bt bt1 w-full justify-center" onclick="doSebarKeSekolah('${exId}')"><i class="fas fa-cloud-upload-alt"></i> Sebarkan</button></div>`;
+  oMo(h);
 }
+
 async function doSebarKeSekolah(exId){
   const ex=D.ex.find(e=>e.id===exId);if(!ex)return;
   const checked=[...document.querySelectorAll('.sch-chk:checked')].map(cb=>cb.value);
   if(checked.length===0)return tt('Pilih minimal 1 sekolah!','er');
   const info=$('sebarInfo');info.style.display='block';let berhasil=0;
-  for(const npsn of checked){try{await eR(npsn).doc(exId).set({id:exId,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,questions:ex.questions,fromPusat:true,sharedAt:Date.now(),createdAt:ex.createdAt||Date.now()});
-    berhasil++;info.innerHTML=`<div style="background:#F0FDF4;border:2px solid var(--ok);border-radius:12px;padding:14px"><p style="font-weight:800;color:var(--ok)"><i class="fas fa-check-circle mr-1"></i> ${berhasil}/${checked.length} berhasil</p><div style="margin-top:6px;height:8px;background:var(--bd);border-radius:8px;overflow:hidden"><div style="height:100%;background:var(--ok);width:${(berhasil/checked.length*100)}%;transition:width .3s"></div></div></div>`;}catch(e){}}
+  for(const npsn of checked){
+    try{await eR(npsn).doc(exId).set({id:exId,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,questions:ex.questions,fromPusat:true,sharedAt:Date.now(),createdAt:ex.createdAt||Date.now()});
+      berhasil++;info.innerHTML=`<div style="background:#F0FDF4;border:2px solid var(--ok);border-radius:12px;padding:14px"><p style="font-weight:800;color:var(--ok)"><i class="fas fa-check-circle mr-1"></i> ${berhasil}/${checked.length} berhasil</p><div style="margin-top:6px;height:8px;background:var(--bd);border-radius:8px;overflow:hidden"><div style="height:100%;background:var(--ok);width:${(berhasil/checked.length*100)}%;transition:width .3s"></div></div></div>`;
+    }catch(e){}
+  }
   tt(`Berhasil disebar ke ${berhasil} sekolah!`);cMo();
 }
 
-/* ===== MODAL BIKIN UJIAN ===== */
+/* ===== MODAL: BIKIN UJIAN ===== */
 function showBuatUjian(){
   oMo(`<div><div class="flex items-center justify-between mb-5"><h3 style="font-size:1.2rem"><i class="fas fa-plus-circle mr-2" style="color:var(--ac)"></i>Buat Paket Ujian</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
@@ -660,15 +600,21 @@ function showBuatUjian(){
       <div><label class="block mb-1 font-bold" style="font-size:.82rem">Waktu (menit)</label><input id="bT" class="ip" type="number" value="60" min="10" max="300"></div>
     </div>
     <div id="opsiInfo" style="background:#EFF6FF;border:2px solid var(--inf);border-radius:12px;padding:14px;margin-bottom:16px"></div>
-    ${D.isPusat?`<div style="background:var(--bg);border:2px dashed var(--bd);border-radius:12px;padding:14px;margin-bottom:16px"><p style="font-size:.85rem;color:var(--mt)"><i class="fas fa-info-circle mr-1" style="color:var(--ac2)"></i> Disimpan di memori. Setelah selesai, klik <b>"Sebar ke Sekolah"</b>.</p></div>`:''}
+    ${D.isPusat?`<div style="background:var(--bg);border:2px dashed var(--bd);border-radius:12px;padding:14px;margin-bottom:16px"><p style="font-size:.85rem;color:var(--mt)"><i class="fas fa-info-circle mr-1" style="color:var(--ac2)"></i> Soal disimpan di memori. Setelah selesai, klik <b>"Sebar ke Sekolah"</b>.</p></div>`:''}
     <button class="bt bt1 w-full justify-center" onclick="buatUjian()"><i class="fas fa-arrow-right"></i> Lanjut Input Soal</button></div>`);
   updateOpsiInfo();
 }
-function updateOpsiInfo(){const k=parseInt($('bK')?.value)||3;const el=$('opsiInfo');if(!el)return;el.innerHTML=`<p style="font-weight:800;color:var(--inf);font-size:.9rem"><i class="fas fa-list-ol mr-1"></i> Kelas ${k}: Maksimal ${maxOpts(k)} opsi (${OL_FULL.slice(0,maxOpts(k)).join(', ')})</p>`;}
+
+function updateOpsiInfo(){
+  const k=parseInt($('bK')?.value)||3;const mo=maxOpts(k);
+  const el=$('opsiInfo');if(!el)return;
+  el.innerHTML=`<p style="font-weight:800;color:var(--inf);font-size:.9rem"><i class="fas fa-list-ol mr-1"></i> Kelas ${k}: Maksimal ${mo} opsi jawaban (${OL_FULL.slice(0,mo).join(', ')})</p>`;
+}
 
 async function buatUjian(){
   const mapel=$v('bM'),kelas=parseInt($('bK').value),timeLimit=parseInt($('bT').value)||60;
-  if(!mapel||!kelas)return tt('Lengkapi!','er');const id=uid();const exam={id,mapel,kelas,timeLimit,questions:[],createdAt:Date.now()};
+  if(!mapel||!kelas)return tt('Lengkapi semua field!','er');
+  const id=uid();const exam={id,mapel,kelas,timeLimit,questions:[],createdAt:Date.now()};
   if(D.isPusat){D.ex.push(exam);cMo();tt('Paket ujian dibuat!');editUjian(id,true);}
   else{ld('Menyimpan...');await eR(D.sch.npsn).doc(id).set(exam);D.ex.push(exam);hd();cMo();tt('Paket ujian dibuat!');editUjian(id,false);}
 }
@@ -679,84 +625,160 @@ function editUjian(eid,isMemori){
   D.editQs=JSON.parse(JSON.stringify(ex.questions));D.editIdx=-1;D.editTargetNpsn=isMemori?null:D.sch.npsn;D.editKelas=ex.kelas;
   renderEditSoal(ex,isMemori);
 }
+
 function renderEditSoal(ex,isMemori){
   const c=$('aC');const m=gm(ex.mapel);const mo=maxOpts(ex.kelas);
-  let h=`<div class="asu"><div class="flex items-center gap-3 mb-5"><button class="bt bt3 btx" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><i class="fas fa-arrow-left"></i></button><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><h2 style="font-size:1.2rem;line-height:1.2">${ex.mapel} — Kelas ${ex.kelas}</h2><p style="font-size:.78rem;color:var(--mt)">${D.editQs.length} soal · ${ex.timeLimit}m · <b style="color:var(--ac)">${mo} opsi</b>${isMemori?' · <span style="color:var(--inf)">[Memori Pusat]</span>':''}</p></div></div>
+  let h=`<div class="asu">
+    <div class="flex items-center gap-3 mb-5">
+      <button class="bt bt3 btx" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><i class="fas fa-arrow-left"></i></button>
+      <div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div>
+      <div><h2 style="font-size:1.2rem;line-height:1.2">${ex.mapel} — Kelas ${ex.kelas}</h2><p style="font-size:.78rem;color:var(--mt)">${D.editQs.length} soal · ${ex.timeLimit}m · <b style="color:var(--ac)">${mo} opsi (A-${OL_FULL[mo-1]})</b>${isMemori?' · <span style="color:var(--inf)">[Memori Pusat]</span>':''}</p></div>
+    </div>
     <div class="cd mb-4" style="border-color:var(--ac);border-style:dashed">
       <h4 style="font-size:.95rem;margin-bottom:12px"><i class="fas fa-pen mr-2" style="color:var(--ac)"></i>${D.editIdx>=0?'Edit Soal '+(D.editIdx+1):'Tambah Soal Baru'}</h4>
       <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Tipe</label><div class="flex gap-2"><button id="tpPG" class="bt ${D.editIdx<0||D.editQs[D.editIdx]?.type!=='essay'?'bt1':'bt3'} bts" onclick="setQType('pg')"><i class="fas fa-list"></i> PG (${mo} opsi)</button><button id="tpES" class="bt ${D.editIdx>=0&&D.editQs[D.editIdx]?.type==='essay'?'bt1':'bt3'} bts" onclick="setQType('essay')"><i class="fas fa-align-left"></i> Uraian</button></div></div>
       <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Teks Soal *</label><textarea id="eqText" class="ip" rows="3" placeholder="Tulis pertanyaan...">${D.editIdx>=0?D.editQs[D.editIdx].text:''}</textarea></div>
-      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem"><i class="fas fa-image mr-1" style="color:var(--ac2)"></i> URL Gambar (opsional)</label><input id="eqImg" class="ip" placeholder="https://..." value="${D.editIdx>=0?(D.editQs[D.editIdx].image||''):''}" oninput="previewQImg()"><div id="eqImgPrev" style="margin-top:8px">${D.editIdx>=0&&D.editQs[D.editIdx].image?`<img src="${D.editQs[D.editIdx].image}" style="max-width:200px;max-height:150px;border-radius:10px;border:2px solid var(--bd);object-fit:contain" onerror="this.parentElement.innerHTML=''">`:''}</div></div>
-      <div id="eqOptsWrap"><label class="block mb-2 font-bold" style="font-size:.82rem">Opsi (maks ${mo})</label><div class="grid gap-2" id="eqOpts"></div><div id="addOptWrap"></div><div class="mt-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Jawaban Benar</label><select id="eqAns" class="ip" style="max-width:200px"></select></div></div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem"><i class="fas fa-image mr-1" style="color:var(--ac2)"></i> URL Gambar Soal (opsional)</label><input id="eqImg" class="ip" placeholder="https://..." value="${D.editIdx>=0?(D.editQs[D.editIdx].image||''):''}" oninput="previewQImg()"><div id="eqImgPrev" style="margin-top:8px">${D.editIdx>=0&&D.editQs[D.editIdx].image?`<img src="${D.editQs[D.editIdx].image}" style="max-width:200px;max-height:150px;border-radius:10px;border:2px solid var(--bd);object-fit:contain" onerror="this.parentElement.innerHTML=''">`:''}</div></div>
+      <div id="eqOptsWrap"><label class="block mb-2 font-bold" style="font-size:.82rem">Opsi Jawaban (maks ${mo})</label><div class="grid gap-2" id="eqOpts"></div><div id="addOptWrap"></div><div class="mt-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Jawaban Benar</label><select id="eqAns" class="ip" style="max-width:200px"></select></div></div>
       <div id="eqEssayWrap" style="display:none"><div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Kunci Jawaban Uraian</label><textarea id="eqKey" class="ip" rows="3" placeholder="Kunci jawaban...">${D.editIdx>=0?(D.editQs[D.editIdx].key||''):''}</textarea></div></div>
-      <div class="flex gap-2 mt-4">${D.editIdx>=0?`<button class="bt bt3 bts" onclick="D.editIdx=-1;renderEditSoal(D.ex.find(e=>e.id==='${ex.id}'),${!!isMemori})"><i class="fas fa-times"></i> Batal</button>`:''}<button class="bt bt1 bts" onclick="simpanSoal('${ex.id}',${!!isMemori})"><i class="fas fa-save"></i> ${D.editIdx>=0?'Update':'Tambah'}</button></div>
+      <div class="flex gap-2 mt-4">
+        ${D.editIdx>=0?`<button class="bt bt3 bts" onclick="D.editIdx=-1;renderEditSoal(D.ex.find(e=>e.id==='${ex.id}'),${!!isMemori})"><i class="fas fa-times"></i> Batal</button>`:''}
+        <button class="bt bt1 bts" onclick="simpanSoal('${ex.id}',${!!isMemori})"><i class="fas fa-save"></i> ${D.editIdx>=0?'Update':'Tambah'} Soal</button>
+      </div>
     </div>
-    <h3 style="font-size:1rem;margin-bottom:10px"><i class="fas fa-list-ol mr-2" style="color:var(--ac)"></i>Daftar Soal (${D.editQs.length})</h3><div class="grid gap-2 mb-6" id="eqList"></div>
-    <div class="flex gap-2 mb-8"><button class="bt bt1 bts" onclick="simpanAllSoal('${ex.id}',${!!isMemori})"><i class="fas fa-save"></i> Simpan</button>${isMemori?`<button class="bt bt5 bts" onclick="simpanAllSoal('${ex.id}',true);sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Simpan & Sebarkan</button>`:''}<button class="bt bt2 bts" onclick="exportExamJSON('${ex.id}')"><i class="fas fa-download"></i> Export</button></div>
-  </div>`;c.innerHTML=h;
+    <h3 style="font-size:1rem;margin-bottom:10px"><i class="fas fa-list-ol mr-2" style="color:var(--ac)"></i>Daftar Soal (${D.editQs.length})</h3>
+    <div class="grid gap-2 mb-6" id="eqList"></div>
+    <div class="flex gap-2 mb-8">
+      <button class="bt bt1 bts" onclick="simpanAllSoal('${ex.id}',${!!isMemori})"><i class="fas fa-save"></i> Simpan</button>
+      ${isMemori?`<button class="bt bt5 bts" onclick="simpanAllSoal('${ex.id}',true);sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Simpan & Sebarkan</button>`:''}
+      <button class="bt bt2 bts" onclick="exportExamJSON('${ex.id}')"><i class="fas fa-download"></i> Export JSON</button>
+    </div>
+  </div>`;
+  c.innerHTML=h;
   setQType(D.editIdx>=0&&D.editQs[D.editIdx].type==='essay'?'essay':'pg',true);
   if(D.editIdx<0||D.editQs[D.editIdx]?.type!=='essay')renderOptRows();
   renderSoalList(ex,isMemori);
 }
+
 function renderSoalList(ex,isMemori){
-  const list=$('eqList');if(!list)return;
+  const list=$('eqList');if(!list)return;const mo=maxOpts(ex.kelas);
   if(D.editQs.length===0){list.innerHTML=`<p style="text-align:center;color:var(--mt);font-size:.85rem;padding:20px">Belum ada soal.</p>`;return;}
   let h='';D.editQs.forEach((q,i)=>{
     const typeL=q.type==='essay'?'<span style="background:rgba(99,102,241,.1);color:var(--pr);padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700">Uraian</span>':'<span style="background:rgba(34,197,94,.1);color:#16a34a;padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700">PG</span>';
-    const optInfo=q.type!=='essay'?`<span style="font-size:.68rem;color:var(--mt)">${q.options.length}/${maxOpts(ex.kelas)} opsi · Jawaban: ${OL_FULL[q.answer]||q.answer}</span>`:'';
+    const optInfo=q.type!=='essay'?`<span style="font-size:.68rem;color:var(--mt)">${q.options.length}/${mo} opsi · Jawaban: ${OL_FULL[q.answer]||q.answer}</span>`:'';
     h+=`<div class="cd" style="padding:12px 16px;display:flex;align-items:center;gap:12px"><div style="min-width:28px;text-align:center;font-weight:800;color:var(--ac);font-size:.9rem">${i+1}</div><div style="flex:1;min-width:0"><p style="font-size:.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${q.text}</p><div style="margin-top:3px;display:flex;align-items:center;gap:6px">${typeL}${optInfo}</div></div><div class="flex gap-1 flex-shrink-0"><button class="bt bt2 btx" onclick="D.editIdx=${i};renderEditSoal(D.ex.find(e=>e.id==='${ex.id}'),${!!isMemori});$('aC').scrollTo({top:0,behavior:'smooth'})" style="padding:4px 8px"><i class="fas fa-edit"></i></button><button class="bt bt4 btx" onclick="D.editQs.splice(${i},1);D.editIdx=-1;renderEditSoal(D.ex.find(e=>e.id==='${ex.id}'),${!!isMemori})" style="padding:4px 8px"><i class="fas fa-trash"></i></button></div></div>`;
-  });list.innerHTML=h;
+  });
+  list.innerHTML=h;
 }
-function setQType(t,silent){const pgW=$('eqOptsWrap'),esW=$('eqEssayWrap'),bPG=$('tpPG'),bES=$('tpES');if(t==='pg'){pgW.style.display='';esW.style.display='none';bPG.className='bt bt1 bts';bES.className='bt bt3 bts';if(!silent)renderOptRows();}else{pgW.style.display='none';esW.style.display='';bPG.className='bt bt3 bts';bES.className='bt bt1 bts';}}
+
+function setQType(t,silent){
+  const pgW=$('eqOptsWrap'),esW=$('eqEssayWrap'),bPG=$('tpPG'),bES=$('tpES');
+  if(t==='pg'){pgW.style.display='';esW.style.display='none';bPG.className='bt bt1 bts';bES.className='bt bt3 bts';if(!silent)renderOptRows();}
+  else{pgW.style.display='none';esW.style.display='';bPG.className='bt bt3 bts';bES.className='bt bt1 bts';}
+}
+
 function renderOptRows(){
-  const mo=maxOpts(D.editKelas);let opts;
-  if(D.editIdx>=0&&D.editQs[D.editIdx]&&D.editQs[D.editIdx].options){opts=D.editQs[D.editIdx].options.slice(0,mo);if(D.editQs[D.editIdx].answer>=opts.length)D.editQs[D.editIdx].answer=0;}
-  else{opts=[];for(let i=0;i<mo;i++)opts.push({text:'',image:''});}
+  const mo=maxOpts(D.editKelas);
+  /* Jika edit soal yang sudah ada opsi, gunakan opsi tersebut (potong jika melebihi mo) */
+  let opts;
+  if(D.editIdx>=0&&D.editQs[D.editIdx]&&D.editQs[D.editIdx].options){
+    opts=D.editQs[D.editIdx].options.slice(0,mo);
+    /* Perbaiki jawaban benar jika melebihi */
+    if(D.editQs[D.editIdx].answer>=opts.length)D.editQs[D.editIdx].answer=0;
+  }else{
+    /* Buat opsi default sesuai mo */
+    opts=[];for(let i=0;i<mo;i++)opts.push({text:'',image:''});
+  }
   opts=opts.map(o=>typeof o==='object'&&o!==null?{text:o.text||'',image:o.image||''}:{text:String(o),image:''});
-  const ans=D.editIdx>=0?D.editQs[D.editIdx].answer:0;const wrap=$('eqOpts');let h='';
-  opts.forEach((o,i)=>{h+=`<div class="flex items-start gap-2" style="padding:8px;background:var(--bg);border-radius:10px"><span style="font-weight:800;font-size:.85rem;color:var(--ac);min-width:22px;margin-top:10px">${OL_FULL[i]}</span><div style="flex:1"><input class="ip opt-text" value="${o.text.replace(/"/g,'&quot;')}" placeholder="Teks ${OL_FULL[i]}" style="margin-bottom:6px"><input class="ip opt-img" value="${o.image}" placeholder="URL gambar" style="font-size:.82rem;padding:8px 12px"></div></div>`;});
+  const ans=D.editIdx>=0?D.editQs[D.editIdx].answer:0;
+  const wrap=$('eqOpts');let h='';
+  opts.forEach((o,i)=>{
+    h+=`<div class="flex items-start gap-2" style="padding:8px;background:var(--bg);border-radius:10px">
+      <span style="font-weight:800;font-size:.85rem;color:var(--ac);min-width:22px;margin-top:10px">${OL_FULL[i]}</span>
+      <div style="flex:1">
+        <input class="ip opt-text" value="${o.text.replace(/"/g,'&quot;')}" placeholder="Teks opsi ${OL_FULL[i]}" style="margin-bottom:6px">
+        <input class="ip opt-img" value="${o.image}" placeholder="URL gambar (opsional)" style="font-size:.82rem;padding:8px 12px">
+      </div>
+    </div>`;
+  });
   wrap.innerHTML=h;
+  /* Tombol tambah opsi: tampilkan hanya jika belum mencapai batas maksimal */
   const addW=$('addOptWrap');
-  if(opts.length<mo){addW.innerHTML=`<button class="bt bt3 btx mt-2" onclick="addOptRow()"><i class="fas fa-plus"></i> Tambah (maks ${mo})</button>`;}
-  else{addW.innerHTML=`<p style="font-size:.75rem;color:var(--mt);margin-top:8px"><i class="fas fa-info-circle mr-1"></i> Maks ${mo} opsi.</p>`;}
+  if(opts.length<mo){addW.innerHTML=`<button class="bt bt3 btx mt-2" onclick="addOptRow()"><i class="fas fa-plus"></i> Tambah Opsi (maks ${mo})</button>`;}
+  else{addW.innerHTML=`<p style="font-size:.75rem;color:var(--mt);margin-top:8px"><i class="fas fa-info-circle mr-1"></i> Kelas ${D.editKelas} maksimal ${mo} opsi (${OL_FULL.slice(0,mo).join(', ')}).</p>`;}
+  /* Update dropdown jawaban benar */
   const sel=$('eqAns');sel.innerHTML=opts.map((_,i)=>`<option value="${i}" ${i===ans?'selected':''}>${OL_FULL[i]}</option>`).join('');
 }
-function addOptRow(){const mo=maxOpts(D.editKelas);const wrap=$('eqOpts');const count=wrap.children.length;if(count>=mo)return tt(`Maks ${mo} opsi!`,'er');
+
+function addOptRow(){
+  const mo=maxOpts(D.editKelas);const wrap=$('eqOpts');const count=wrap.children.length;
+  if(count>=mo)return tt(`Kelas ${D.editKelas} maksimal ${mo} opsi!`,'er');
   const div=document.createElement('div');div.className='flex items-start gap-2';div.style.cssText='padding:8px;background:var(--bg);border-radius:10px';
-  div.innerHTML=`<span style="font-weight:800;font-size:.85rem;color:var(--ac);min-width:22px;margin-top:10px">${OL_FULL[count]}</span><div style="flex:1"><input class="ip opt-text" value="" placeholder="Teks ${OL_FULL[count]}" style="margin-bottom:6px"><input class="ip opt-img" value="" placeholder="URL gambar" style="font-size:.82rem;padding:8px 12px"></div>`;
-  wrap.appendChild(div);const sel=$('eqAns');const opt=document.createElement('option');opt.value=count;opt.textContent=OL_FULL[count];sel.appendChild(opt);
-  if(count+1>=mo){$('addOptWrap').innerHTML=`<p style="font-size:.75rem;color:var(--mt);margin-top:8px">Maksimal ${mo} opsi.</p>`;}
+  div.innerHTML=`<span style="font-weight:800;font-size:.85rem;color:var(--ac);min-width:22px;margin-top:10px">${OL_FULL[count]}</span><div style="flex:1"><input class="ip opt-text" value="" placeholder="Teks opsi ${OL_FULL[count]}" style="margin-bottom:6px"><input class="ip opt-img" value="" placeholder="URL gambar (opsional)" style="font-size:.82rem;padding:8px 12px"></div>`;
+  wrap.appendChild(div);
+  const sel=$('eqAns');const opt=document.createElement('option');opt.value=count;opt.textContent=OL_FULL[count];sel.appendChild(opt);
+  if(count+1>=mo){$('addOptWrap').innerHTML=`<p style="font-size:.75rem;color:var(--mt);margin-top:8px"><i class="fas fa-info-circle mr-1"></i> Sudah ${mo} opsi (maksimal).</p>`;}
 }
+
 function previewQImg(){const url=$v('eqImg');const prev=$('eqImgPrev');if(url){prev.innerHTML=`<img src="${url}" style="max-width:200px;max-height:150px;border-radius:10px;border:2px solid var(--bd);object-fit:contain" onerror="this.parentElement.innerHTML=''">`}else{prev.innerHTML=''}}
+
 function simpanSoal(eid,isMemori){
   const text=$v('eqText');if(!text)return tt('Teks soal wajib!','er');
   const image=$v('eqImg')||'';const isEssay=$('eqEssayWrap').style.display!=='none';const mo=maxOpts(D.editKelas);
   let q={id:uid(),text,image,type:isEssay?'essay':'pg'};
-  if(isEssay){q.key=$v('eqKey')||'';}else{
-    const texts=[...document.querySelectorAll('.opt-text')].map(el=>el.value.trim());const imgs=[...document.querySelectorAll('.opt-img')].map(el=>el.value.trim());
-    if(texts.length<2)return tt('Minimal 2 opsi!','er');if(texts.some(t=>!t))return tt('Semua opsi wajib diisi!','er');
-    if(texts.length>mo)return tt(`Kelas ${D.editKelas} maks ${mo} opsi!`,'er');
-    q.options=texts.map((t,i)=>{const img=imgs[i]||'';return img?{text:t,image:img}:t;});q.answer=parseInt($('eqAns').value)||0;if(q.answer>=q.options.length)q.answer=0;
+  if(isEssay){q.key=$v('eqKey')||'';}
+  else{
+    const texts=[...document.querySelectorAll('.opt-text')].map(el=>el.value.trim());
+    const imgs=[...document.querySelectorAll('.opt-img')].map(el=>el.value.trim());
+    if(texts.length<2)return tt('Minimal 2 opsi!','er');
+    if(texts.some(t=>!t))return tt('Semua opsi wajib diisi!','er');
+    if(texts.length>mo)return tt(`Kelas ${D.editKelas} maksimal ${mo} opsi! Hapus opsi berlebih.`,'er');
+    q.options=texts.map((t,i)=>{const img=imgs[i]||'';return img?{text:t,image:img}:t;});
+    q.answer=parseInt($('eqAns').value)||0;
+    if(q.answer>=q.options.length)q.answer=0;
   }
-  if(D.editIdx>=0){D.editQs[D.editIdx]=q;D.editIdx=-1;tt('Diperbarui!');}else{D.editQs.push(q);tt('Ditambahkan!');}
+  if(D.editIdx>=0){D.editQs[D.editIdx]=q;D.editIdx=-1;tt('Soal diperbarui!');}
+  else{D.editQs.push(q);tt('Soal ditambahkan!');}
   renderEditSoal(D.ex.find(e=>e.id===eid),isMemori);
 }
+
 async function simpanAllSoal(eid,isMemori){
-  if(D.editQs.length===0)return tt('Belum ada soal!','er');const mo=maxOpts(D.editKelas);
-  for(let i=0;i<D.editQs.length;i++){const q=D.editQs[i];if(q.type!=='essay'&&q.options&&q.options.length>mo)return tt(`Soal ${i+1}: ${q.options.length} opsi, maks ${mo}!`,'er');}
+  if(D.editQs.length===0)return tt('Belum ada soal!','er');
+  /* Validasi semua soal: pastikan PG tidak melebihi batas opsi */
+  const mo=maxOpts(D.editKelas);
+  for(let i=0;i<D.editQs.length;i++){
+    const q=D.editQs[i];
+    if(q.type!=='essay'&&q.options&&q.options.length>mo){
+      return tt(`Soal ${i+1} punya ${q.options.length} opsi, maks ${mo} untuk kelas ${D.editKelas}!`,'er');
+    }
+  }
   if(isMemori){const ex=D.ex.find(e=>e.id===eid);if(ex)ex.questions=D.editQs;tt(D.editQs.length+' soal tersimpan!');renderEditSoal(ex,true);}
   else{ld('Menyimpan...');try{const ex=D.ex.find(e=>e.id===eid);await eR(D.sch.npsn).doc(eid).update({questions:D.editQs});ex.questions=D.editQs;hd();tt(D.editQs.length+' soal disimpan!');renderEditSoal(ex,false);}catch(e){hd();tt('Gagal: '+e.message,'er')}}
 }
-async function hapusUjian(eid){oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus Paket Ujian?</h3><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();doHapusUjian('${eid}')">Hapus</button></div></div>`);}
-async function doHapusUjian(eid){ld('Menghapus...');try{await eR(D.sch.npsn).doc(eid).delete();const related=D.rs.filter(r=>r.examId===eid);for(const r of related){await rR(D.sch.npsn).doc(r.id).delete();}D.ex=D.ex.filter(e=>e.id!==eid);D.rs=D.rs.filter(r=>r.examId!==eid);hd();renderSoal($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}}
+
+async function hapusUjian(eid){
+  oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus Paket Ujian?</h3><p style="color:var(--mt);font-size:.85rem;margin-bottom:16px">Hasil terkait ikut terhapus!</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();doHapusUjian('${eid}')">Hapus</button></div></div>`);
+}
+async function doHapusUjian(eid){
+  ld('Menghapus...');try{await eR(D.sch.npsn).doc(eid).delete();const related=D.rs.filter(r=>r.examId===eid);for(const r of related){await rR(D.sch.npsn).doc(r.id).delete();}
+  D.ex=D.ex.filter(e=>e.id!==eid);D.rs=D.rs.filter(r=>r.examId!==eid);hd();renderSoal($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}
+}
 
 /* ===== EXPORT / IMPORT JSON ===== */
-function exportExamJSON(eid){const ex=D.ex.find(e=>e.id===eid);if(!ex)return;const data={mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,questions:ex.questions.map(q=>{const obj={text:q.text,type:q.type||'pg'};if(q.image)obj.image=q.image;if(q.type==='essay'){obj.key=q.key||'';}else{obj.options=q.options.map(o=>typeof o==='object'?{text:o.text||'',image:o.image||''}:o);obj.answer=q.answer;}return obj;})};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`Soal_${ex.mapel}_K${ex.kelas}.json`;a.click();URL.revokeObjectURL(url);tt('JSON diunduh!');}
+function exportExamJSON(eid){
+  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
+  const data={mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,questions:ex.questions.map(q=>{const obj={text:q.text,type:q.type||'pg'};if(q.image)obj.image=q.image;if(q.type==='essay'){obj.key=q.key||'';}else{obj.options=q.options.map(o=>typeof o==='object'?{text:o.text||'',image:o.image||''}:o);obj.answer=q.answer;}return obj;})};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`Soal_${ex.mapel}_K${ex.kelas}.json`;a.click();URL.revokeObjectURL(url);tt('JSON diunduh!');
+}
 
 function showContohJSON(){
-  const contoh={mapel:"Matematika",kelas:1,timeLimit:60,questions:[{text:"Berapakah hasil dari 5 + 3?",image:"",type:"pg",options:["7","8","9"],answer:1},{text:"Manakah gambar yang benar?",image:"",type:"pg",options:[{text:"Lingkaran",image:"https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Circle_-_black_simple.svg/80px-Circle_-_black_simple.svg.png"},{text:"Segitiga",image:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Triangle-01.svg/80px-Triangle-01.svg.png"},{text:"Persegi",image:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Square.svg/80px-Square.svg.png"}],answer:1},{text:"Sebutkan 3 bilangan genap!",image:"",type:"essay",key:"2, 4, 6, 8, 10, ..."}]};
+  const contoh={mapel:"Matematika",kelas:1,timeLimit:60,questions:[
+    {text:"Berapakah hasil dari 5 + 3?",image:"",type:"pg",options:["7","8","9"],answer:1},
+    {text:"Manakah gambar yang benar?",image:"",type:"pg",options:[{text:"Lingkaran",image:"https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Circle_-_black_simple.svg/80px-Circle_-_black_simple.svg.png"},{text:"Segitiga",image:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Triangle-01.svg/80px-Triangle-01.svg.png"},{text:"Persegi",image:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Square.svg/80px-Square.svg.png"}],answer:1},
+    {text:"Sebutkan 3 bilangan genap!",image:"",type:"essay",key:"2, 4, 6, 8, 10, ..."}
+  ]};
   oMo(`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-code mr-2" style="color:var(--ac2)"></i>Contoh JSON (Kelas 1: 3 opsi)</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
-    <div style="background:#FEF3C7;border:2px solid #F59E0B;border-radius:12px;padding:14px;margin-bottom:16px"><p style="font-size:.82rem;color:#92400E;font-weight:700"><i class="fas fa-lightbulb mr-1"></i> Kelas 1-2: <b>3 opsi</b>, Kelas 3-6: <b>4 opsi</b></p></div>
+    <div style="background:#FEF3C7;border:2px solid #F59E0B;border-radius:12px;padding:14px;margin-bottom:16px"><p style="font-size:.82rem;color:#92400E;font-weight:700"><i class="fas fa-lightbulb mr-1"></i> Penting:</p><ul style="font-size:.78rem;color:#92400E;margin:6px 0 0 18px;list-style:disc;line-height:1.8"><li>Kelas 1-2: <b>maksimal 3 opsi</b> (A, B, C)</li><li>Kelas 3-6: <b>maksimal 4 opsi</b> (A, B, C, D)</li><li><b>image</b>: URL gambar (opsional)</li><li><b>options</b>: String saja ATAU {text, image}</li><li><b>answer</b>: Index mulai dari 0</li></ul></div>
     <textarea id="contohTA" class="json-ta" readonly style="min-height:300px">${JSON.stringify(contoh,null,2)}</textarea>
     <div class="flex gap-2 mt-4"><button class="bt bt2 bts" onclick="const b=new Blob([$('contohTA').value],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='contoh_soal.json';a.click();tt('Diunduh!')"><i class="fas fa-download"></i> Download</button><button class="bt bt1 bts" onclick="cMo();showImportJSON()"><i class="fas fa-file-import"></i> Import</button></div></div>`);
 }
@@ -768,21 +790,31 @@ function showImportJSON(){
     <div id="jsonPreview" style="display:none;margin-bottom:12px"></div>
     <button class="bt bt2 w-full justify-center mt-3" onclick="validateAndImport()"><i class="fas fa-check-circle"></i> Validasi & Import</button></div>`);
 }
+
 function validateAndImport(){
-  let raw=$('jsonTA').value.trim();if(!raw)return tt('Paste/upload JSON!','er');let data;try{data=JSON.parse(raw);}catch(e){return tt('JSON tidak valid!','er');}
+  let raw=$('jsonTA').value.trim();if(!raw)return tt('Paste/upload JSON!','er');
+  let data;try{data=JSON.parse(raw);}catch(e){return tt('JSON tidak valid!','er');}
   const errors=[];if(!data.mapel)errors.push('"mapel" wajib');if(!data.kelas||data.kelas<1||data.kelas>6)errors.push('"kelas" harus 1-6');
-  if(!Array.isArray(data.questions)||data.questions.length===0)errors.push('"questions" harus array');if(errors.length>0)return tt('Error: '+errors.join('; '),'er');
-  const mo=maxOpts(data.kelas);
-  data.questions.forEach((q,i)=>{if(!q.text)errors.push(`Soal ${i+1}: "text" wajib`);if(q.type==='essay'){if(!q.key)errors.push(`Soal ${i+1}: butuh "key"`);}else{q.type='pg';if(!Array.isArray(q.options)||q.options.length<2)errors.push(`Soal ${i+1}: min 2 opsi`);if(q.options.length>mo)errors.push(`Soal ${i+1}: kelas ${data.kelas} maks ${mo}, ada ${q.options.length}`);if(typeof q.answer!=='number')errors.push(`Soal ${i+1}: butuh "answer"`);}});
+  if(!Array.isArray(data.questions)||data.questions.length===0)errors.push('"questions" harus array');
   if(errors.length>0)return tt('Error: '+errors.join('; '),'er');
-  $('jsonPreview').innerHTML=`<div style="background:#F0FDF4;border:2px solid var(--ok);border-radius:12px;padding:14px"><p style="font-weight:800;color:var(--ok);margin-bottom:8px"><i class="fas fa-check-circle mr-1"></i> Validasi OK! ${data.questions.length} soal · Kelas ${data.kelas} · ${mo} opsi</p><button class="bt bt1 bts" onclick="doImportJSON()"><i class="fas fa-cloud-upload-alt"></i> Import</button></div>`;$('jsonPreview').style.display='block';window._pendingImport=data;
+  const mo=maxOpts(data.kelas);
+  data.questions.forEach((q,i)=>{
+    if(!q.text)errors.push(`Soal ${i+1}: "text" wajib`);
+    if(q.type==='essay'){if(!q.key)errors.push(`Soal ${i+1}: uraian butuh "key"`);}
+    else{q.type='pg';if(!Array.isArray(q.options)||q.options.length<2)errors.push(`Soal ${i+1}: min 2 opsi`);
+      if(q.options.length>mo)errors.push(`Soal ${i+1}: kelas ${data.kelas} maks ${mo} opsi, ada ${q.options.length}`);
+      if(typeof q.answer!=='number')errors.push(`Soal ${i+1}: butuh "answer"`);}
+  });
+  if(errors.length>0)return tt('Error: '+errors.join('; '),'er');
+  let prev=`<div style="background:#F0FDF4;border:2px solid var(--ok);border-radius:12px;padding:14px"><p style="font-weight:800;color:var(--ok);margin-bottom:8px"><i class="fas fa-check-circle mr-1"></i> Validasi OK! ${data.questions.length} soal · Kelas ${data.kelas} · ${mo} opsi</p><button class="bt bt1 bts" onclick="doImportJSON()"><i class="fas fa-cloud-upload-alt"></i> Ya, Import</button></div>`;
+  $('jsonPreview').innerHTML=prev;$('jsonPreview').style.display='block';window._pendingImport=data;
 }
+
 function doImportJSON(){
   const data=window._pendingImport;if(!data)return;const mo=maxOpts(data.kelas);
   const questions=data.questions.map(q=>{const obj={id:uid(),text:q.text,image:q.image||'',type:q.type||'pg'};if(obj.type==='essay'){obj.key=q.key||'';}else{obj.options=q.options.map(o=>typeof o==='object'&&o.image?{text:o.text||'',image:o.image}:typeof o==='object'?o.text||'':String(o));obj.answer=parseInt(q.answer)||0;if(obj.answer>=obj.options.length)obj.answer=0;}return obj;});
   const id=uid();const exam={id,mapel:data.mapel,kelas:data.kelas,timeLimit:data.timeLimit||60,questions,createdAt:Date.now()};
-  if(D.isPusat){D.ex.push(exam);cMo();tt(questions.length+' soal diimport!');renderSoal($('aC'));}
-  else{ld('Mengimport...');eR(D.sch.npsn).doc(id).set(exam).then(()=>{D.ex.push(exam);hd();cMo();tt(questions.length+' soal diimport!');renderSoal($('aC'));}).catch(e=>{hd();tt('Gagal: '+e.message,'er')});}
+  if(D.isPusat){D.ex.push(exam);cMo();tt(questions.length+' soal diimport ke memori!');renderSoal($('aC'));}else{ld('Mengimport...');eR(D.sch.npsn).doc(id).set(exam).then(()=>{D.ex.push(exam);hd();cMo();tt(questions.length+' soal diimport!');renderSoal($('aC'));}).catch(e=>{hd();tt('Gagal: '+e.message,'er')});}
 }
 
 /* ===== HASIL UJIAN ===== */
@@ -795,14 +827,8 @@ function renderHasil(c){
   Object.values(grouped).forEach(g=>{const m=gm(g.mapel);const avg=Math.round(g.items.reduce((a,r)=>a+(r.score||0),0)/g.items.length);
     h+=`<div class="cd hasil-card" data-mapel="${g.mapel}" data-kelas="${g.kelas}" style="padding:18px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${g.mapel} — Kelas ${g.kelas}</p><p style="font-size:.75rem;color:var(--mt)">${g.items.length} siswa · Rata-rata: ${avg}</p></div></div></div>
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Benar</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Nilai</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`;
-    g.items.sort((a,b)=>(b.score||0)-(a.score||0)).forEach((r,i)=>{
-      /* PERBAIKAN: gunakan isWaitingGrade() */
-      const waiting=isWaitingGrade(r);
-      const sc=r.score||0;let stC,stL;
-      if(waiting){stC='var(--inf)';stL='Menunggu';}
-      else if(sc>=70){stC='var(--ok)';stL='Tuntas';}
-      else{stC='var(--er)';stL='Belum Tuntas';}
-      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.correct}/${r.total}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${waiting?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button></div></td></tr>`;});
+    g.items.sort((a,b)=>(b.score||0)-(a.score||0)).forEach((r,i)=>{const sc=r.score||0;let stC,stL;if(r.essays&&r.essays.length>0){stC='var(--inf)';stL='Menunggu';}else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}
+      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.correct}/${r.total}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${r.essays&&r.essays.length>0?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button></div></td></tr>`;});
     h+=`</tbody></table></div></div>`;});
   h+=`</div></div>`;c.innerHTML=h;
 }
@@ -812,19 +838,15 @@ async function doHapusHasil(rid){ld('Menghapus...');try{await rR(D.sch.npsn).doc
 function koreksiEssay(rid){
   const r=D.rs.find(x=>x.id===rid);if(!r||!r.essays)return;
   let h=`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-pen mr-2" style="color:var(--pr)"></i>Koreksi — ${r.nama}</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>`;
-  r.essays.forEach((e,i)=>{
-    const isGraded=!!e.graded;
-    h+=`<div class="cd mb-3" style="padding:16px;border-left:4px solid ${isGraded?'var(--ok)':'var(--inf)'}">
-      <p style="font-weight:800;margin-bottom:6px">Soal ${i+1}: ${isGraded?'<span style="color:var(--ok);font-size:.75rem">(Sudah dikoreksi)</span>':'<span style="color:var(--inf);font-size:.75rem">(Belum dikoreksi)</span>'}</p>
-      <p style="margin-bottom:8px">${e.text}</p>${e.image?`<img src="${e.image}" class="q-img" style="max-height:140px" onerror="this.style.display='none'">`:''}
-      <div style="background:var(--bg);padding:10px;border-radius:10px;margin-bottom:8px"><p style="font-size:.78rem;color:var(--mt)"><b>Kunci:</b> ${e.key||'-'}</p></div>
-      <div style="background:#EFF6FF;padding:10px;border-radius:10px;margin-bottom:10px"><p style="font-size:.78rem;color:var(--inf)"><b>Jawaban:</b> ${e.answer||'-'}</p></div>
-      <label class="block mb-1 font-bold" style="font-size:.82rem">Nilai (0-100)</label><input class="ip" type="number" id="esScore${i}" value="${e.score||0}" min="0" max="100" style="max-width:120px"></div>`;});
-  h+=`<button class="bt bt1 w-full justify-center" onclick="simpanKoreksi('${rid}')"><i class="fas fa-save"></i> Simpan Nilai</button></div>`;oMo(h);
+  r.essays.forEach((e,i)=>{h+=`<div class="cd mb-3" style="padding:16px"><p style="font-weight:800;margin-bottom:6px">Soal ${i+1}:</p><p style="margin-bottom:8px">${e.text}</p>${e.image?`<img src="${e.image}" class="q-img" style="max-height:140px" onerror="this.style.display='none'">`:''}
+    <div style="background:var(--bg);padding:10px;border-radius:10px;margin-bottom:8px"><p style="font-size:.78rem;color:var(--mt)"><b>Kunci:</b> ${e.key||'-'}</p></div>
+    <div style="background:#EFF6FF;padding:10px;border-radius:10px;margin-bottom:10px"><p style="font-size:.78rem;color:var(--inf)"><b>Jawaban:</b> ${e.answer||'-'}</p></div>
+    <label class="block mb-1 font-bold" style="font-size:.82rem">Nilai (0-100)</label><input class="ip" type="number" id="esScore${i}" value="${e.score||0}" min="0" max="100" style="max-width:120px"></div>`;});
+  h+=`<button class="bt bt1 w-full justify-center" onclick="simpanKoreksi('${rid}')"><i class="fas fa-save"></i> Simpan</button></div>`;oMo(h);
 }
 async function simpanKoreksi(rid){
-  const r=D.rs.find(x=>x.id===rid);if(!r)return;let totalEssay=0,allGraded=true;
-  r.essays.forEach((e,i)=>{const sc=parseInt(document.getElementById('esScore'+i).value)||0;e.score=Math.min(100,Math.max(0,sc));if(sc>0)e.graded=true;else allGraded=false;totalEssay+=e.score;});
+  const r=D.rs.find(x=>x.id===rid);if(!r)return;let totalEssay=0;
+  r.essays.forEach((e,i)=>{const sc=parseInt(document.getElementById('esScore'+i).value)||0;e.score=Math.min(100,Math.max(0,sc));e.graded=true;totalEssay+=e.score;});
   const pgCount=r.total-r.essays.length;const pgScore=pgCount>0?r.autoScore:0;const essayAvg=r.essays.length>0?Math.round(totalEssay/r.essays.length):0;
   let finalScore;if(pgCount>0&&r.essays.length>0)finalScore=Math.round(pgScore*0.6+essayAvg*0.4);else if(r.essays.length>0)finalScore=essayAvg;else finalScore=pgScore;
   r.score=finalScore;ld('Menyimpan...');await rR(D.sch.npsn).doc(rid).update({essays:r.essays,score:finalScore});hd();cMo();renderHasil($('aC'));tt('Nilai disimpan: '+finalScore);
@@ -842,6 +864,7 @@ function renderSiswa(c){
       h+=`</tbody></table></div></div>`;});}
   h+=`</div>`;c.innerHTML=h;
 }
+
 function showTambahSiswa(edit){
   oMo(`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-user-plus mr-2" style="color:var(--ac)"></i>${edit?'Edit':'Tambah'} Siswa</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
     <div class="grid grid-cols-2 gap-3 mb-3"><div><label class="block mb-1 font-bold" style="font-size:.82rem">NIS *</label><input id="swNIS" class="ip" maxlength="20" ${edit?'readonly style="opacity:.6"':''} value="${edit?edit.nis:''}"></div><div><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas *</label><select id="swKelas" class="ip">${KL.map(k=>`<option value="${k.v}" ${edit&&edit.kelas===k.v?'selected':''}>Kelas ${k.l}</option>`).join('')}</select></div></div>
@@ -850,6 +873,7 @@ function showTambahSiswa(edit){
     <div class="mb-4"><label class="block mb-1 font-bold" style="font-size:.82rem">Password *</label><input id="swPwd" class="ip" type="text" value="${edit?edit.password:'siswa123'}"></div>
     <button class="bt bt1 w-full justify-center" onclick="simpanSiswa('${edit?edit.nis:''}')"><i class="fas fa-save"></i> ${edit?'Update':'Simpan'}</button></div>`);
 }
+
 async function simpanSiswa(oldNis){
   const nis=$v('swNIS'),kelas=parseInt($('swKelas').value),nama=$v('swNama'),ortu=$v('swOrtu'),password=$v('swPwd');
   if(!nis||!nama||!password)return tt('NIS, Nama, Password wajib!','er');ld('Menyimpan...');try{
@@ -858,7 +882,8 @@ async function simpanSiswa(oldNis){
       await wR(D.sch.npsn).doc(nis).set({nis,kelas,nama,ortu,password,createdAt:Date.now()});D.ss.push({id:nis,nis,kelas,nama,ortu,password,createdAt:Date.now()});hd();cMo();renderSiswa($('aC'));tt('Ditambahkan!');}
   }catch(e){hd();tt('Gagal: '+e.message,'er')}
 }
-async function doHapusSiswa(nis){ld('Menghapus...');try{await wR(D.sch.npsn).doc(nis).delete();D.ss=D.ss.filter(s=>s.nis!==nis);hd();renderSiswa($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er)}}
+async function doHapusSiswa(nis){ld('Menghapus...');try{await wR(D.sch.npsn).doc(nis).delete();D.ss=D.ss.filter(s=>s.nis!==nis);hd();renderSiswa($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}}
+
 function showImportSiswaJSON(){
   oMo(`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-file-import mr-2" style="color:var(--ac2)"></i>Import Siswa JSON</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
     <div style="background:#E0F7FA;border:2px solid var(--ac2);border-radius:12px;padding:14px;margin-bottom:16px"><pre style="font-size:.75rem;color:#0E7490;margin:0">[{"nis":"001","nama":"Budi","kelas":1,"ortu":"Pak Budi","password":"siswa123"}]</pre></div>
@@ -910,9 +935,8 @@ function renderSD(){
   let h=`<h3 style="font-size:1.15rem;margin-bottom:16px">Halo, ${s.nama}!</h3>`;
   if(exs.length===0){h+=`<div class="cd" style="text-align:center;padding:30px"><p style="color:var(--mt)">Belum ada ujian untuk kelas ${s.kelas}.</p></div>`;}
   else{h+=`<div class="grid gap-3">`;exs.forEach(ex=>{const m=gm(ex.mapel);const rd=done.find(r=>r.examId===ex.id);
-    h+=`<div class="cd" style="padding:16px 20px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:44px;height:44px;border-radius:12px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center;font-size:1.1rem"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m</p></div></div>${rd?`<p style="font-weight:800;color:${rd.score>=70?'var(--ok)':'var(--er)'}">${rd.score}</p>`:`<button class="bt bt2 bts" onclick="startEx('${ex.id}')"><i class="fas fa-play"></i> Mulai</button>`}</div></div>`;});h+=`</div>`;}
-  if(done.length>0){h+=`<h3 style="font-size:1rem;margin:24px 0 12px"><i class="fas fa-history mr-2" style="color:var(--ac)"></i>Riwayat</h3><div class="grid gap-2">`;done.sort((a,b)=>b.timestamp-a.timestamp).forEach(r=>{const d=new Date(r.timestamp);
-    h+=`<div class="cd" style="padding:12px 16px;display:flex;align-items:center;gap:12px"><div style="flex:1"><p style="font-weight:700">${r.mapel}</p><p style="font-size:.72rem;color:var(--mt)">${d.toLocaleDateString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} · ${r.correct}/${r.total}</p></div><p style="font-weight:800;font-size:1.1rem;color:${isWaitingGrade(r)?'var(--inf)':r.score>=70?'var(--ok)':'var(--er)'}">${isWaitingGrade(r)?'?':r.score}</p></div>`;});h+=`</div>`;}
+    h+=`<div class="cd" style="padding:16px 20px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:44px;height:44px;border-radius:12px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center;font-size:1.1rem"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m</p></div></div>${rd?`<p style="font-weight:800;color:${rd.score>=70?'var(--ok)':'var(--er)'}">${rd.essays&&rd.essays.length>0?'Menunggu':rd.score}</p>`:`<button class="bt bt2 bts" onclick="startEx('${ex.id}')"><i class="fas fa-play"></i> Mulai</button>`}</div></div>`;});h+=`</div>`;}
+  if(done.length>0){h+=`<h3 style="font-size:1rem;margin:24px 0 12px"><i class="fas fa-history mr-2" style="color:var(--ac)"></i>Riwayat</h3><div class="grid gap-2">`;done.sort((a,b)=>b.timestamp-a.timestamp).forEach(r=>{const d=new Date(r.timestamp);h+=`<div class="cd" style="padding:12px 16px;display:flex;align-items:center;gap:12px"><div style="flex:1"><p style="font-weight:700">${r.mapel}</p><p style="font-size:.72rem;color:var(--mt)">${d.toLocaleDateString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} · ${r.correct}/${r.total}</p></div><p style="font-weight:800;font-size:1.1rem;color:${r.essays&&r.essays.length>0?'var(--inf)':r.score>=70?'var(--ok)':'var(--er)'}">${r.essays&&r.essays.length>0?'?':r.score}</p></div>`;});h+=`</div>`;}
   $('sdL').innerHTML=h;
 }
 
