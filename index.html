@@ -236,7 +236,7 @@ service cloud.firestore {
   </div>
 </div>
 
-<!-- HASIL -->
+<!-- HASIL SISWA -->
 <div id="pRE" class="pg flex-col items-center justify-center" style="background:linear-gradient(135deg,#FFF8F0,#E0F7FA)">
   <div class="cd asu text-center" style="max-width:520px;width:100%;margin:16px" id="rC"></div>
 </div>
@@ -258,10 +258,9 @@ const MP=[
 ];
 const OL_FULL=['A','B','C','D','E','F'];
 
-/* Jumlah opsi maksimal berdasarkan kelas */
 function maxOpts(kelas){ return kelas <= 2 ? 3 : 4; }
 
-let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],allSchools:[],cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1,editTargetNpsn:null,editKelas:3};
+let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],allSchools:[],allResults:[],cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1,editTargetNpsn:null,editKelas:3};
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,6)}
 function ld(t){$('loT').textContent=t||'Memuat...';$('loO').classList.add('on')}
@@ -300,14 +299,25 @@ async function regSc(){
   }catch(e){hd();tt('Gagal: '+e.message,'er')}
 }
 
-async function loadAllSchools(){const snap=await db.collection('schools').where('isPusat','==',false).get();D.allSchools=snap.docs.map(d=>({id:d.id,...d.data()}));}
+async function loadAllSchools(){
+  const snap=await db.collection('schools').where('isPusat','==',false).get();
+  D.allSchools=snap.docs.map(d=>({id:d.id,...d.data()}));
+}
+async function loadAllResults(){
+  D.allResults=[];
+  for(const s of D.allSchools){
+    const rSnap=await rR(s.npsn).get();
+    const items=rSnap.docs.map(d=>({id:d.id,...d.data(),schoolName:s.nama,schoolNpsn:s.npsn}));
+    D.allResults.push(...items);
+  }
+}
 async function loadD(npsn){const[a,b,c]=await Promise.all([eR(npsn).get(),rR(npsn).get(),wR(npsn).get()]);D.ex=a.docs.map(d=>({id:d.id,...d.data()}));D.rs=b.docs.map(d=>({id:d.id,...d.data()}));D.ss=c.docs.map(d=>({id:d.id,...d.data()}));}
 
 async function logP(){
   const user=$v('aPU'),pass=$v('aPW');if(!user||!pass)return tt('Semua field wajib!','er');ld('Memverifikasi...');
   if(user==='adminpusat'&&pass==='adminpusat123'){
     D.sch={npsn:'PUSAT',nama:'Admin Pusat',kota:'Majalengka',prov:'Jawa Barat',isPusat:true};
-    D.aIn=true;D.isPusat=true;D.ex=[];D.rs=[];D.ss=[];await loadAllSchools();
+    D.aIn=true;D.isPusat=true;D.ex=[];D.rs=[];D.ss=[];await loadAllSchools(); await loadAllResults();
     hd();go('pAD');$('aSN2').textContent='Admin Pusat';$('navSch').style.display='';
     aTab('d',document.querySelector('#aSB a'));tt('Selamat datang, Admin Pusat!');
   }else{hd();return tt('Username atau password salah!','er')}
@@ -324,7 +334,7 @@ async function logA(){
   }catch(e){hd();tt('Gagal: '+e.message,'er')}
 }
 
-function outA(){D.aIn=false;D.sch=null;D.isPusat=false;D.ex=[];D.rs=[];D.ss=[];D.allSchools=[];go('pH');tt('Keluar','in')}
+function outA(){D.aIn=false;D.sch=null;D.isPusat=false;D.ex=[];D.rs=[];D.ss=[];D.allSchools=[];D.allResults=[];go('pH');tt('Keluar','in')}
 
 async function loadSiswaInit(){
   const npsn=$v('sN');$('sLError').style.display='none';
@@ -374,7 +384,7 @@ function rQ(){
   $('eP').style.width=((i+1)/t*100)+'%';
   let h=`<div class="asu"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p><h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:4px">${q.text}</h3>`;
   if(q.image)h+=`<img src="${q.image}" class="q-img" alt="Gambar" onerror="this.style.display='none'">`;
-  h+=`<div class="grid gap-3" style="margin-top:12px">`;
+  h+=`<div class="grid gap-3" style="margin-top:12px)">`;
   if(q.type==='essay'){
     h+=`<textarea class="ip" id="ansEss" rows="5" placeholder="Tulis jawaban uraian..." oninput="D.an[${i}]=$('ansEss').value">${D.an[i]||''}</textarea>`;
   }else{
@@ -421,15 +431,26 @@ function showR(r){
     <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Waktu</p><p style="font-size:.9rem;font-weight:800">${tm}:${String(ts).padStart(2,'0')}</p></div>
   </div>
   <div class="flex gap-3 justify-center flex-wrap">
-    <button class="bt bt5 bts" onclick="cPDF('${r.id}')"><i class="fas fa-file-pdf"></i> Cetak PDF</button>
     <button class="bt bt3 bts" onclick="go('pSD');renderSD()"><i class="fas fa-arrow-left"></i> Kembali</button>
     <button class="bt bt2 bts" onclick="outS()"><i class="fas fa-sign-out-alt"></i> Keluar</button>
   </div>`;
 }
 function cft(){const cols=['#FF6B35','#00B4D8','#22C55E','#EAB308','#A855F7','#EF4444','#FF69B4'];for(let i=0;i<40;i++){const el=document.createElement('div');el.className='cp';el.style.left=Math.random()*100+'vw';el.style.background=cols[Math.floor(Math.random()*cols.length)];el.style.borderRadius=Math.random()>.5?'50%':'2px';el.style.width=(6+Math.random()*8)+'px';el.style.height=(6+Math.random()*8)+'px';el.style.animationDuration=(2+Math.random()*2)+'s';el.style.animationDelay=(Math.random()*1.5)+'s';document.body.appendChild(el);setTimeout(()=>el.remove(),5000)}}
 
-async function cPDF(rid){
-  const r=D.rs.find(x=>x.id===rid);if(!r)return;
+async function cPDF(rid, npsn){
+  let r;
+  if(npsn){
+    const doc = await rR(npsn).doc(rid).get();
+    if(!doc.exists) return tt('Hasil tidak ditemukan!', 'er');
+    r = {id:doc.id, ...doc.data()};
+    const sDoc = await sR(npsn).get();
+    D.sch = sDoc.exists ? sDoc.data() : {nama:'Sekolah', npsn, kota:'', prov:''};
+    const ssSnap = await wR(npsn).get();
+    D.ss = ssSnap.docs.map(d=>d.data());
+  } else {
+    r = D.rs.find(x=>x.id===rid);
+  }
+  if(!r) return tt('Hasil tidak ditemukan!','er');
   const stu=D.ss.find(s=>s.nis===r.nis);const ortu=stu?stu.ortu:'-';const sch=D.sch;
   const d=new Date(r.timestamp),tgl=d.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
   let grade,label;if(r.score>=90){grade='A';label='Sangat Baik'}else if(r.score>=80){grade='B';label='Baik'}else if(r.score>=70){grade='C';label='Cukup'}else if(r.score>=60){grade='D';label='Kurang'}else{grade='E';label='Sangat Kurang'}
@@ -472,8 +493,8 @@ function aTab(t,el){
 
 /* ===== DASHBOARD ===== */
 function renderDash(c){
-  const exCount=D.ex.length,rsCount=D.rs.length,ssCount=D.ss.length;
-  const avgScore=rsCount?Math.round(D.rs.reduce((a,r)=>a+(r.score||0),0)/rsCount):0;
+  const exCount=D.ex.length,rsCount=D.isPusat?D.allResults.length:D.rs.length,ssCount=D.ss.length;
+  const avgScore=rsCount?Math.round((D.isPusat?D.allResults:D.rs).reduce((a,r)=>a+(r.score||0),0)/rsCount):0;
   let h=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:4px">Dashboard${D.isPusat?' Pusat':''}</h2>
     <p style="color:var(--mt);font-size:.85rem;margin-bottom:24px">${D.isPusat?'Mengelola soal untuk '+D.allSchools.length+' sekolah':'Mengelola '+D.sch.nama}</p>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -679,14 +700,11 @@ function setQType(t,silent){
 
 function renderOptRows(){
   const mo=maxOpts(D.editKelas);
-  /* Jika edit soal yang sudah ada opsi, gunakan opsi tersebut (potong jika melebihi mo) */
   let opts;
   if(D.editIdx>=0&&D.editQs[D.editIdx]&&D.editQs[D.editIdx].options){
     opts=D.editQs[D.editIdx].options.slice(0,mo);
-    /* Perbaiki jawaban benar jika melebihi */
     if(D.editQs[D.editIdx].answer>=opts.length)D.editQs[D.editIdx].answer=0;
   }else{
-    /* Buat opsi default sesuai mo */
     opts=[];for(let i=0;i<mo;i++)opts.push({text:'',image:''});
   }
   opts=opts.map(o=>typeof o==='object'&&o!==null?{text:o.text||'',image:o.image||''}:{text:String(o),image:''});
@@ -702,11 +720,9 @@ function renderOptRows(){
     </div>`;
   });
   wrap.innerHTML=h;
-  /* Tombol tambah opsi: tampilkan hanya jika belum mencapai batas maksimal */
   const addW=$('addOptWrap');
   if(opts.length<mo){addW.innerHTML=`<button class="bt bt3 btx mt-2" onclick="addOptRow()"><i class="fas fa-plus"></i> Tambah Opsi (maks ${mo})</button>`;}
   else{addW.innerHTML=`<p style="font-size:.75rem;color:var(--mt);margin-top:8px"><i class="fas fa-info-circle mr-1"></i> Kelas ${D.editKelas} maksimal ${mo} opsi (${OL_FULL.slice(0,mo).join(', ')}).</p>`;}
-  /* Update dropdown jawaban benar */
   const sel=$('eqAns');sel.innerHTML=opts.map((_,i)=>`<option value="${i}" ${i===ans?'selected':''}>${OL_FULL[i]}</option>`).join('');
 }
 
@@ -744,7 +760,6 @@ function simpanSoal(eid,isMemori){
 
 async function simpanAllSoal(eid,isMemori){
   if(D.editQs.length===0)return tt('Belum ada soal!','er');
-  /* Validasi semua soal: pastikan PG tidak melebihi batas opsi */
   const mo=maxOpts(D.editKelas);
   for(let i=0;i<D.editQs.length;i++){
     const q=D.editQs[i];
@@ -819,37 +834,54 @@ function doImportJSON(){
 
 /* ===== HASIL UJIAN ===== */
 function renderHasil(c){
-  if(D.rs.length===0){c.innerHTML=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Hasil Ujian</h2><div class="cd" style="text-align:center;padding:40px"><p style="color:var(--mt)">Belum ada hasil.</p></div></div>`;return;}
-  const grouped={};D.rs.forEach(r=>{const k=r.mapel+'|'+r.kelas;if(!grouped[k])grouped[k]={mapel:r.mapel,kelas:r.kelas,items:[]};grouped[k].items.push(r);});
-  let h=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Hasil Ujian</h2>
-    <div class="flex gap-2 mb-4 flex-wrap"><select id="fMapel" class="ip" style="max-width:200px" onchange="filterHasil()"><option value="">Semua Mapel</option>${[...new Set(D.rs.map(r=>r.mapel))].map(m=>`<option value="${m}">${m}</option>`).join('')}</select><select id="fKelas" class="ip" style="max-width:140px" onchange="filterHasil()"><option value="">Semua Kelas</option>${[...new Set(D.rs.map(r=>r.kelas))].sort().map(k=>`<option value="${k}">Kelas ${k}</option>`).join('')}</select></div>
+  const list = D.isPusat ? D.allResults : D.rs;
+  if(list.length===0){c.innerHTML=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Hasil Ujian</h2><div class="cd" style="text-align:center;padding:40px"><p style="color:var(--mt)">Belum ada hasil.</p></div></div>`;return;}
+  const grouped={};
+  list.forEach(r=>{const k=(D.isPusat?r.schoolNpsn+'|':'')+r.mapel+'|'+r.kelas;if(!grouped[k])grouped[k]={mapel:r.mapel,kelas:r.kelas,schoolName:r.schoolName||D.sch.nama,schoolNpsn:r.schoolNpsn||D.sch.npsn,items:[]};grouped[k].items.push(r);});
+  let h=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Hasil Ujian ${D.isPusat?'(Semua Sekolah)':''}</h2>
+    <div class="flex gap-2 mb-4 flex-wrap"><select id="fMapel" class="ip" style="max-width:200px" onchange="filterHasil()"><option value="">Semua Mapel</option>${[...new Set(list.map(r=>r.mapel))].map(m=>`<option value="${m}">${m}</option>`).join('')}</select><select id="fKelas" class="ip" style="max-width:140px" onchange="filterHasil()"><option value="">Semua Kelas</option>${[...new Set(list.map(r=>r.kelas))].sort().map(k=>`<option value="${k}">Kelas ${k}</option>`).join('')}</select></div>
     <div class="grid gap-3" id="hasilList">`;
   Object.values(grouped).forEach(g=>{const m=gm(g.mapel);const avg=Math.round(g.items.reduce((a,r)=>a+(r.score||0),0)/g.items.length);
-    h+=`<div class="cd hasil-card" data-mapel="${g.mapel}" data-kelas="${g.kelas}" style="padding:18px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${g.mapel} — Kelas ${g.kelas}</p><p style="font-size:.75rem;color:var(--mt)">${g.items.length} siswa · Rata-rata: ${avg}</p></div></div></div>
+    h+=`<div class="cd hasil-card" data-mapel="${g.mapel}" data-kelas="${g.kelas}" style="padding:18px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${g.mapel} — Kelas ${g.kelas}</p><p style="font-size:.75rem;color:var(--mt)">${g.schoolName} · ${g.items.length} siswa · Rata-rata: ${avg}</p></div></div></div>
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Benar</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Nilai</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`;
     g.items.sort((a,b)=>(b.score||0)-(a.score||0)).forEach((r,i)=>{const sc=r.score||0;let stC,stL;if(r.essays&&r.essays.length>0){stC='var(--inf)';stL='Menunggu';}else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}
-      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.correct}/${r.total}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${r.essays&&r.essays.length>0?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button></div></td></tr>`;});
+      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.correct}/${r.total}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${r.essays&&r.essays.length>0?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cPDF('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;});
     h+=`</tbody></table></div></div>`;});
   h+=`</div></div>`;c.innerHTML=h;
 }
 function filterHasil(){const fm=$v('fMapel'),fk=$v('fKelas');document.querySelectorAll('.hasil-card').forEach(card=>{let show=true;if(fm&&card.dataset.mapel!==fm)show=false;if(fk&&card.dataset.kelas!==fk)show=false;card.style.display=show?'':'none';});}
-async function doHapusHasil(rid){ld('Menghapus...');try{await rR(D.sch.npsn).doc(rid).delete();D.rs=D.rs.filter(r=>r.id!==rid);hd();renderHasil($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}}
+async function doHapusHasil(rid,npsn){ld('Menghapus...');try{await rR(npsn).doc(rid).delete();if(!D.isPusat){D.rs=D.rs.filter(r=>r.id!==rid);}else{D.allResults=D.allResults.filter(r=>r.id!==rid);}hd();renderHasil($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}}
 
-function koreksiEssay(rid){
-  const r=D.rs.find(x=>x.id===rid);if(!r||!r.essays)return;
+function koreksiEssay(rid, npsn){
+  let r;
+  if(D.isPusat){
+    r = D.allResults.find(x=>x.id===rid && x.schoolNpsn===npsn);
+    if(r){
+      tt('Admin Pusat tidak bisa mengoreksi uraian!','er');
+      return;
+    }
+  } else {
+    r = D.rs.find(x=>x.id===rid);
+  }
+  if(!r||!r.essays)return;
   let h=`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-pen mr-2" style="color:var(--pr)"></i>Koreksi — ${r.nama}</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>`;
   r.essays.forEach((e,i)=>{h+=`<div class="cd mb-3" style="padding:16px"><p style="font-weight:800;margin-bottom:6px">Soal ${i+1}:</p><p style="margin-bottom:8px">${e.text}</p>${e.image?`<img src="${e.image}" class="q-img" style="max-height:140px" onerror="this.style.display='none'">`:''}
     <div style="background:var(--bg);padding:10px;border-radius:10px;margin-bottom:8px"><p style="font-size:.78rem;color:var(--mt)"><b>Kunci:</b> ${e.key||'-'}</p></div>
     <div style="background:#EFF6FF;padding:10px;border-radius:10px;margin-bottom:10px"><p style="font-size:.78rem;color:var(--inf)"><b>Jawaban:</b> ${e.answer||'-'}</p></div>
     <label class="block mb-1 font-bold" style="font-size:.82rem">Nilai (0-100)</label><input class="ip" type="number" id="esScore${i}" value="${e.score||0}" min="0" max="100" style="max-width:120px"></div>`;});
-  h+=`<button class="bt bt1 w-full justify-center" onclick="simpanKoreksi('${rid}')"><i class="fas fa-save"></i> Simpan</button></div>`;oMo(h);
+  h+=`<button class="bt bt1 w-full justify-center" onclick="simpanKoreksi('${rid}','${npsn}')"><i class="fas fa-save"></i> Simpan</button></div>`;oMo(h);
 }
-async function simpanKoreksi(rid){
-  const r=D.rs.find(x=>x.id===rid);if(!r)return;let totalEssay=0;
+async function simpanKoreksi(rid, npsn){
+  let r;
+  if(D.isPusat){
+    return tt('Admin Pusat tidak bisa menyimpan koreksi!', 'er');
+  }
+  r = D.rs.find(x=>x.id===rid);
+  if(!r)return;let totalEssay=0;
   r.essays.forEach((e,i)=>{const sc=parseInt(document.getElementById('esScore'+i).value)||0;e.score=Math.min(100,Math.max(0,sc));e.graded=true;totalEssay+=e.score;});
   const pgCount=r.total-r.essays.length;const pgScore=pgCount>0?r.autoScore:0;const essayAvg=r.essays.length>0?Math.round(totalEssay/r.essays.length):0;
   let finalScore;if(pgCount>0&&r.essays.length>0)finalScore=Math.round(pgScore*0.6+essayAvg*0.4);else if(r.essays.length>0)finalScore=essayAvg;else finalScore=pgScore;
-  r.score=finalScore;ld('Menyimpan...');await rR(D.sch.npsn).doc(rid).update({essays:r.essays,score:finalScore});hd();cMo();renderHasil($('aC'));tt('Nilai disimpan: '+finalScore);
+  r.score=finalScore;ld('Menyimpan...');await rR(npsn).doc(rid).update({essays:r.essays,score:finalScore});hd();cMo();renderHasil($('aC'));tt('Nilai disimpan: '+finalScore);
 }
 
 /* ===== DATA SISWA ===== */
