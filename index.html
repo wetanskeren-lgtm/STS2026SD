@@ -35,18 +35,19 @@ h1,h2,h3,h4{font-family:'Fredoka',sans-serif}
 select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238B7355' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 5.5l6.5 6 6.5-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
 .cd{background:var(--cd);border-radius:18px;border:2px solid var(--bd);padding:22px;transition:all .3s}
 .cd:hover{box-shadow:0 8px 28px rgba(45,27,0,.07)}
-.bg{display:inline-block;padding:4px 12px;border-radius:20px;font-size:.73rem;font-weight:700}
 .tt{position:fixed;top:24px;right:24px;padding:14px 22px;border-radius:14px;color:#fff;font-weight:700;z-index:9999;transform:translateX(120%);transition:transform .4s cubic-bezier(.175,.885,.32,1.275);max-width:400px;font-size:.88rem;line-height:1.4}
 .tt.on{transform:translateX(0)}.tt-ok{background:var(--ok)}.tt-er{background:var(--er)}.tt-in{background:var(--inf)}
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .3s}
 .mo.on{opacity:1;pointer-events:all}
-.mc{background:var(--cd);border-radius:22px;padding:28px;max-width:620px;width:100%;max-height:90vh;overflow-y:auto;transform:scale(.9);transition:transform .3s}
+.mc{background:var(--cd);border-radius:22px;padding:28px;max-width:720px;width:100%;max-height:90vh;overflow-y:auto;transform:scale(.9);transition:transform .3s}
 .mo.on .mc{transform:scale(1)}
 .oc{border:2.5px solid var(--bd);border-radius:14px;padding:13px 16px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:12px;font-weight:600}
 .oc:hover{border-color:var(--ac);background:rgba(255,107,53,.04)}
 .oc.sl{border-color:var(--ac);background:rgba(255,107,53,.1)}
 .oc .lt{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.88rem;background:var(--bg);border:2px solid var(--bd);flex-shrink:0;transition:all .2s}
 .oc.sl .lt{background:var(--ac);color:#fff;border-color:var(--ac)}
+.oc .oc-img{width:48px;height:48px;border-radius:8px;object-fit:cover;flex-shrink:0;border:2px solid var(--bd)}
+.oc.sl .oc-img{border-color:var(--ac)}
 .pb{height:10px;background:var(--bd);border-radius:10px;overflow:hidden}
 .pf{height:100%;border-radius:10px;transition:width .5s ease}
 @keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
@@ -61,12 +62,6 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .sb a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;color:rgba(255,255,255,.55);font-weight:700;text-decoration:none;transition:all .2s;margin-bottom:2px;font-size:.82rem}
 .sb a:hover{background:rgba(255,255,255,.08);color:#fff}
 .sb a.on{background:var(--ac);color:#fff}
-.gb{width:64px;height:64px;border-radius:15px;border:3px solid var(--bd);background:var(--cd);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all .25s;font-family:'Fredoka',sans-serif}
-.gb:hover{border-color:var(--ac);transform:translateY(-3px);box-shadow:0 6px 20px rgba(255,107,53,.15)}
-.gb.gs{border-color:var(--ac);background:rgba(255,107,53,.08)}
-.gb .n{font-size:1.3rem;font-weight:700;line-height:1}.gb .lb{font-size:.5rem;color:var(--mt);margin-top:1px}
-.ec{cursor:pointer;position:relative;overflow:hidden}
-.ec::before{content:'';position:absolute;top:0;left:0;width:5px;height:100%;background:var(--ac);border-radius:0 4px 4px 0}
 .rc{width:120px;height:120px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;border:6px solid}
 .rc .sc{font-family:'Fredoka';font-size:2.4rem;font-weight:700;line-height:1}
 .rc .rl{font-size:.68rem;font-weight:700;margin-top:2px}
@@ -83,7 +78,13 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .step-box.active{border-color:var(--ac);border-style:solid;background:rgba(255,107,53,.04)}
 .step-num{width:32px;height:32px;border-radius:50%;background:var(--ac);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;margin-bottom:8px}
 .step-num.done{background:var(--ok)}
-@media(max-width:768px){.sb{width:52px;padding:12px 5px}.sb a span,.sb .sl{display:none}.sb a{justify-content:center;padding:10px}.bt{padding:10px 18px;font-size:.88rem}.cd{padding:16px;border-radius:15px}.mc{padding:20px;border-radius:18px}.pd{width:100%;padding:10mm;font-size:9pt;min-height:auto}}
+.q-img{max-width:100%;max-height:280px;border-radius:12px;border:2px solid var(--bd);margin:8px 0;display:block;object-fit:contain;background:#f9f6f2}
+.opt-img{width:48px;height:48px;border-radius:8px;object-fit:cover;border:2px solid var(--bd);vertical-align:middle;margin-right:4px}
+.json-ta{width:100%;min-height:220px;padding:14px;border:2.5px solid var(--bd);border-radius:12px;font-family:'Courier New',monospace;font-size:.78rem;line-height:1.5;background:#1e1e1e;color:#d4d4d4;resize:vertical;tab-size:2}
+.json-ta:focus{outline:none;border-color:var(--ac2)}
+.pd .q-img-print{max-width:160px;max-height:120px;object-fit:contain}
+.tag-img{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;background:rgba(0,180,216,.1);color:var(--ac2);font-size:.7rem;font-weight:700;margin-left:6px}
+@media(max-width:768px){.sb{width:52px;padding:12px 5px}.sb a span,.sb .sl{display:none}.sb a{justify-content:center;padding:10px}.bt{padding:10px 18px;font-size:.88rem}.cd{padding:16px;border-radius:15px}.mc{padding:20px;border-radius:18px;max-width:95vw}.pd{width:100%;padding:10mm;font-size:9pt;min-height:auto}.q-img{max-height:180px}}
 </style>
 </head>
 <body>
@@ -96,16 +97,8 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
   <div class="cd asu" style="max-width:560px;width:100%;margin:16px">
     <div class="text-center mb-6"><div style="font-size:3rem;margin-bottom:8px"><i class="fas fa-shield-halved" style="color:var(--ac)"></i></div><h2 style="font-size:1.4rem;margin-bottom:6px">Setup Firebase Rules</h2><p style="color:var(--mt);font-size:.85rem">Langkah pertama: atur akses database agar bisa menyimpan data</p></div>
     <div class="grid gap-4 mb-6">
-      <div class="step-box" id="step1">
-        <div class="step-num">1</div>
-        <h4 style="font-size:.95rem;margin-bottom:4px">Buka Firebase Console</h4>
-        <p style="color:var(--mt);font-size:.82rem;margin-bottom:10px">Klik tombol di bawah, lalu login dengan akun Google yang sama saat membuat project</p>
-        <a href="https://console.firebase.google.com/project/pts2026-fb4d7/firestore/rules" target="_blank" class="bt bt1" style="padding:10px 20px;font-size:.88rem;justify-content:center;width:100%"><i class="fas fa-external-link-alt"></i> Buka Firebase Console</a>
-      </div>
-      <div class="step-box" id="step2">
-        <div class="step-num">2</div>
-        <h4 style="font-size:.95rem;margin-bottom:4px">Ganti Rules dengan Kode Ini</h4>
-        <p style="color:var(--mt);font-size:.82rem;margin-bottom:8px">Hapus semua isi editor, lalu paste kode berikut:</p>
+      <div class="step-box" id="step1"><div class="step-num">1</div><h4 style="font-size:.95rem;margin-bottom:4px">Buka Firebase Console</h4><p style="color:var(--mt);font-size:.82rem;margin-bottom:10px">Klik tombol di bawah, lalu login dengan akun Google yang sama saat membuat project</p><a href="https://console.firebase.google.com/project/pts2026-fb4d7/firestore/rules" target="_blank" class="bt bt1" style="padding:10px 20px;font-size:.88rem;justify-content:center;width:100%"><i class="fas fa-external-link-alt"></i> Buka Firebase Console</a></div>
+      <div class="step-box" id="step2"><div class="step-num">2</div><h4 style="font-size:.95rem;margin-bottom:4px">Ganti Rules dengan Kode Ini</h4><p style="color:var(--mt);font-size:.82rem;margin-bottom:8px">Hapus semua isi editor, lalu paste kode berikut:</p>
         <div style="background:#1e1e1e;color:#d4d4d4;border-radius:12px;padding:16px;text-align:left;font-family:monospace;font-size:.78rem;line-height:1.6;position:relative;overflow:hidden">
           <button onclick="copyRules()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,.15);color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.72rem;font-family:'Nunito'"><i class="fas fa-copy"></i> Salin</button>
           <pre id="rulesCode" style="margin:0;white-space:pre-wrap;word-break:break-all">rules_version = '2';
@@ -118,17 +111,8 @@ service cloud.firestore {
 }</pre>
         </div>
       </div>
-      <div class="step-box" id="step3">
-        <div class="step-num">3</div>
-        <h4 style="font-size:.95rem;margin-bottom:4px">Klik "Publish Changes"</h4>
-        <p style="color:var(--mt);font-size:.82rem">Tombol biru di atas kanan editor. Tunggu hingga status berubah menjadi "Rules deployed successfully"</p>
-      </div>
-      <div class="step-box" id="step4">
-        <div class="step-num">4</div>
-        <h4 style="font-size:.95rem;margin-bottom:4px">Klik Tombol Di Bawah Ini</h4>
-        <p style="color:var(--mt);font-size:.82rem;margin-bottom:10px">Untuk memeriksa koneksi dan melanjutkan ke aplikasi</p>
-        <button class="bt bt2" style="padding:10px 20px;font-size:.88rem;justify-content:center;width:100%" onclick="checkRules()"><i class="fas fa-check-circle"></i> Sudah Selesai — Cek Koneksi</button>
-      </div>
+      <div class="step-box" id="step3"><div class="step-num">3</div><h4 style="font-size:.95rem;margin-bottom:4px">Klik "Publish Changes"</h4><p style="color:var(--mt);font-size:.82rem">Tombol biru di atas kanan editor. Tunggu hingga status berubah menjadi "Rules deployed successfully"</p></div>
+      <div class="step-box" id="step4"><div class="step-num">4</div><h4 style="font-size:.95rem;margin-bottom:4px">Klik Tombol Di Bawah Ini</h4><p style="color:var(--mt);font-size:.82rem;margin-bottom:10px">Untuk memeriksa koneksi dan melanjutkan ke aplikasi</p><button class="bt bt2" style="padding:10px 20px;font-size:.88rem;justify-content:center;width:100%" onclick="checkRules()"><i class="fas fa-check-circle"></i> Sudah Selesai — Cek Koneksi</button></div>
     </div>
     <div id="setupMsg" style="display:none"></div>
   </div>
@@ -149,7 +133,7 @@ service cloud.firestore {
     </div>
     <p class="mt-4" style="color:var(--mt);font-size:.8rem"><i class="fas fa-info-circle mr-1"></i> Admin Pusat mengelola soal, Admin Sekolah mengelola siswa</p>
     <div class="mt-10 flex flex-wrap justify-center gap-5" style="color:var(--mt);font-size:.8rem">
-      <span><i class="fas fa-school mr-1"></i> Multi Sekolah</span><span><i class="fas fa-cloud mr-1"></i> Cloud Sync</span><span><i class="fas fa-file-pdf mr-1"></i> Cetak PDF</span><span><i class="fas fa-chart-bar mr-1"></i> Otomatis</span>
+      <span><i class="fas fa-school mr-1"></i> Multi Sekolah</span><span><i class="fas fa-cloud mr-1"></i> Cloud Sync</span><span><i class="fas fa-image mr-1"></i> Soal Gambar</span><span><i class="fas fa-file-pdf mr-1"></i> Cetak PDF</span><span><i class="fas fa-chart-bar mr-1"></i> Otomatis</span>
     </div>
   </div>
 </div>
@@ -195,7 +179,7 @@ service cloud.firestore {
   </div>
 </div>
 
-<!-- ====== LOGIN SISWA (DYNAMIC) ====== -->
+<!-- ====== LOGIN SISWA ====== -->
 <div id="pLS" class="pg flex-col items-center justify-center" style="background:linear-gradient(135deg,#FFF8F0,#E0F7FA)">
   <div class="cd asu" style="max-width:460px;width:100%;margin:16px">
     <button class="bt bt3 bts mb-5" onclick="go('pH')"><i class="fas fa-arrow-left"></i> Kembali</button>
@@ -204,39 +188,21 @@ service cloud.firestore {
       <h2 style="font-size:1.35rem">Login Siswa</h2>
       <p style="color:var(--mt);font-size:.78rem;margin-top:4px">Masukkan NPSN, pilih kelas & nama, lalu mulai ujian</p>
     </div>
-    
-    <div class="mb-3">
-      <label class="block mb-1 font-bold" style="font-size:.82rem">NPSN Sekolah</label>
-      <div class="flex gap-2">
-        <input id="sN" class="ip" placeholder="8 digit NPSN" maxlength="8" oninput="this.value=this.value.replace(/[^0-9]/g,'')" onkeydown="if(event.key==='Enter')loadSiswaInit()">
-        <button class="bt bt2 bts" style="padding:8px 14px" onclick="loadSiswaInit()"><i class="fas fa-search"></i></button>
-      </div>
+    <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">NPSN Sekolah</label>
+      <div class="flex gap-2"><input id="sN" class="ip" placeholder="8 digit NPSN" maxlength="8" oninput="this.value=this.value.replace(/[^0-9]/g,'')" onkeydown="if(event.key==='Enter')loadSiswaInit()"><button class="bt bt2 bts" style="padding:8px 14px" onclick="loadSiswaInit()"><i class="fas fa-search"></i></button></div>
     </div>
-    
     <div id="sLKA" style="display:none">
-      <div class="mb-3">
-        <label class="block mb-1 font-bold" style="font-size:.82rem">Pilih Kelas</label>
-        <select id="sK" class="ip" onchange="updNamaList()"><option value="">-- Pilih Kelas --</option></select>
-      </div>
-      <div class="mb-3">
-        <label class="block mb-1 font-bold" style="font-size:.82rem">Nama Siswa</label>
-        <select id="sI" class="ip" onchange="updMapelList()"><option value="">-- Pilih Nama Siswa --</option></select>
-      </div>
-      <div class="mb-3">
-        <label class="block mb-1 font-bold" style="font-size:.82rem">Pilih Mata Pelajaran</label>
-        <select id="sM" class="ip" disabled><option value="">-- Belum ada mapel --</option></select>
-      </div>
-      <div class="mb-5">
-        <label class="block mb-1 font-bold" style="font-size:.82rem">Password</label>
-        <input id="sW" class="ip" type="password" placeholder="Password dari admin" onkeydown="if(event.key==='Enter')logS()">
-      </div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Pilih Kelas</label><select id="sK" class="ip" onchange="updNamaList()"><option value="">-- Pilih Kelas --</option></select></div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Nama Siswa</label><select id="sI" class="ip" onchange="updMapelList()"><option value="">-- Pilih Nama Siswa --</option></select></div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Pilih Mata Pelajaran</label><select id="sM" class="ip" disabled><option value="">-- Belum ada mapel --</option></select></div>
+      <div class="mb-5"><label class="block mb-1 font-bold" style="font-size:.82rem">Password</label><input id="sW" class="ip" type="password" placeholder="Password dari admin" onkeydown="if(event.key==='Enter')logS()"></div>
       <button class="bt bt2 w-full justify-center" onclick="logS()"><i class="fas fa-sign-in-alt"></i> Masuk & Mulai</button>
     </div>
     <div id="sLError" style="display:none;text-align:center;color:var(--er);font-size:.85rem;margin-top:10px"></div>
   </div>
 </div>
 
-<!-- ====== ADMIN (PUSAT & SEKOLAH) ====== -->
+<!-- ====== ADMIN PANEL ====== -->
 <div id="pAD" class="pg" style="background:var(--bg)">
   <div class="sb" id="aSB">
     <div class="text-center mb-5"><div style="font-size:1.4rem;margin-bottom:2px">📚</div><p class="sl" style="color:rgba(255,255,255,.45);font-size:.6rem" id="aSN2">UTS Digital</p></div>
@@ -252,7 +218,7 @@ service cloud.firestore {
   <div class="flex-1 p-4 md:p-8 overflow-y-auto" style="max-height:100vh" id="aC"></div>
 </div>
 
-<!-- ====== SISWA DASH & UJIAN & HASIL ====== -->
+<!-- ====== SISWA DASH ====== -->
 <div id="pSD" class="pg flex-col" style="background:linear-gradient(180deg,#E0F7FA,#FFF8F0)">
   <header class="w-full p-3 flex items-center justify-between" style="background:var(--cd);border-bottom:2px solid var(--bd)">
     <div class="flex items-center gap-3"><div style="font-size:1.2rem">📚</div><div><h3 style="font-size:.88rem;line-height:1.2" id="sdN"></h3><p style="font-size:.65rem;color:var(--mt)" id="sdI"></p></div></div>
@@ -261,6 +227,7 @@ service cloud.firestore {
   <div class="w-full max-w-3xl mx-auto px-4 py-6 flex-1 overflow-y-auto" id="sdL"></div>
 </div>
 
+<!-- ====== UJIAN ====== -->
 <div id="pEX" class="pg flex-col" style="background:var(--bg)">
   <header class="w-full p-3 flex items-center justify-between" style="background:var(--cd);border-bottom:2px solid var(--bd)">
     <div><h3 style="font-size:.88rem" id="eT"></h3><p style="font-size:.65rem;color:var(--mt)" id="eI"></p></div>
@@ -273,6 +240,7 @@ service cloud.firestore {
   </div>
 </div>
 
+<!-- ====== HASIL ====== -->
 <div id="pRE" class="pg flex-col items-center justify-center" style="background:linear-gradient(135deg,#FFF8F0,#E0F7FA)">
   <div class="cd asu text-center" style="max-width:520px;width:100%;margin:16px" id="rC"></div>
 </div>
@@ -280,6 +248,7 @@ service cloud.firestore {
 <div id="pB" style="position:fixed;left:-9999px;top:0;z-index:-1"></div>
 
 <script>
+/* ===== KONSTANTA ===== */
 const KL=[{v:1,l:'1'},{v:2,l:'2'},{v:3,l:'3'},{v:4,l:'4'},{v:5,l:'5'},{v:6,l:'6'}];
 const MP=[
   {v:'Matematika',l:'Matematika',ic:'fa-calculator',c:'#FF6B35'},
@@ -293,8 +262,11 @@ const MP=[
   {v:'Bahasa Sunda',l:'B. Sunda',ic:'fa-comment-dots',c:'#14B8A6'}
 ];
 const OL_FULL=['A','B','C','D'];
-let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],cEx:null,cQ:0,an:{},tI:null,tL:0};
 
+/* ===== STATE ===== */
+let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1};
+
+/* ===== UTILITAS ===== */
 function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,6)}
 function ld(t){$('loT').textContent=t||'Memuat...';$('loO').classList.add('on')}
 function hd(){$('loO').classList.remove('on')}
@@ -310,15 +282,16 @@ function wR(n){return db.collection('schools').doc(n).collection('students')}
 function $(id){return document.getElementById(id)}
 function $v(id){return $(id).value.trim()}
 
-function copyRules(){const code=$('rulesCode').textContent;navigator.clipboard.writeText(code).then(()=>tt('Rules berhasil disalin! Paste di Firebase Console.','ok')).catch(()=>{const ta=document.createElement('textarea');ta.value=code;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);tt('Rules berhasil disalin!','ok')})}
+function copyRules(){const code=$('rulesCode').textContent;navigator.clipboard.writeText(code).then(()=>tt('Rules berhasil disalin!','ok')).catch(()=>{const ta=document.createElement('textarea');ta.value=code;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);tt('Rules berhasil disalin!','ok')})}
 
+/* ===== CEK RULES ===== */
 async function checkRules(){
   const msg=$('setupMsg');msg.style.display='block';
   msg.innerHTML='<div class="text-center"><div class="spn" style="margin-bottom:12px"></div><p style="font-weight:700;color:var(--mt)">Menguji koneksi ke Firebase...</p></div>';
   try{
     const testRef=db.collection('_connection_test').doc('ping');
     await testRef.set({ts:Date.now()});await testRef.delete();
-    msg.innerHTML='<div class="text-center" style="padding:16px"><div style="font-size:2.5rem;margin-bottom:8px;color:var(--ok)"><i class="fas fa-check-circle"></i></div><p style="font-weight:800;color:var(--ok);font-size:1.1rem;margin-bottom:4px">Koneksi Berhasil!</p><p style="color:var(--mt);font-size:.85rem">Firebase Rules sudah benar. Mengalihkan ke aplikasi...</p></div>';
+    msg.innerHTML='<div class="text-center" style="padding:16px"><div style="font-size:2.5rem;margin-bottom:8px;color:var(--ok)"><i class="fas fa-check-circle"></i></div><p style="font-weight:800;color:var(--ok);font-size:1.1rem;margin-bottom:4px">Koneksi Berhasil!</p><p style="color:var(--mt);font-size:.85rem">Firebase Rules sudah benar. Mengalihkan...</p></div>';
     $('step1').classList.add('active');$('step2').classList.add('active');$('step3').classList.add('active');$('step4').querySelector('.step-num').classList.add('done');
     await new Promise(r=>setTimeout(r,1500));go('pH');
   }catch(e){
@@ -326,13 +299,12 @@ async function checkRules(){
     <div style="text-align:left;background:#FEF2F2;border:2px solid var(--er);border-radius:12px;padding:14px;margin-bottom:12px">
       <p style="font-size:.82rem;color:#991B1B;margin-bottom:6px"><strong>Error:</strong> ${e.code||e.message||'Permission denied'}</p>
       <p style="font-size:.8rem;color:#7F1D1D"><i class="fas fa-lightbulb" style="color:#EAB308"></i> <strong>Kemungkinan penyebab:</strong></p>
-      <ul style="font-size:.78rem;color:#7F1D1D;margin:6px 0 0 18px;list-style:disc">
-        <li>Rules belum diubah (masih default)</li><li>Perubahan rules belum di-Publish</li><li>Salah paste kode rules</li><li>Koneksi internet terputus</li>
-      </ul></div><p style="color:var(--mt);font-size:.82rem">Kembali ke Langkah 1-3 dan pastikan rules sudah benar lalu klik <strong>"Publish Changes"</strong>.</p><button class="bt bt3 bts" style="margin-top:12px" onclick="checkRules()"><i class="fas fa-redo"></i> Coba Lagi</button></div>`;
+      <ul style="font-size:.78rem;color:#7F1D1D;margin:6px 0 0 18px;list-style:disc"><li>Rules belum diubah</li><li>Belum di-Publish</li><li>Salah paste kode</li><li>Koneksi internet terputus</li></ul>
+    </div><button class="bt bt3 bts" style="margin-top:12px" onclick="checkRules()"><i class="fas fa-redo"></i> Coba Lagi</button></div>`;
   }
 }
 
-// Pendaftaran Sekolah
+/* ===== REGISTRASI SEKOLAH ===== */
 async function regSc(){
   const npsn=$v('rN'),nama=$v('rS'),kota=$v('rK'),prov=$v('rP'),user=$v('rU'),pass=$v('rW');
   if(!npsn||npsn.length!==8)return tt('NPSN harus 8 digit!','er');
@@ -345,33 +317,27 @@ async function regSc(){
   try{
     const doc=await sR(npsn).get();
     if(doc.exists){hd();return tt('NPSN sudah terdaftar!','er')}
-    // Menyimpan data sekolah tanpa soal otomatis (seedEx dihapus)
     await sR(npsn).set({npsn,nama,kota,prov,adminUser:user,adminPass:pass,isPusat:false,createdAt:Date.now()});
-    hd();tt('Sekolah berhasil didaftarkan! Silakan hubungi Admin Pusat untuk input soal.');
+    hd();tt('Sekolah berhasil didaftarkan!');
     $('aSN').value=npsn;$('aSU').value=user;['rN','rS','rK','rP','rU','rW'].forEach(i=>$(i).value='');go('pLSA');
   }catch(e){hd();tt('Gagal menyimpan: '+e.message,'er')}
 }
 
-// Login Admin Pusat
+/* ===== LOGIN ADMIN PUSAT ===== */
 async function logP(){
   const user=$v('aPU'),pass=$v('aPW');
   if(!user||!pass)return tt('Semua field wajib diisi!','er');
   ld('Memverifikasi...');
   try{
-    if(user==='adminpusat' && pass==='adminpusat123'){
+    if(user==='adminpusat'&&pass==='adminpusat123'){
       D.sch={npsn:'PUSAT',nama:'Admin Pusat',kota:'Majalengka',prov:'Jawa Barat',adminUser:user,adminPass:pass,isPusat:true};
-      D.aIn=true;D.isPusat=true;
-      D.ex=[];D.rs=[];D.ss=[]; // Pusat tidak load data siswa spesifik
-      hd();go('pAD');
-      $('aSN2').textContent='Admin Pusat';aTab('d',document.querySelector('#aSB a'));
-      tt('Selamat datang, Admin Pusat!');
-    } else {
-      hd();return tt('Username atau password Admin Pusat salah!','er');
-    }
+      D.aIn=true;D.isPusat=true;D.ex=[];D.rs=[];D.ss=[];
+      hd();go('pAD');$('aSN2').textContent='Admin Pusat';aTab('d',document.querySelector('#aSB a'));tt('Selamat datang, Admin Pusat!');
+    }else{hd();return tt('Username atau password salah!','er')}
   }catch(e){hd();tt('Gagal: '+e.message,'er')}
 }
 
-// Login Admin Sekolah
+/* ===== LOGIN ADMIN SEKOLAH ===== */
 async function logA(){
   const npsn=$v('aSN'),user=$v('aSU'),pass=$v('aSW');
   if(!npsn||!user||!pass)return tt('Semua field wajib diisi!','er');
@@ -380,19 +346,17 @@ async function logA(){
     const doc=await sR(npsn).get();
     if(!doc.exists){hd();return tt('NPSN tidak ditemukan!','er')}
     const sch=doc.data();
-    if(sch.isPusat){hd();return tt('Gunakan Login Admin Pusat untuk akun ini!','er')}
+    if(sch.isPusat){hd();return tt('Gunakan Login Admin Pusat!','er')}
     if(sch.adminUser!==user||sch.adminPass!==pass){hd();return tt('Username atau password salah!','er')}
     D.sch=sch;D.aIn=true;D.isPusat=false;await loadD(npsn);hd();go('pAD');
-    $('aSN2').textContent=sch.nama;aTab('d',document.querySelector('#aSB a'));
-    tt('Selamat datang, Admin '+sch.nama+'!');
+    $('aSN2').textContent=sch.nama;aTab('d',document.querySelector('#aSB a'));tt('Selamat datang, Admin '+sch.nama+'!');
   }catch(e){hd();tt('Gagal: '+e.message,'er')}
 }
 function outA(){D.aIn=false;D.sch=null;D.isPusat=false;D.ex=[];D.rs=[];D.ss=[];go('pH');tt('Berhasil keluar','in')}
 
-// Login Siswa
+/* ===== LOGIN SISWA ===== */
 async function loadSiswaInit(){
-  const npsn=$v('sN');
-  $('sLError').style.display='none';
+  const npsn=$v('sN');$('sLError').style.display='none';
   if(!npsn||npsn.length!==8){$('sLKA').style.display='none';$('sLError').style.display='block';$('sLError').textContent='Masukkan 8 digit NPSN dengan benar.';return;}
   ld('Memuat data sekolah...');
   try{
@@ -402,8 +366,7 @@ async function loadSiswaInit(){
     if(D.ss.length===0){hd();$('sLKA').style.display='none';$('sLError').style.display='block';$('sLError').textContent='Belum ada data siswa di sekolah ini.';return;}
     const kelasUnik=[...new Set(D.ss.map(s=>s.kelas))].sort((a,b)=>a-b);
     $('sK').innerHTML='<option value="">-- Pilih Kelas --</option>'+kelasUnik.map(k=>`<option value="${k}">Kelas ${k}</option>`).join('');
-    $('sI').innerHTML='<option value="">-- Pilih Nama Siswa --</option>';
-    $('sM').innerHTML='<option value="">-- Pilih Nama Siswa Dulu --</option>';$('sM').disabled=true;
+    $('sI').innerHTML='<option value="">-- Pilih Nama Siswa --</option>';$('sM').innerHTML='<option value="">-- Pilih Nama Siswa Dulu --</option>';$('sM').disabled=true;
     $('sLKA').style.display='block';$('sLError').style.display='none';hd();tt('Data sekolah '+D.sch.nama+' dimuat!');
   }catch(e){hd();$('sLKA').style.display='none';$('sLError').style.display='block';$('sLError').textContent='Error: '+e.message;}
 }
@@ -437,7 +400,7 @@ async function loadD(npsn){
   D.ss=c.docs.map(d=>({id:d.id,...d.data()}));
 }
 
-// Ujian
+/* ===== UJIAN ===== */
 function startEx(id){
   const ex=D.ex.find(e=>e.id===id);if(!ex||!ex.questions.length)return tt('Ujian belum punya soal!','er');
   D.cEx=ex;D.cQ=0;D.an={};D.tL=ex.timeLimit*60;go('pEX');
@@ -446,50 +409,73 @@ function startEx(id){
 }
 function sT(){clearInterval(D.tI);uT();D.tI=setInterval(()=>{D.tL--;uT();if(D.tL<=0){clearInterval(D.tI);finEx()}},1000)}
 function uT(){const m=Math.floor(D.tL/60),s=D.tL%60;const el=$('eTm');el.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');el.style.color=D.tL<=60?'var(--er)':'var(--ac)'}
+
+/* Render soal ujian (dukungan gambar) */
 function rQ(){
   const ex=D.cEx,i=D.cQ,q=ex.questions[i],t=ex.questions.length;
   $('eP').style.width=((i+1)/t*100)+'%';
-  let h=`<div class="asu"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p><h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:16px">${q.text}</h3><div class="grid gap-3">`;
+  let h=`<div class="asu"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p>`;
+  /* Teks soal */
+  h+=`<h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:4px">${q.text}</h3>`;
+  /* Gambar soal */
+  if(q.image){h+=`<img src="${q.image}" class="q-img" alt="Gambar Soal" onerror="this.style.display='none'">`}
+  h+=`<div class="grid gap-3" style="margin-top:12px">`;
   if(q.type==='essay'){
-    h += `<textarea class="ip" id="ansEss" rows="5" placeholder="Tulis jawaban uraian di sini..." oninput="D.an[${i}]=$('ansEss').value">${D.an[i]||''}</textarea>`;
-  } else {
-    q.options.forEach((o,j)=>{h+=`<div class="oc ${D.an[i]===j?'sl':''}" onclick="pA(${j})"><span class="lt">${OL_FULL[j]}</span><span>${o}</span></div>`});
+    h+=`<textarea class="ip" id="ansEss" rows="5" placeholder="Tulis jawaban uraian di sini..." oninput="D.an[${i}]=$('ansEss').value">${D.an[i]||''}</textarea>`;
+  }else{
+    q.options.forEach((o,j)=>{
+      /* Opsi bisa berupa string atau objek {text, image} */
+      let optText='', optImg='';
+      if(typeof o==='object'&&o!==null){
+        optText=o.text||'';optImg=o.image||'';
+      }else{optText=String(o)}
+      let inner='';
+      if(optImg){inner+=`<img src="${optImg}" class="oc-img" alt="Opsi ${OL_FULL[j]}" onerror="this.style.display='none'">`}
+      inner+=`<span class="lt">${OL_FULL[j]}</span><span style="flex:1">${optText}</span>`;
+      h+=`<div class="oc ${D.an[i]===j?'sl':''}" onclick="pA(${j})">${inner}</div>`;
+    });
   }
-  h+=`</div></div>`;$('eA').innerHTML=h;
+  h+=`</div></div>`;
+  $('eA').innerHTML=h;
   $('eN').innerHTML=`<button class="bt bt3 bts" onclick="pvQ()" ${i===0?'disabled style="opacity:.4;pointer-events:none"':''}><i class="fas fa-arrow-left"></i> Sebelumnya</button>
   <div class="flex gap-1 flex-wrap justify-center">${ex.questions.map((_,j)=>`<div onclick="jQ(${j})" style="width:27px;height:27px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:800;cursor:pointer;transition:all .2s;${j===i?'background:var(--ac);color:#fff':D.an[j]!==undefined?'background:rgba(34,197,94,.15);color:#16a34a':'background:var(--bd);color:var(--mt)'}">${j+1}</div>`).join('')}</div>
   ${i===t-1?`<button class="bt bt1 bts" onclick="cfF()"><i class="fas fa-check"></i> Selesai</button>`:`<button class="bt bt1 bts" onclick="nxQ()">Selanjutnya <i class="fas fa-arrow-right"></i></button>`}`;
 }
-function pA(j){D.an[D.cQ]=j;rQ()}function pvQ(){if(D.cQ>0){D.cQ--;rQ()}}function nxQ(){if(D.cQ<D.cEx.questions.length-1){D.cQ++;rQ()}}function jQ(j){D.cQ=j;rQ()}
+function pA(j){D.an[D.cQ]=j;rQ()}
+function pvQ(){if(D.cQ>0){D.cQ--;rQ()}}
+function nxQ(){if(D.cQ<D.cEx.questions.length-1){D.cQ++;rQ()}}
+function jQ(j){D.cQ=j;rQ()}
 function cfF(){const a=Object.keys(D.an).length,t=D.cEx.questions.length;
   oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px">⚠️</div><h3 style="font-size:1.1rem;margin-bottom:6px">Selesaikan Ujian?</h3><p style="color:var(--mt);margin-bottom:16px">Sudah menjawab ${a} dari ${t} soal.${t-a>0?'<br>Masih '+(t-a)+' belum dijawab!':''}</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt1 bts" onclick="cMo();finEx()">Ya, Selesai</button></div></div>`)}
+
 async function finEx(){
   clearInterval(D.tI);const ex=D.cEx,s=D.st;let cor=0;let essays=[];
   ex.questions.forEach((q,i)=>{
-    if(q.type==='essay'){essays.push({id:q.id, text:q.text, key:q.key||'', answer:D.an[i]||'', score:0, graded:false});}
-    else {if(D.an[i]===q.answer) cor++;}
+    if(q.type==='essay'){essays.push({id:q.id,text:q.text,key:q.key||'',answer:D.an[i]||'',score:0,graded:false});}
+    else{if(D.an[i]===q.answer)cor++;}
   });
-  const hasEssay = essays.length > 0;
-  const autoScore = Math.round(cor/ex.questions.length*100);
-  const finalScore = hasEssay ? 0 : autoScore;
+  const hasEssay=essays.length>0;
+  const autoScore=Math.round(cor/ex.questions.length*100);
+  const finalScore=hasEssay?0:autoScore;
   const tu=ex.timeLimit*60-D.tL;
   const r={id:uid(),examId:ex.id,kelas:s.kelas,mapel:ex.mapel,nama:s.nama,nis:s.nis,score:finalScore,autoScore:autoScore,correct:cor,total:ex.questions.length,essays:essays,timeUsed:tu,timestamp:Date.now()};
   ld('Menyimpan...');await rR(D.sch.npsn).doc(r.id).set(r);D.rs.push(r);hd();showR(r);
 }
+
 function showR(r){
-  go('pRE');let g,c,em,msg;const sc = r.score || 0;
+  go('pRE');let g,c,em,msg;const sc=r.score||0;
   if(sc>=90){g='A';c='#22C55E';em='🎉';msg='Luar Biasa! Kamu Hebat Sekali!'}
   else if(sc>=80){g='B';c='#00B4D8';em='😊';msg='Bagus Sekali! Terus Belajar!'}
   else if(sc>=70){g='C';c='#EAB308';em='👍';msg='Cukup Baik! Lebih Semangat!'}
   else if(sc>=60){g='D';c='#FF6B35';em='💪';msg='Jangan Menyerah! Belajar Lagi!'}
   else{g='E';c='#EF4444';em='📚';msg='Ayo Belajar Lebih Giat!'}
-  if(r.essays && r.essays.length>0){em='⏳';c='#3B82F6';msg='Jawaban uraian kamu akan dikoreksi oleh Admin/Guru.';g='?';}
+  if(r.essays&&r.essays.length>0){em='⏳';c='#3B82F6';msg='Jawaban uraian kamu akan dikoreksi oleh Admin/Guru.';g='?';}
   const tm=Math.floor(r.timeUsed/60),ts=r.timeUsed%60;
-  if(sc>=80)cft();
+  if(sc>=80&&!r.essays)cft();
   $('rC').innerHTML=`<div class="schb mb-4" style="background:rgba(255,107,53,.08);color:var(--ac)"><i class="fas fa-school"></i> ${D.sch.nama}</div>
   <div style="font-size:3rem;margin-bottom:6px">${em}</div><h2 style="font-size:1.25rem;margin-bottom:4px">Hasil Ujian</h2>
   <p style="color:var(--mt);font-size:.82rem;margin-bottom:18px">${r.mapel} — Kelas ${r.kelas}</p>
-  <div class="flex justify-center mb-5"><div class="rc" style="border-color:${c}"><span class="sc" style="color:${c}">${r.essays && r.essays.length>0?'?':r.score}</span><span class="rl" style="color:${c}">Grade ${g}</span></div></div>
+  <div class="flex justify-center mb-5"><div class="rc" style="border-color:${c}"><span class="sc" style="color:${c}">${r.essays&&r.essays.length>0?'?':r.score}</span><span class="rl" style="color:${c}">Grade ${g}</span></div></div>
   <p style="font-size:.95rem;font-weight:700;margin-bottom:18px;color:${c}">${msg}</p>
   <div class="grid grid-cols-3 gap-3 mb-6">
     <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Benar (PG)</p><p style="font-size:1.15rem;font-weight:800;color:#22C55E">${r.correct}</p></div>
@@ -497,14 +483,14 @@ function showR(r){
     <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Waktu</p><p style="font-size:.9rem;font-weight:800">${tm}:${String(ts).padStart(2,'0')}</p></div>
   </div>
   <div class="flex gap-3 justify-center flex-wrap">
-    ${r.essays && r.essays.length>0 ? '' : `<button class="bt bt5 bts" onclick="cPDF('${r.id}')"><i class="fas fa-file-pdf"></i> Cetak PDF</button>`}
+    ${r.essays&&r.essays.length>0?'':`<button class="bt bt5 bts" onclick="cPDF('${r.id}')"><i class="fas fa-file-pdf"></i> Cetak PDF</button>`}
     <button class="bt bt3 bts" onclick="go('pSD');renderSD()"><i class="fas fa-arrow-left"></i> Kembali</button>
     <button class="bt bt2 bts" onclick="outS()"><i class="fas fa-sign-out-alt"></i> Keluar</button>
   </div>`;
 }
 function cft(){const cols=['#FF6B35','#00B4D8','#22C55E','#EAB308','#A855F7','#EF4444','#FF69B4'];for(let i=0;i<40;i++){const el=document.createElement('div');el.className='cp';el.style.left=Math.random()*100+'vw';el.style.background=cols[Math.floor(Math.random()*cols.length)];el.style.borderRadius=Math.random()>.5?'50%':'2px';el.style.width=(6+Math.random()*8)+'px';el.style.height=(6+Math.random()*8)+'px';el.style.animationDuration=(2+Math.random()*2)+'s';el.style.animationDelay=(Math.random()*1.5)+'s';document.body.appendChild(el);setTimeout(()=>el.remove(),5000)}}
 
-// Cetak PDF Hasil
+/* ===== CETAK PDF HASIL ===== */
 async function cPDF(rid){
   const r=D.rs.find(x=>x.id===rid);if(!r)return;
   const stu=D.ss.find(s=>s.nis===r.nis);const ortu=stu?stu.ortu:'-';const sch=D.sch;
@@ -512,18 +498,18 @@ async function cPDF(rid){
   let grade,label;
   if(r.score>=90){grade='A';label='Sangat Baik'}else if(r.score>=80){grade='B';label='Baik'}else if(r.score>=70){grade='C';label='Cukup'}else if(r.score>=60){grade='D';label='Kurang'}else{grade='E';label='Sangat Kurang'}
   const tm=Math.floor(r.timeUsed/60),ts=r.timeUsed%60;
-  const box=$('pB');box.style.left='0';box.style.top='0';box.style.zIndex='9999';
-  let essayHtml = '';
-  if(r.essays && r.essays.length>0){
-    essayHtml = `<h3 style="font-family:'Fredoka';font-size:12pt;margin:20px 0 10px">Koreksi Jawaban Uraian Singkat</h3>`;
+  let essayHtml='';
+  if(r.essays&&r.essays.length>0){
+    essayHtml=`<h3 style="font-family:'Fredoka';font-size:12pt;margin:20px 0 10px">Koreksi Jawaban Uraian</h3>`;
     r.essays.forEach((e,i)=>{
-      essayHtml += `<div style="margin-bottom:15px;border-bottom:1px solid #ccc;padding-bottom:10px">
+      essayHtml+=`<div style="margin-bottom:15px;border-bottom:1px solid #ccc;padding-bottom:10px">
         <p style="font-weight:bold;margin-bottom:5px">${i+1}. ${e.text}</p>
-        <p style="margin-bottom:5px"><strong>Kunci Jawaban:</strong> ${e.key || '<em>(Belum diset)</em>'}</p>
-        <p style="margin-bottom:5px"><strong>Jawaban Siswa:</strong> ${e.answer || '<em>(Tidak dijawab)</em>'}</p>
+        <p style="margin-bottom:5px"><strong>Kunci:</strong> ${e.key||'<em>(Belum diset)</em>'}</p>
+        <p style="margin-bottom:5px"><strong>Jawaban:</strong> ${e.answer||'<em>(Tidak dijawab)</em>'}</p>
         <p><strong>Nilai:</strong> ${e.score}/100</p></div>`;
     });
   }
+  const box=$('pB');box.style.left='0';box.style.top='0';box.style.zIndex='9999';
   box.innerHTML=`<div class="pd" id="pdE">
     <div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px">
       <p style="font-size:9pt;margin:0;color:#555">NPSN: ${sch.npsn}</p>
@@ -546,7 +532,7 @@ async function cPDF(rid){
     <div style="margin-top:36px;display:flex;justify-content:space-between">
       <div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Orang Tua/Wali</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________________)</p><p style="font-size:8pt;color:#666">${ortu}</p></div>
       <div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Guru Mapel</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________________)</p></div>
-      <div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Kepala Sekolah</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________________)</p><p style="font-size:8pt;color:#666">NIP. ........................</p></div>
+      <div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Kepala Sekolah</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________________)</p><p style="font-size:8pt;color:#666">NIP. ....................</p></div>
     </div></div>`;
   tt('Membuat PDF...','in');
   try{await html2pdf().set({margin:10,filename:`UTS_${r.nama}_${r.mapel}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdE')).save();tt('PDF berhasil diunduh!')}
@@ -554,459 +540,1011 @@ async function cPDF(rid){
   box.style.left='-9999px';box.style.zIndex='-1';
 }
 
-// Cetak Soal PDF
+/* ===== CETAK SOAL PDF ===== */
 async function cSoalPDF(eid){
   const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
   const sch=D.sch;const box=$('pB');box.style.left='0';box.style.top='0';box.style.zIndex='9999';
-  let soalHtml = '';
+  let soalHtml='';
   ex.questions.forEach((q,i)=>{
-    // 'page-break-inside:avoid; margin-bottom:20px;' agar soal tidak terpotong
-    soalHtml += `<div style="page-break-inside:avoid; margin-bottom:20px">
-      <p style="font-weight:bold;margin-bottom:8px">${i+1}. ${q.text}</p>`;
-    if(q.type==='essay'){
-      soalHtml += `<div style="border:1px solid #ccc;height:60px;border-radius:4px;margin-bottom:10px"></div><p style="font-size:9pt;color:#555"><strong>Kunci Jawaban:</strong> ${q.key||'-'}</p>`;
-    } else {
-      soalHtml += `<div style="padding-left:20px">`;
-      q.options.forEach((o,j)=>{soalHtml += `<p style="margin-bottom:4px">${OL_FULL[j]}. ${o}</p>`;});
-      soalHtml += `</div>`;
+    soalHtml+=`<div style="page-break-inside:avoid;margin-bottom:16px">
+      <p style="font-weight:bold;margin-bottom:4px">${i+1}. ${q.text}</p>`;
+    if(q.image){soalHtml+=`<img src="${q.image}" class="q-img-print" style="margin:6px 0;display:block"><br>`}
+    if(q.type==='pg'&&q.options){
+      q.options.forEach((o,j)=>{
+        let txt=typeof o==='object'?o.text:o;
+        soalHtml+=`<p style="margin-left:24px;margin-bottom:2px">${OL_FULL[j]}. ${txt}</p>`;
+      });
     }
-    soalHtml += `</div>`;
+    soalHtml+=`</div>`;
   });
-  
-  box.innerHTML=`<div class="pd" id="pdE">
-    <div style="text-align:center;margin-bottom:14px">
-      <p style="font-size:11pt;margin:0;font-weight:bold;">PEMERINTAH KABUPATEN ${sch.kota ? sch.kota.toUpperCase() : 'MAJALENGKA'}</p>
-      <p style="font-size:11pt;margin:0;font-weight:bold;">KECAMATAN MAJALENGKA</p>
-      <h2 style="font-size:15pt;margin:2px 0;font-weight:800;">${sch.nama ? sch.nama.toUpperCase() : 'NAMA SEKOLAH'}</h2>
-      <p style="font-size:9pt;margin:0;border-bottom:3px solid #333;padding-bottom:6px;">NPSN: ${sch.npsn} • ${sch.prov || 'Jawa Barat'}</p>
-      <p style="font-size:12pt;margin:10px 0 0;font-weight:700">SOAL UJIAN TENGAH SEMESTER</p>
-      <p style="font-size:9pt;margin:2px 0 0;color:#555">Tahun Pelajaran 2024/2025</p>
-    </div>
-    <table style="border:none;margin-bottom:10px">
-      <tr><td style="border:none;padding:2px 8px;width:120px;font-weight:700">Mata Pelajaran</td><td style="border:none;padding:2px 8px">: ${ex.mapel}</td><td style="border:none;padding:2px 8px;width:120px;font-weight:700">Kelas</td><td style="border:none;padding:2px 8px">: ${ex.kelas}</td></tr>
-      <tr><td style="border:none;padding:2px 8px;font-weight:700">Hari/Tanggal</td><td style="border:none;padding:2px 8px">: ........................</td><td style="border:none;padding:2px 8px;font-weight:700">Waktu</td><td style="border:none;padding:2px 8px">: ${ex.timeLimit} Menit</td></tr>
-      <tr><td style="border:none;padding:2px 8px;font-weight:700">Nama</td><td style="border:none;padding:2px 8px">: ........................</td><td style="border:none;padding:2px 8px;font-weight:700">NIS</td><td style="border:none;padding:2px 8px">: ........................</td></tr>
-    </table>
-    <p style="font-size:10pt;text-align:center;margin-bottom:10px;border:1px solid #333;padding:8px;border-radius:5px;"><strong>Petunjuk:</strong> Bacalah setiap soal dengan teliti. Jawablah pertanyaan sesuai dengan tipe soal.</p>
-    <div style="border-top:2px solid #333;padding-top:10px">
-      ${soalHtml}
-    </div>
-  </div>`;
-  
-  tt('Membuat PDF Soal...','in');
-  try{
-    await html2pdf().set({
-      margin: [10, 10, 10, 10],
-      filename:`Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`,
-      image:{type:'jpeg',quality:.98},
-      html2canvas:{scale:2, useCORS:true},
-      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-      pagebreak:{mode:['css', 'legacy']}
-    }).from($('pdE')).save();
-    tt('Soal PDF berhasil diunduh!');
-  }catch(e){tt('Gagal: '+e.message,'er')}
-  box.style.left='-9999px';box.style.zIndex='-1';
-}
-
-// Cetak Rekap Nilai
-async function cRekapPDF(){
-  const fk=$('fHK')?$('fHK').value:'';const fm=$('fHM')?$('fHM').value:'';
-  let f=D.rs;if(fk)f=f.filter(r=>r.kelas===parseInt(fk));if(fm)f=f.filter(r=>r.mapel===fm);
-  if(f.length===0)return tt('Tidak ada data untuk direkap!','er');
-  const sch=D.sch;const box=$('pB');box.style.left='0';box.style.top='0';box.style.zIndex='9999';
-  const getGrade=(sc)=>{if(sc>=90)return 'A';else if(sc>=80)return 'B';else if(sc>=70)return 'C';else if(sc>=60)return 'D';else return 'E';};
-  const rowsHtml = f.map((r,i)=>{const tm=Math.floor(r.timeUsed/60),ts=r.timeUsed%60;return `<tr><td style="text-align:center">${i+1}</td><td>${r.nama}</td><td style="text-align:center">${r.nis}</td><td style="text-align:center">${r.mapel}</td><td style="text-align:center">${r.correct}/${r.total}</td><td style="text-align:center;font-weight:800">${r.score}</td><td style="text-align:center;font-weight:800">${getGrade(r.score)}</td><td style="text-align:center">${tm}:${String(ts).padStart(2,'0')}</td></tr>`;}).join('');
-  box.innerHTML=`<div class="pd" id="pdE">
+  box.innerHTML=`<div class="pd" id="pdS">
     <div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px">
+      <p style="font-size:9pt;margin:0;color:#555">NPSN: ${sch.npsn}</p>
       <h2 style="font-size:14pt;margin:2px 0">${sch.nama.toUpperCase()}</h2>
       <p style="font-size:9pt;margin:0;color:#555">${sch.kota}, ${sch.prov}</p>
-      <p style="font-size:12pt;margin:8px 0 0;font-weight:700">REKAP NILAI UJIAN</p>
-      <p style="font-size:9pt;margin:2px 0 0;color:#555">${fk?'Kelas '+fk:'Semua Kelas'} - ${fm||'Semua Mapel'}</p>
+      <p style="font-size:12pt;margin:8px 0 0;font-weight:700">SOAL PENILAIAN TENGAH SEMESTER</p>
+      <p style="font-size:10pt;margin:4px 0 0">${ex.mapel} — Kelas ${ex.kelas}</p>
+      <p style="font-size:9pt;margin:2px 0 0;color:#555">Waktu: ${ex.timeLimit} menit | Jumlah: ${ex.questions.length} soal</p>
     </div>
-    <table><thead><tr><th style="width:30px">No</th><th>Nama Siswa</th><th style="width:80px;text-align:center">NIS</th><th style="width:120px;text-align:center">Mapel</th><th style="width:60px;text-align:center">Benar</th><th style="width:50px;text-align:center">Nilai</th><th style="width:50px;text-align:center">Grade</th><th style="width:60px;text-align:center">Waktu</th></tr></thead>
-    <tbody>${rowsHtml}</tbody></table>
-    <div style="margin-top:40px;display:flex;justify-content:space-between">
-      <div style="text-align:center;width:45%"><p style="font-size:9pt;font-weight:700">Guru Mapel</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________________)</p></div>
-      <div style="text-align:center;width:45%"><p style="font-size:9pt;font-weight:700">Kepala Sekolah</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________________)</p><p style="font-size:8pt;color:#666">NIP. ........................</p></div>
+    ${soalHtml}
+    <div style="margin-top:30px;display:flex;justify-content:space-between">
+      <div style="text-align:center;width:40%"><p style="font-size:9pt;font-weight:700">Mengetahui,</p><p style="font-size:9pt;font-weight:700">Kepala Sekolah</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________________)</p><p style="font-size:8pt;color:#666">NIP. ....................</p></div>
+      <div style="text-align:center;width:40%"><p style="font-size:9pt;font-weight:700">Guru ${ex.mapel}</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________________)</p><p style="font-size:8pt;color:#666">NIP. ....................</p></div>
     </div></div>`;
-  tt('Membuat PDF Rekap...','in');
-  try{await html2pdf().set({margin:10,filename:`Rekap_Nilai_${sch.nama}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdE')).save();tt('Rekap PDF berhasil diunduh!');}
+  tt('Membuat PDF Soal...','in');
+  try{await html2pdf().set({margin:10,filename:`Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdS')).save();tt('PDF soal berhasil diunduh!')}
   catch(e){tt('Gagal: '+e.message,'er')}
   box.style.left='-9999px';box.style.zIndex='-1';
 }
 
-/* ============================
-   ADMIN TABS
-   ============================ */
-function aTab(t,el){document.querySelectorAll('#aSB a').forEach(a=>a.classList.remove('on'));if(el)el.classList.add('on');
-  if(t==='d')aDash();else if(t==='s')aSoal();else if(t==='h')aHasil();else if(t==='w')aSiswa();else if(t==='c')aSet();}
-
-function aDash(){
-  const c=$('aC'),sch=D.sch,tq=D.ex.reduce((a,e)=>a+e.questions.length,0);
-  const ts=[...new Set(D.rs.map(r=>r.nis))].length;
-  const avg=D.rs.length?Math.round(D.rs.reduce((a,r)=>a+r.score,0)/D.rs.length):0;
-  let ks=KL.map(k=>{const ex=D.ex.filter(e=>e.kelas===k.v),res=D.rs.filter(r=>r.kelas===k.v),a=res.length?Math.round(res.reduce((x,r)=>x+r.score,0)/res.length):0;return{k:k.v,ju:ex.length,jq:ex.reduce((x,e)=>x+e.questions.length,0),p:res.length,a}});
-  c.innerHTML=`<div class="asu"><div class="schb mb-5" style="background:rgba(255,107,53,.08);color:var(--ac)"><i class="fas fa-school"></i> ${sch.nama} — NPSN: ${sch.npsn}</div>
-  <h2 style="font-size:1.35rem;margin-bottom:16px">Dashboard</h2>
-  <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-    <div class="cd text-center"><div style="font-size:1.3rem;margin-bottom:2px">📝</div><p style="font-size:1.5rem;font-weight:800;color:var(--ac)">${D.ex.length}</p><p style="font-size:.68rem;color:var(--mt);font-weight:700">Ujian</p></div>
-    <div class="cd text-center"><div style="font-size:1.3rem;margin-bottom:2px">❓</div><p style="font-size:1.5rem;font-weight:800;color:var(--ac2)">${tq}</p><p style="font-size:.68rem;color:var(--mt);font-weight:700">Soal</p></div>
-    <div class="cd text-center"><div style="font-size:1.3rem;margin-bottom:2px">👨‍🎓</div><p style="font-size:1.5rem;font-weight:800;color:#22C55E">${D.ss.length}</p><p style="font-size:.68rem;color:var(--mt);font-weight:700">Siswa</p></div>
-    <div class="cd text-center"><div style="font-size:1.3rem;margin-bottom:2px">📊</div><p style="font-size:1.5rem;font-weight:800;color:#A855F7">${ts}</p><p style="font-size:.68rem;color:var(--mt);font-weight:700">Peserta</p></div>
-    <div class="cd text-center"><div style="font-size:1.3rem;margin-bottom:2px">🏆</div><p style="font-size:1.5rem;font-weight:800;color:#EAB308">${avg}</p><p style="font-size:.68rem;color:var(--mt);font-weight:700">Rata-rata</p></div>
-  </div>
-  <h3 style="font-size:1rem;margin-bottom:10px">Statistik Per Kelas</h3>
-  <div class="overflow-x-auto"><table style="width:100%;border-collapse:separate;border-spacing:0">
-  <thead><tr style="background:var(--bg)"><th style="padding:8px 12px;text-align:left;border-radius:10px 0 0 10px;font-size:.76rem;color:var(--mt)">Kelas</th><th style="padding:8px 12px;text-align:center;font-size:.76rem;color:var(--mt)">Ujian</th><th style="padding:8px 12px;text-align:center;font-size:.76rem;color:var(--mt)">Soal</th><th style="padding:8px 12px;text-align:center;font-size:.76rem;color:var(--mt)">Peserta</th><th style="padding:8px 12px;text-align:center;border-radius:0 10px 10px 0;font-size:.76rem;color:var(--mt)">Rata-rata</th></tr></thead>
-  <tbody>${ks.map(k=>`<tr style="border-bottom:2px solid var(--bd)"><td style="padding:8px 12px;font-weight:800;font-size:.82rem">Kelas ${k.k}</td><td style="padding:8px 12px;text-align:center">${k.ju}</td><td style="padding:8px 12px;text-align:center">${k.jq}</td><td style="padding:8px 12px;text-align:center">${k.p}</td><td style="padding:8px 12px;text-align:center"><span class="bg" style="background:${k.a>=70?'rgba(34,197,94,.12);color:#16a34a':'rgba(239,68,68,.12);color:#dc2626'}">${k.a||'-'}</span></td></tr>`).join('')}</tbody></table></div></div>`;
+/* ================================================================
+   ADMIN PANEL TABS
+   ================================================================ */
+function aTab(t,el){
+  document.querySelectorAll('#aSB a').forEach(a=>a.classList.remove('on'));
+  if(el)el.classList.add('on');
+  const c=$('aC');
+  if(t==='d')renderDash(c);
+  else if(t==='s')renderSoal(c);
+  else if(t==='h')renderHasil(c);
+  else if(t==='w')renderSiswa(c);
+  else if(t==='c')renderSetting(c);
 }
 
-function aSoal(){
-  const isPusat = D.isPusat;
-  let headerBtns = `<select id="fSK" class="ip" style="width:auto;padding:7px 30px 7px 12px;font-size:.78rem" onchange="fSl()"><option value="">Semua Kelas</option>${KL.map(k=>`<option value="${k.v}">Kelas ${k.l}</option>`).join('')}</select>`;
-  if(isPusat){
-    headerBtns += `<button class="bt bt1 btx" onclick="addEx()"><i class="fas fa-plus"></i> Tambah Ujian</button>`;
-  }
-  $('aC').innerHTML=`<div class="asu"><div class="flex flex-wrap items-center justify-between gap-3 mb-5"><h2 style="font-size:1.35rem">Kelola Soal ${isPusat?'':'<span style="font-size:.7rem;background:rgba(99,102,241,.1);color:var(--pr);padding:4px 8px;border-radius:8px;margin-left:6px">Read Only</span>'}</h2>
-  <div class="flex gap-2 flex-wrap">${headerBtns}</div></div><div id="sL">${slC(D.ex)}</div></div>`;
-}
-function fSl(){const fk=$('fSK').value;$('sL').innerHTML=slC(fk?D.ex.filter(e=>e.kelas===parseInt(fk)):D.ex)}
-function slC(list){
-  if(!list.length)return`<div class="text-center py-14"><div style="font-size:3.5rem;margin-bottom:10px">📭</div><h3>Tidak ada ujian</h3></div>`;
-  return`<div class="grid gap-3">${list.map(ex=>{const ma=gm(ex.mapel),rc=D.rs.filter(r=>r.examId===ex.id).length;
-  return`<div class="cd" style="padding:0;overflow:hidden"><div style="display:flex;align-items:stretch"><div style="width:5px;background:${ma.c};flex-shrink:0"></div>
-  <div class="flex-1 p-4"><div class="flex flex-wrap items-center justify-between gap-3">
-    <div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:${ma.c}15;color:${ma.c};font-size:.95rem"><i class="fas ${ma.ic}"></i></div>
-    <div><h4 style="font-size:.92rem">${ex.mapel}</h4><p style="font-size:.7rem;color:var(--mt)">Kelas ${ex.kelas} · ${ex.questions.length} soal · ${ex.timeLimit} menit · ${rc} peserta</p></div></div>
-    <div class="flex gap-2">
-      <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')" style="padding:5px 10px" title="Cetak Soal PDF"><i class="fas fa-print"></i></button>
-      ${D.isPusat?`
-      <button class="bt bt3 btx" onclick="edEx('${ex.id}')" style="padding:5px 10px"><i class="fas fa-pen"></i></button>
-      <button class="bt bt2 btx" onclick="mQ('${ex.id}')" style="padding:5px 10px"><i class="fas fa-list"></i> Soal</button>
-      <button class="bt bt4 btx" onclick="cfDE('${ex.id}')" style="padding:5px 10px"><i class="fas fa-trash"></i></button>
-      `:`
-      <button class="bt bt2 btx" onclick="mQ('${ex.id}')" style="padding:5px 10px"><i class="fas fa-eye"></i> Lihat Soal</button>
-      `}
-    </div>
-  </div></div></div></div>`}).join('')}</div>`;
-}
-function addEx(){
-  if(!D.isPusat)return tt('Hanya Admin Pusat yang bisa menambah soal!','er');
-  oMo(`<h3 style="font-size:1.1rem;margin-bottom:14px">Tambah Ujian</h3>
-  <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.78rem">Kelas</label><select id="mK" class="ip" onchange="toggleOptCount(this.value)">${KL.map(k=>`<option value="${k.v}">Kelas ${k.l}</option>`).join('')}</select></div>
-  <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.78rem">Mata Pelajaran</label><select id="mM" class="ip">${MP.map(m=>`<option value="${m.v}">${m.l}</option>`).join('')}</select></div>
-  <div class="mb-5"><label class="block mb-1 font-bold" style="font-size:.78rem">Waktu (menit)</label><input id="mT" class="ip" type="number" min="5" max="120" value="30"></div>
-  <div class="flex gap-3 justify-end"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt1 bts" onclick="svNE()">Simpan</button></div>`);
-}
-function toggleOptCount(kls){} // Not needed for exam creation, only for question creation
-
-async function svNE(){
-  if(!D.isPusat)return tt('Akses ditolak!','er');
-  const ex={id:uid(),kelas:parseInt($('mK').value),mapel:$('mM').value,timeLimit:Math.max(5,parseInt($('mT').value)||30),questions:[]};
-  ld('Menyimpan...');await eR(D.sch.npsn).doc(ex.id).set(ex);D.ex.push(ex);hd();cMo();aSoal();tt('Ujian ditambahkan!');
-}
-function edEx(id){
-  if(!D.isPusat)return tt('Hanya Admin Pusat yang bisa edit!','er');
-  const ex=D.ex.find(e=>e.id===id);if(!ex)return;
-  oMo(`<h3 style="font-size:1.1rem;margin-bottom:14px">Edit Ujian</h3>
-  <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.78rem">Kelas</label><select id="mK" class="ip">${KL.map(k=>`<option value="${k.v}" ${k.v===ex.kelas?'selected':''}>Kelas ${k.l}</option>`).join('')}</select></div>
-  <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.78rem">Mata Pelajaran</label><select id="mM" class="ip">${MP.map(m=>`<option value="${m.v}" ${m.v===ex.mapel?'selected':''}>${m.l}</option>`).join('')}</select></div>
-  <div class="mb-5"><label class="block mb-1 font-bold" style="font-size:.78rem">Waktu (menit)</label><input id="mT" class="ip" type="number" min="5" max="120" value="${ex.timeLimit}"></div>
-  <div class="flex gap-3 justify-end"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt1 bts" onclick="svEE('${id}')">Simpan</button></div>`);
-}
-async function svEE(id){
-  if(!D.isPusat)return tt('Akses ditolak!','er');
-  const ex=D.ex.find(e=>e.id===id);if(!ex)return;
-  ex.kelas=parseInt($('mK').value);ex.mapel=$('mM').value;ex.timeLimit=Math.max(5,parseInt($('mT').value)||30);
-  ld('Menyimpan...');await eR(D.sch.npsn).doc(id).set(ex);hd();cMo();aSoal();tt('Diperbarui!');
-}
-function cfDE(id){
-  if(!D.isPusat)return tt('Hanya Admin Pusat yang bisa hapus!','er');
-  const ex=D.ex.find(e=>e.id===id);if(!ex)return;
-  oMo(`<div class="text-center"><div style="font-size:2.5rem;margin-bottom:10px">🗑️</div><h3 style="font-size:1.05rem;margin-bottom:6px">Hapus Ujian?</h3><p style="color:var(--mt);margin-bottom:16px"><strong>${ex.mapel}</strong> Kelas ${ex.kelas} + hasil akan dihapus.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="doDE('${id}')">Hapus</button></div></div>`);
-}
-async function doDE(id){
-  if(!D.isPusat)return tt('Akses ditolak!','er');
-  ld('Menghapus...');await eR(D.sch.npsn).doc(id).delete();D.ex=D.ex.filter(e=>e.id!==id);
-  const td=D.rs.filter(r=>r.examId===id);await Promise.all(td.map(r=>rR(D.sch.npsn).doc(r.id).delete()));D.rs=D.rs.filter(r=>r.examId!==id);
-  hd();cMo();aSoal();tt('Dihapus!','in');
-}
-
-function mQ(eid){
-  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
-  const isPusat = D.isPusat;
-  function rn(){
-    let list='';if(!ex.questions.length)list=`<div class="text-center py-6" style="color:var(--mt)">Belum ada soal.</div>`;
-    else list=ex.questions.map((q,i)=>`<div style="padding:10px;border:2px solid var(--bd);border-radius:10px;margin-bottom:6px"><div class="flex items-start gap-2"><span style="background:var(--ac);color:#fff;min-width:23px;height:23px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:800;flex-shrink:0">${i+1}</span>
-    <div class="flex-1"><p style="font-weight:700;font-size:.8rem;margin-bottom:4px">${q.type==='essay'?'<i class="fas fa-pen-to-square" style="color:var(--pr);margin-right:5px"></i>':''}${q.text}</p>
-    ${q.type==='essay'?`<div style="background:rgba(99,102,241,.05);padding:8px;border-radius:8px;margin-top:4px"><p style="font-size:.7rem;color:var(--pr);font-weight:700">Kunci Jawaban:</p><p style="font-size:.76rem">${q.key||'<em style="color:var(--mt)">(Belum diset)</em>'}</p></div>`:`<div class="grid grid-cols-2 gap-1">${q.options.map((o,j)=>`<span style="font-size:.68rem;padding:2px 6px;border-radius:5px;${j===q.answer?'background:rgba(34,197,94,.12);color:#16a34a;font-weight:800':'background:var(--bg);color:var(--mt)'}">${OL_FULL[j]}. ${o}</span>`).join('')}</div>`}
-    </div>
-    ${isPusat?`<div class="flex gap-1 flex-shrink:0"><button onclick="eQn('${eid}',${i})" style="width:25px;height:25px;border-radius:6px;border:2px solid var(--bd);background:var(--cd);cursor:pointer;color:var(--ac2);font-size:.68rem"><i class="fas fa-pen"></i></button><button onclick="dQn('${eid}',${i})" style="width:25px;height:25px;border-radius:6px;border:2px solid var(--bd);background:var(--cd);cursor:pointer;color:var(--er);font-size:.68rem"><i class="fas fa-trash"></i></button></div>`:''}
-    </div></div>`).join('');
-    $('moC').innerHTML=`<div class="flex items-center justify-between mb-3"><h3 style="font-size:1rem">${ex.mapel} — Kelas ${ex.kelas}</h3><span class="bg" style="background:rgba(255,107,53,.12);color:var(--ac)">${ex.questions.length} soal</span></div>
-    <div style="max-height:40vh;overflow-y:auto;margin-bottom:12px">${list}</div>
-    <div class="flex gap-3 justify-between">
-    <button class="bt bt3 bts" onclick="cMo();aSoal()"><i class="fas fa-arrow-left"></i> Kembali</button>
-    ${isPusat?`<button class="bt bt1 bts" onclick="aQn('${eid}')"><i class="fas fa-plus"></i> Tambah Soal</button>`:''}
+/* ===== DASHBOARD ===== */
+function renderDash(c){
+  const npsn=D.isPusat?null:D.sch.npsn;
+  const exCount=D.ex.length;
+  const rsCount=D.rs.length;
+  const ssCount=D.ss.length;
+  const avgScore=rsCount?Math.round(D.rs.reduce((a,r)=>a+(r.score||0),0)/rsCount):0;
+  const mapelCount=[...new Set(D.ex.map(e=>e.mapel))].length;
+  let h=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:4px">Dashboard${D.isPusat?' Pusat':''}</h2>
+    <p style="color:var(--mt);font-size:.85rem;margin-bottom:24px">${D.isPusat?'Kelola soal untuk semua sekolah':'Kelola '+D.sch.nama}</p>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="cd" style="text-align:center;padding:18px"><div style="font-size:1.8rem;color:var(--ac)"><i class="fas fa-file-alt"></i></div><p style="font-size:1.6rem;font-weight:800;font-family:'Fredoka'">${exCount}</p><p style="font-size:.75rem;color:var(--mt);font-weight:700">Paket Ujian</p></div>
+      <div class="cd" style="text-align:center;padding:18px"><div style="font-size:1.8rem;color:var(--ac2)"><i class="fas fa-book"></i></div><p style="font-size:1.6rem;font-weight:800;font-family:'Fredoka'">${mapelCount}</p><p style="font-size:.75rem;color:var(--mt);font-weight:700">Mata Pelajaran</p></div>
+      <div class="cd" style="text-align:center;padding:18px"><div style="font-size:1.8rem;color:var(--ok)"><i class="fas fa-users"></i></div><p style="font-size:1.6rem;font-weight:800;font-family:'Fredoka'">${ssCount}</p><p style="font-size:.75rem;color:var(--mt);font-weight:700">Siswa Terdaftar</p></div>
+      <div class="cd" style="text-align:center;padding:18px"><div style="font-size:1.8rem;color:var(--pr)"><i class="fas fa-trophy"></i></div><p style="font-size:1.6rem;font-weight:800;font-family:'Fredoka'">${avgScore}</p><p style="font-size:.75rem;color:var(--mt);font-weight:700">Rata-rata Nilai</p></div>
     </div>`;
+
+  /* Daftar paket ujian */
+  if(exCount>0){
+    h+=`<h3 style="font-size:1.1rem;margin-bottom:12px"><i class="fas fa-list mr-2" style="color:var(--ac)"></i>Paket Ujian Tersedia</h3><div class="grid gap-3">`;
+    D.ex.forEach(ex=>{
+      const m=gm(ex.mapel);
+      const done=D.rs.filter(r=>r.examId===ex.id).length;
+      const qImg=ex.questions.filter(q=>q.image).length;
+      const qOptImg=ex.questions.reduce((a,q)=>{if(q.options)q.options.forEach(o=>{if(typeof o==='object'&&o.image)a++});return a},0);
+      const totalImg=qImg+qOptImg;
+      h+=`<div class="cd ec" style="padding:16px 20px" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-3">
+            <div style="width:42px;height:42px;border-radius:12px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center;font-size:1.1rem"><i class="fas ${m.ic}"></i></div>
+            <div>
+              <p style="font-weight:800;font-size:.95rem">${ex.mapel} <span style="font-weight:600;color:var(--mt);font-size:.82rem">— Kelas ${ex.kelas}</span></p>
+              <p style="font-size:.75rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit} menit · ${done}x dikerjakan${totalImg?' · <span style="color:var(--ac2)"><i class="fas fa-image"></i> '+totalImg+' gambar</span>':''}</p>
+            </div>
+          </div>
+        </div></div>`;
+    });
+    h+=`</div>`;
+  }else{
+    h+=`<div class="cd" style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px;opacity:.3"><i class="fas fa-inbox"></i></div><p style="font-weight:700;color:var(--mt);margin-bottom:8px">Belum Ada Paket Ujian</p><p style="font-size:.85rem;color:var(--mt);margin-bottom:16px">Mulai buat soal di tab "Kelola Soal" atau import dari JSON</p><button class="bt bt1" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><i class="fas fa-plus"></i> Buat Soal Sekarang</button></div>`;
   }
-  oMo('<div class="text-center" style="padding:30px"><div class="spn"></div></div>');setTimeout(rn,30);
+  h+=`</div>`;c.innerHTML=h;
 }
-  
-function aQn(eid){
-  if(!D.isPusat)return tt('Akses ditolak!','er');
+
+/* ================================================================
+   KELOLA SOAL (dengan dukungan gambar & import JSON)
+   ================================================================ */
+function renderSoal(c){
+  let h=`<div class="asu"><div class="flex items-center justify-between flex-wrap gap-3 mb-6">
+    <div><h2 style="font-size:1.5rem;margin-bottom:2px">Kelola Soal</h2><p style="color:var(--mt);font-size:.85rem">Buat, edit, hapus soal — dukung gambar di soal & opsi</p></div>
+    <div class="flex gap-2 flex-wrap">
+      <button class="bt bt2 bts" onclick="showImportJSON()"><i class="fas fa-file-import"></i> Import JSON</button>
+      <button class="bt bt5 bts" onclick="showContohJSON()"><i class="fas fa-code"></i> Lihat Contoh JSON</button>
+      <button class="bt bt1 bts" onclick="showBuatUjian()"><i class="fas fa-plus"></i> Buat Ujian Baru</button>
+    </div>
+  </div>`;
+
+  if(D.ex.length===0){
+    h+=`<div class="cd" style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px;opacity:.3"><i class="fas fa-file-alt"></i></div><p style="font-weight:700;color:var(--mt);margin-bottom:8px">Belum ada paket ujian</p><p style="font-size:.85rem;color:var(--mt)">Klik "Buat Ujian Baru" atau "Import JSON" untuk memulai</p></div>`;
+  }else{
+    h+=`<div class="grid gap-3">`;
+    D.ex.forEach(ex=>{
+      const m=gm(ex.mapel);
+      const done=D.rs.filter(r=>r.examId===ex.id).length;
+      const hasImg=ex.questions.some(q=>q.image||(q.options&&q.options.some(o=>typeof o==='object'&&o.image)));
+      h+=`<div class="cd" style="padding:16px 20px">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div class="flex items-center gap-3">
+            <div style="width:46px;height:46px;border-radius:12px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center;font-size:1.2rem"><i class="fas ${m.ic}"></i></div>
+            <div>
+              <p style="font-weight:800;font-size:1rem">${ex.mapel} ${hasImg?'<span class="tag-img"><i class="fas fa-image"></i> Gambar</span>':''}</p>
+              <p style="font-size:.78rem;color:var(--mt)">Kelas ${ex.kelas} · ${ex.questions.length} soal · ${ex.timeLimit} menit · ${done}x dikerjakan</p>
+            </div>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="bt bt2 btx" onclick="editUjian('${ex.id}')"><i class="fas fa-edit"></i> Edit Soal</button>
+            <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button>
+            <button class="bt bt4 btx" onclick="hapusUjian('${ex.id}')"><i class="fas fa-trash"></i> Hapus</button>
+          </div>
+        </div></div>`;
+    });
+    h+=`</div>`;
+  }
+  h+=`</div>`;c.innerHTML=h;
+}
+
+/* ===== MODAL: BIKIN UJIAN BARU ===== */
+function showBuatUjian(){
+  oMo(`<div>
+    <div class="flex items-center justify-between mb-5"><h3 style="font-size:1.2rem"><i class="fas fa-plus-circle mr-2" style="color:var(--ac)"></i>Buat Paket Ujian Baru</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Mata Pelajaran</label><select id="bM" class="ip">${MP.map(m=>`<option value="${m.v}">${m.l}</option>`).join('')}</select></div>
+      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas</label><select id="bK" class="ip">${KL.map(k=>`<option value="${k.v}">Kelas ${k.l}</option>`).join('')}</select></div>
+      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Waktu (menit)</label><input id="bT" class="ip" type="number" value="60" min="10" max="300"></div>
+    </div>
+    ${D.isPusat?`<div class="mb-4"><label class="block mb-1 font-bold" style="font-size:.82rem">NPSN Sekolah Tujuan</label><input id="bN" class="ip" placeholder="Kosongkan = semua sekolah bisa akses" maxlength="8" oninput="this.value=this.value.replace(/[^0-9]/g,'')"><p style="font-size:.72rem;color:var(--mt);margin-top:4px">Kosongkan jika soal berlaku untuk semua sekolah yang terdaftar</p></div>`:''}
+    <button class="bt bt1 w-full justify-center" onclick="buatUjian()"><i class="fas fa-arrow-right"></i> Lanjut ke Input Soal</button>
+  </div>`);
+}
+
+async function buatUjian(){
+  const mapel=$v('bM'),kelas=parseInt($('bK').value),timeLimit=parseInt($('bT').value)||60;
+  if(!mapel)return tt('Pilih mapel!','er');
+  if(!kelas)return tt('Pilih kelas!','er');
+  const npsn=D.isPusat?($v('bN')||null):D.sch.npsn;
+  /* Jika pusat tanpa NPSN tertentu, simpan di dokumen khusus */
+  const targetNpsn=npsn||D.sch.npsn;
+  const id=uid();
+  const exam={id,mapel,kelas,timeLimit,questions:[],createdAt:Date.now()};
+  ld('Menyimpan...');
+  await eR(targetNpsn).doc(id).set(exam);
+  D.ex.push(exam);hd();cMo();
+  tt('Paket ujian dibuat! Sekarang tambahkan soal.');
+  editUjian(id);
+}
+
+/* ===== MODAL: EDIT SOAL (dengan field gambar) ===== */
+function editUjian(eid){
   const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
-  const optCount = ex.kelas<=2 ? 3 : 4;
-  let pgOptsHtml = '';
-  for(let i=0;i<optCount;i++){
-    pgOptsHtml += `<div><label class="block mb-1 font-bold" style="font-size:.7rem">Pilihan ${OL_FULL[i]}</label><input id="qO${i}" class="ip" placeholder="Pilihan ${OL_FULL[i]}" style="font-size:.8rem"></div>`;
-  }
-  let ansOptsHtml = '';
-  for(let i=0;i<optCount;i++){
-    ansOptsHtml += `<option value="${i}">Pilihan ${OL_FULL[i]}</option>`;
-  }
-
-  oMo(`<h3 style="font-size:1rem;margin-bottom:12px">Tambah Soal (Kelas ${ex.kelas} - ${optCount} Opsi)</h3>
-  <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.76rem">Tipe Soal</label><select id="qType" class="ip" onchange="toggleQType()"><option value="pg">Pilihan Ganda</option><option value="essay">Uraian Singkat</option></select></div>
-  <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.76rem">Teks Soal</label><textarea id="qT" class="ip" rows="3" placeholder="Tulis pertanyaan..."></textarea></div>
-  <div id="pgOptions" class="grid grid-cols-2 gap-2 mb-3">${pgOptsHtml}</div>
-  <div id="pgAnswer" class="mb-3"><label class="block mb-1 font-bold" style="font-size:.76rem">Jawaban Benar</label><select id="qA" class="ip">${ansOptsHtml}</select></div>
-  <div id="essayKey" class="mb-3" style="display:none"><label class="block mb-1 font-bold" style="font-size:.76rem">Kunci Jawaban</label><textarea id="qK" class="ip" rows="3" placeholder="Tulis kunci jawaban uraian..."></textarea></div>
-  <div class="flex gap-3 justify-end"><button class="bt bt3 bts" onclick="mQ('${eid}')">Batal</button><button class="bt bt1 bts" onclick="svAQ('${eid}')">Simpan</button></div>`);
+  D.editQs=JSON.parse(JSON.stringify(ex.questions));
+  D.editIdx=-1;
+  renderEditSoal(ex);
 }
 
-function toggleQType(){
-  const type=$('qType').value;
-  if(type==='essay'){$('pgOptions').style.display='none';$('pgAnswer').style.display='none';$('essayKey').style.display='block';}
-  else {$('pgOptions').style.display='grid';$('pgAnswer').style.display='block';$('essayKey').style.display='none';}
-}
+function renderEditSoal(ex){
+  const c=$('aC');
+  const m=gm(ex.mapel);
+  let h=`<div class="asu">
+    <div class="flex items-center gap-3 mb-5">
+      <button class="bt bt3 btx" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><i class="fas fa-arrow-left"></i></button>
+      <div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div>
+      <div><h2 style="font-size:1.2rem;line-height:1.2">${ex.mapel} — Kelas ${ex.kelas}</h2><p style="font-size:.78rem;color:var(--mt)">${D.editQs.length} soal · ${ex.timeLimit} menit</p></div>
+    </div>
 
-async function svAQ(eid){
-  if(!D.isPusat)return tt('Akses ditolak!','er');
-  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
-  const optCount = ex.kelas<=2 ? 3 : 4;
-  const type=$('qType').value;const text=$('qT').value.trim();
-  if(!text)return tt('Teks soal kosong!','er');
-  if(type==='pg'){
-    const options=[];for(let i=0;i<optCount;i++){const v=$('qO'+i).value.trim();if(!v)return tt('Semua pilihan wajib diisi!','er');options.push(v);}
-    const answer=parseInt($('qA').value);
-    ex.questions.push({id:uid(),text,options,answer,type:'pg'});
-  } else {
-    const key=$('qK').value.trim();if(!key)return tt('Kunci jawaban wajib diisi!','er');
-    ex.questions.push({id:uid(),text,key,type:'essay'});
-  }
-  ld('Menyimpan...');await eR(D.sch.npsn).doc(eid).set(ex);hd();tt('Soal ditambahkan!');mQ(eid);
-}
-  
-function eQn(eid,qi){
-  if(!D.isPusat)return tt('Akses ditolak!','er');
-  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;const q=ex.questions[qi];if(!q)return;
-  const optCount = ex.kelas<=2 ? 3 : 4;
-  let pgOptsHtml = '';
-  for(let i=0;i<optCount;i++){
-    pgOptsHtml += `<div><label class="block mb-1 font-bold" style="font-size:.7rem">Pilihan ${OL_FULL[i]}</label><input id="qO${i}" class="ip" value="${q.options?q.options[i]:''}" style="font-size:.8rem"></div>`;
-  }
-  let ansOptsHtml = '';
-  for(let i=0;i<optCount;i++){
-    ansOptsHtml += `<option value="${i}" ${q.options&&i===q.answer?'selected':''}>Pilihan ${OL_FULL[i]}</option>`;
-  }
-
-  oMo(`<h3 style="font-size:1rem;margin-bottom:12px">Edit Soal #${qi+1}</h3>
-  <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.76rem">Tipe Soal</label><select id="qType" class="ip" onchange="toggleQType()" disabled><option value="pg" ${q.type==='pg'?'selected':''}>Pilihan Ganda</option><option value="essay" ${q.type==='essay'?'selected':''}>Uraian Singkat</option></select></div>
-  <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.76rem">Teks Soal</label><textarea id="qT" class="ip" rows="3">${q.text}</textarea></div>
-  <div id="pgOptions" class="grid grid-cols-2 gap-2 mb-3" style="${q.type==='essay'?'display:none':''}">${pgOptsHtml}</div>
-  <div id="pgAnswer" class="mb-3" style="${q.type==='essay'?'display:none':''}"><label class="block mb-1 font-bold" style="font-size:.76rem">Jawaban Benar</label><select id="qA" class="ip">${ansOptsHtml}</select></div>
-  <div id="essayKey" class="mb-3" style="${q.type==='pg'?'display:none':''}"><label class="block mb-1 font-bold" style="font-size:.76rem">Kunci Jawaban</label><textarea id="qK" class="ip" rows="3">${q.key||''}</textarea></div>
-  <div class="flex gap-3 justify-end"><button class="bt bt3 bts" onclick="mQ('${eid}')">Batal</button><button class="bt bt1 bts" onclick="svEQ('${eid}',${qi})">Simpan</button></div>`);
-}
-  
-async function svEQ(eid,qi){
-  if(!D.isPusat)return tt('Akses ditolak!','er');
-  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;const q=ex.questions[qi];if(!q)return;
-  q.text=$('qT').value.trim();if(!q.text)return tt('Teks soal kosong!','er');
-  if(q.type==='pg'){
-    q.options=[];for(let i=0;i<q.options.length;i++){const v=$('qO'+i).value.trim();if(!v)return tt('Semua pilihan wajib diisi!','er');q.options[i]=v;}
-    q.answer=parseInt($('qA').value);
-  } else if(q.type==='essay'){
-    q.key=$('qK').value.trim();if(!q.key)return tt('Kunci jawaban wajib diisi!','er');
-  }
-  ld('Menyimpan...');await eR(D.sch.npsn).doc(eid).set(ex);hd();tt('Diperbarui!');mQ(eid);
-}
-  
-function dQn(eid,qi){
-  if(!D.isPusat)return tt('Akses ditolak!','er');
-  oMo(`<div class="text-center"><div style="font-size:2.5rem;margin-bottom:10px">🗑️</div><h3 style="font-size:1rem;margin-bottom:6px">Hapus Soal #${qi+1}?</h3><div class="flex gap-3 justify-center" style="margin-top:16px"><button class="bt bt3 bts" onclick="mQ('${eid}')">Batal</button><button class="bt bt4 bts" onclick="doDQ('${eid}',${qi})">Hapus</button></div></div>`);
-}
-async function doDQ(eid,qi){
-  if(!D.isPusat)return tt('Akses ditolak!','er');
-  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;ex.questions.splice(qi,1);
-  ld('Menyimpan...');await eR(D.sch.npsn).doc(eid).set(ex);hd();tt('Dihapus!','in');mQ(eid);
-}
-
-function aHasil(){
-  $('aC').innerHTML=`<div class="asu"><div class="flex flex-wrap items-center justify-between gap-3 mb-5"><h2 style="font-size:1.35rem">Hasil Ujian</h2>
-  <div class="flex gap-2 flex-wrap">
-    <select id="fHK" class="ip" style="width:auto;padding:7px 30px 7px 12px;font-size:.78rem" onchange="fH()"><option value="">Semua Kelas</option>${KL.map(k=>`<option value="${k.v}">Kelas ${k.l}</option>`).join('')}</select>
-    <select id="fHM" class="ip" style="width:auto;padding:7px 30px 7px 12px;font-size:.78rem" onchange="fH()"><option value="">Semua Mapel</option>${MP.map(m=>`<option value="${m.v}">${m.l}</option>`).join('')}</select>
-    <button class="bt bt5 btx" onclick="cRekapPDF()" style="padding:7px 10px"><i class="fas fa-file-pdf"></i> Cetak Rekap</button>
-    <button class="bt bt4 btx" onclick="cfCR()" style="padding:7px 10px"><i class="fas fa-trash"></i></button>
-  </div></div><div id="hT">${hR(D.rs)}</div></div>`;
-}
-function fH(){const fk=$('fHK').value,fm=$('fHM').value;let f=D.rs;if(fk)f=f.filter(r=>r.kelas===parseInt(fk));if(fm)f=f.filter(r=>r.mapel===fm);$('hT').innerHTML=hR(f)}
-function hR(list){
-  if(!list.length)return`<div class="text-center py-14"><div style="font-size:3.5rem;margin-bottom:10px">📋</div><h3>Belum Ada Hasil</h3></div>`;
-  const sorted=[...list].sort((a,b)=>b.timestamp-a.timestamp);
-  return`<div class="overflow-x-auto" style="border:2px solid var(--bd);border-radius:12px;overflow:hidden"><table style="width:100%;border-collapse:collapse;min-width:760px">
-  <thead><tr style="background:var(--bg)"><th style="padding:8px 10px;text-align:left;font-size:.7rem;color:var(--mt)">Waktu</th><th style="padding:8px 10px;text-align:left;font-size:.7rem;color:var(--mt)">Nama</th><th style="padding:8px 10px;text-align:left;font-size:.7rem;color:var(--mt)">NIS</th><th style="padding:8px 10px;text-align:left;font-size:.7rem;color:var(--mt)">Kelas</th><th style="padding:8px 10px;text-align:left;font-size:.7rem;color:var(--mt)">Mapel</th><th style="padding:8px 10px;text-align:center;font-size:.7rem;color:var(--mt)">Benar</th><th style="padding:8px 10px;text-align:center;font-size:.7rem;color:var(--mt)">Nilai</th><th style="padding:8px 10px;text-align:center;font-size:.7rem;color:var(--mt)">Aksi</th></tr></thead>
-  <tbody>${sorted.map(r=>{const d=new Date(r.timestamp),ds=d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});const sc=r.score>=80?'#22C55E':r.score>=60?'#EAB308':'#EF4444';
-  return`<tr style="border-bottom:2px solid var(--bd)"><td style="padding:8px 10px;font-size:.78rem">${ds}</td><td style="padding:8px 10px;font-weight:700;font-size:.78rem">${r.nama}</td><td style="padding:8px 10px;font-size:.78rem;color:var(--mt)">${r.nis}</td><td style="padding:8px 10px;font-size:.78rem">Kelas ${r.kelas}</td><td style="padding:8px 10px;font-size:.78rem">${r.mapel}</td><td style="padding:8px 10px;text-align:center;font-size:.78rem">${r.correct}/${r.total}</td><td style="padding:8px 10px;text-align:center;font-weight:800;color:${sc}">${r.essays && r.essays.length>0?'?':r.score}</td>
-  <td style="padding:8px 10px;text-align:center"><div class="flex gap-1 justify-center">
-    ${r.essays && r.essays.length>0?`<button onclick="grEssay('${r.id}')" style="width:25px;height:25px;border-radius:6px;border:2px solid var(--bd);background:var(--cd);cursor:pointer;color:var(--pr);font-size:.68rem" title="Koreksi Uraian"><i class="fas fa-pen-to-square"></i></button>`:''}
-    <button onclick="cPDF('${r.id}')" style="width:25px;height:25px;border-radius:6px;border:2px solid var(--bd);background:var(--cd);cursor:pointer;color:var(--pr);font-size:.68rem" title="PDF"><i class="fas fa-file-pdf"></i></button>
-    <button onclick="dR('${r.id}')" style="width:25px;height:25px;border-radius:6px;border:2px solid var(--bd);background:var(--cd);cursor:pointer;color:var(--er);font-size:.68rem" title="Hapus"><i class="fas fa-trash"></i></button>
-  </div></td></tr>`}).join('')}</tbody></table></div>`;
-}
-  
-function grEssay(rid){
-  const r=D.rs.find(x=>x.id===rid);if(!r||!r.essays)return;
-  let html=`<div class="flex items-center justify-between mb-4"><h3 style="font-size:1rem">Koreksi Uraian: ${r.nama}</h3><button class="bt bt3 btx" onclick="cMo()"><i class="fas fa-times"></i></button></div>`;
-  r.essays.forEach((e,i)=>{
-    html+=`<div class="mb-5 pb-4" style="border-bottom:2px dashed var(--bd)">
-      <p style="font-weight:700;font-size:.85rem;margin-bottom:4px">${i+1}. ${e.text}</p>
-      <div style="padding:10px;background:rgba(99,102,241,.05);border-radius:8px;margin-bottom:8px">
-        <p style="font-size:.72rem;color:var(--pr);font-weight:700;margin-bottom:2px">Kunci Jawaban:</p>
-        <p style="font-size:.78rem">${e.key||'<em style="color:var(--mt)">(Tidak ada kunci)</em>'}</p>
+    <!-- Form tambah/edit soal -->
+    <div class="cd mb-4" style="border-color:var(--ac);border-style:dashed">
+      <h4 style="font-size:.95rem;margin-bottom:12px"><i class="fas fa-pen mr-2" style="color:var(--ac)"></i>${D.editIdx>=0?'Edit Soal '+(D.editIdx+1):'Tambah Soal Baru'}</h4>
+      <div class="mb-3">
+        <label class="block mb-1 font-bold" style="font-size:.82rem">Tipe Soal</label>
+        <div class="flex gap-2">
+          <button id="tpPG" class="bt ${D.editIdx<0||D.editQs[D.editIdx]?.type!=='essay'?'bt1':'bt3'} bts" onclick="setQType('pg')"><i class="fas fa-list"></i> Pilihan Ganda</button>
+          <button id="tpES" class="bt ${D.editIdx>=0&&D.editQs[D.editIdx]?.type==='essay'?'bt1':'bt3'} bts" onclick="setQType('essay')"><i class="fas fa-align-left"></i> Uraian</button>
+        </div>
       </div>
-      <p style="font-size:.78rem;margin-bottom:8px;padding:10px;background:var(--bg);border-radius:8px"><strong>Jawaban Siswa:</strong> ${e.answer||'<em style="color:var(--mt)">(Tidak dijawab)</em>'}</p>
-      <div class="flex items-center gap-2">
-        <label style="font-size:.82rem;font-weight:700">Nilai:</label>
-        <input type="number" min="0" max="100" value="${e.score||0}" id="scE${i}" class="ip" style="width:80px;padding:6px 10px;font-size:.85rem" oninput="calcTot()">
-        <span style="font-size:.82rem;color:var(--mt)">/ 100</span>
-      </div></div>`;
+      <div class="mb-3">
+        <label class="block mb-1 font-bold" style="font-size:.82rem">Teks Soal <span style="color:var(--er)">*</span></label>
+        <textarea id="eqText" class="ip" rows="3" placeholder="Tulis pertanyaan soal di sini...">${D.editIdx>=0?D.editQs[D.editIdx].text:''}</textarea>
+      </div>
+      <div class="mb-3">
+        <label class="block mb-1 font-bold" style="font-size:.82rem"><i class="fas fa-image mr-1" style="color:var(--ac2)"></i> URL Gambar Soal (opsional)</label>
+        <input id="eqImg" class="ip" placeholder="https://contoh.com/gambar-soal.png" value="${D.editIdx>=0?(D.editQs[D.editIdx].image||''):''}" oninput="previewQImg()">
+        <p style="font-size:.7rem;color:var(--mt);margin-top:4px">Paste URL gambar (JPG/PNG/WebP) dari hosting manapun. Gambar akan tampil di soal.</p>
+        <div id="eqImgPrev" style="margin-top:8px">${D.editIdx>=0&&D.editQs[D.editIdx].image?`<img src="${D.editQs[D.editIdx].image}" style="max-width:200px;max-height:150px;border-radius:10px;border:2px solid var(--bd);object-fit:contain" onerror="this.parentElement.innerHTML=''">`:''}</div>
+      </div>
+
+      <!-- Opsi PG -->
+      <div id="eqOptsWrap">
+        <label class="block mb-2 font-bold" style="font-size:.82rem">Opsi Jawaban</label>
+        <div class="grid gap-2" id="eqOpts"></div>
+        <button class="bt bt3 btx mt-2" onclick="addOptRow()"><i class="fas fa-plus"></i> Tambah Opsi</button>
+        <div class="mt-3">
+          <label class="block mb-1 font-bold" style="font-size:.82rem">Jawaban Benar</label>
+          <select id="eqAns" class="ip" style="max-width:200px"></select>
+        </div>
+      </div>
+
+      <!-- Uraian -->
+      <div id="eqEssayWrap" style="display:none">
+        <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Kunci Jawaban Uraian</label><textarea id="eqKey" class="ip" rows="3" placeholder="Tulis kunci jawaban uraian...">${D.editIdx>=0?(D.editQs[D.editIdx].key||''):''}</textarea></div>
+      </div>
+
+      <div class="flex gap-2 mt-4">
+        ${D.editIdx>=0?`<button class="bt bt3 bts" onclick="D.editIdx=-1;renderEditSoal(D.ex.find(e=>e.id==='${ex.id}'))"><i class="fas fa-times"></i> Batal Edit</button>`:''}
+        <button class="bt bt1 bts" onclick="simpanSoal('${ex.id}')"><i class="fas fa-save"></i> ${D.editIdx>=0?'Update Soal':'Tambah Soal'}</button>
+      </div>
+    </div>
+
+    <!-- Daftar soal -->
+    <h3 style="font-size:1rem;margin-bottom:10px"><i class="fas fa-list-ol mr-2" style="color:var(--ac)"></i>Daftar Soal (${D.editQs.length})</h3>
+    <div class="grid gap-2 mb-6" id="eqList"></div>
+
+    <div class="flex gap-2 mb-8">
+      <button class="bt bt5 bts" onclick="simpanAllSoal('${ex.id}')"><i class="fas fa-cloud-upload-alt"></i> Simpan Semua ke Firebase</button>
+      <button class="bt bt2 bts" onclick="exportExamJSON('${ex.id}')"><i class="fas fa-download"></i> Export JSON</button>
+    </div>
+  </div>`;
+  c.innerHTML=h;
+
+  /* Inisialisasi opsi */
+  const isEssay=D.editIdx>=0&&D.editQs[D.editIdx].type==='essay';
+  setQType(isEssay?'essay':'pg',true);
+  if(!isEssay)renderOptRows();
+}
+
+function setQType(t,silent){
+  const pgW=$('eqOptsWrap'),esW=$('eqEssayWrap'),bPG=$('tpPG'),bES=$('tpES');
+  if(t==='pg'){pgW.style.display='';esW.style.display='none';bPG.className='bt bt1 bts';bES.className='bt bt3 bts';if(!silent)renderOptRows();}
+  else{pgW.style.display='none';esW.style.display='';bPG.className='bt bt3 bts';bES.className='bt bt1 bts';}
+}
+
+function renderOptRows(){
+  let opts=D.editIdx>=0?D.editQs[D.editIdx].options:[{text:'',image:''},{text:'',image:''},{text:'',image:''},{text:'',image:''}];
+  /* Normalisasi: pastikan setiap opsi adalah objek */
+  opts=opts.map(o=>typeof o==='object'&&o!==null?{text:o.text||'',image:o.image||''}:{text:String(o),image:''});
+  const ans=D.editIdx>=0?D.editQs[D.editIdx].answer:0;
+  const wrap=$('eqOpts');
+  let h='';
+  opts.forEach((o,i)=>{
+    h+=`<div class="flex items-start gap-2" style="padding:8px;background:var(--bg);border-radius:10px">
+      <span style="font-weight:800;font-size:.85rem;color:var(--ac);min-width:22px;margin-top:10px">${OL_FULL[i]||i+1}.</span>
+      <div style="flex:1">
+        <input class="ip opt-text" value="${o.text.replace(/"/g,'&quot;')}" placeholder="Teks opsi ${OL_FULL[i]||i+1}" style="margin-bottom:6px">
+        <input class="ip opt-img" value="${o.image}" placeholder="URL gambar opsi (opsional)" oninput="previewOptImg(this,${i})" style="font-size:.82rem;padding:8px 12px">
+        <div class="opt-img-prev" id="optPrev${i}" style="margin-top:4px">${o.image?`<img src="${o.image}" style="max-width:60px;max-height:45px;border-radius:6px;object-fit:cover" onerror="this.parentElement.innerHTML=''">`:''}</div>
+      </div>
+      ${opts.length>2?`<button onclick="removeOptRow(${i})" style="background:none;border:none;color:var(--er);cursor:pointer;font-size:1rem;margin-top:8px" title="Hapus opsi"><i class="fas fa-times-circle"></i></button>`:''}
+    </div>`;
   });
-  html+=`<div class="flex justify-between items-center mt-4 pt-4" style="border-top:2px solid var(--bd)">
-    <div style="text-align:right"><p style="font-size:.82rem;color:var(--mt)">Total Nilai Akhir:</p><p id="totN" style="font-size:1.5rem;font-weight:800;color:var(--ac)">0</p></div>
-    <button class="bt bt1 bts" onclick="svGr('${rid}')"><i class="fas fa-save"></i> Simpan Nilai</button>
-  </div>`;
-  oMo(html);calcTot();
+  wrap.innerHTML=h;
+  /* Update dropdown jawaban benar */
+  const sel=$('eqAns');
+  sel.innerHTML=opts.map((_,i)=>`<option value="${i}" ${i===ans?'selected':''}>${OL_FULL[i]||'Opsi '+(i+1)}</option>`).join('');
 }
-function calcTot(){let tot=0;const inputs=document.querySelectorAll('#moC input[id^="scE"]');inputs.forEach(inp=>tot+=parseInt(inp.value)||0);const cnt=inputs.length||1;const avg=Math.round(tot/cnt);const totEl=$('totN');if(totEl)totEl.textContent=avg;}
-async function svGr(rid){
+
+function addOptRow(){
+  if(D.editIdx>=0){
+    const opts=D.editQs[D.editIdx].options;
+    if(opts.length>=6)return tt('Maksimal 6 opsi!','er');
+  }
+  renderOptRows();
+  /* Tambah input kosong di akhir */
+  const wrap=$('eqOpts');
+  const count=wrap.children.length;
+  const div=document.createElement('div');
+  div.className='flex items-start gap-2';div.style.cssText='padding:8px;background:var(--bg);border-radius:10px';
+  div.innerHTML=`<span style="font-weight:800;font-size:.85rem;color:var(--ac);min-width:22px;margin-top:10px">${OL_FULL[count]||count+1}.</span>
+    <div style="flex:1">
+      <input class="ip opt-text" value="" placeholder="Teks opsi ${OL_FULL[count]||count+1}" style="margin-bottom:6px">
+      <input class="ip opt-img" value="" placeholder="URL gambar opsi (opsional)" oninput="previewOptImg(this,${count})" style="font-size:.82rem;padding:8px 12px">
+      <div class="opt-img-prev" id="optPrev${count}" style="margin-top:4px"></div>
+    </div>
+    <button onclick="removeOptRow(${count})" style="background:none;border:none;color:var(--er);cursor:pointer;font-size:1rem;margin-top:8px" title="Hapus opsi"><i class="fas fa-times-circle"></i></button>`;
+  wrap.appendChild(div);
+  /* Update dropdown jawaban */
+  const sel=$('eqAns');
+  const opt=document.createElement('option');opt.value=count;opt.textContent=OL_FULL[count]||'Opsi '+(count+1);sel.appendChild(opt);
+}
+
+function removeOptRow(i){
+  const wrap=$('eqOpts');
+  if(wrap.children.length<=2)return tt('Minimal 2 opsi!','er');
+  wrap.children[i]?.remove();
+  /* Re-render untuk update nomor */
+  const texts=[...wrap.querySelectorAll('.opt-text')].map(el=>el.value);
+  const imgs=[...wrap.querySelectorAll('.opt-img')].map(el=>el.value);
+  if(D.editIdx>=0){D.editQs[D.editIdx].options=texts.map((t,j)=>({text:t,image:imgs[j]||''}));}
+  renderOptRows();
+}
+
+function previewQImg(){
+  const url=$v('eqImg');const prev=$('eqImgPrev');
+  if(url){prev.innerHTML=`<img src="${url}" style="max-width:200px;max-height:150px;border-radius:10px;border:2px solid var(--bd);object-fit:contain" onerror="this.parentElement.innerHTML='<p style=\\'color:var(--er);font-size:.78rem\\'>Gagal memuat gambar</p>'">`}
+  else{prev.innerHTML=''}
+}
+function previewOptImg(el,i){
+  const url=el.value;const prev=document.getElementById('optPrev'+i);
+  if(!prev)return;
+  if(url){prev.innerHTML=`<img src="${url}" style="max-width:60px;max-height:45px;border-radius:6px;object-fit:cover" onerror="this.parentElement.innerHTML=''">`}
+  else{prev.innerHTML=''}
+}
+
+function simpanSoal(eid){
+  const text=$v('eqText');if(!text)return tt('Teks soal wajib diisi!','er');
+  const image=$v('eqImg')||'';
+  const isEssay=$('eqEssayWrap').style.display!=='none';
+  let q={id:uid(),text,image,type:isEssay?'essay':'pg'};
+  if(isEssay){
+    q.key=$v('eqKey')||'';
+  }else{
+    const texts=[...document.querySelectorAll('.opt-text')].map(el=>el.value.trim());
+    const imgs=[...document.querySelectorAll('.opt-img')].map(el=>el.value.trim());
+    if(texts.some(t=>!t))return tt('Semua opsi wajib diisi teksnya!','er');
+    q.options=texts.map((t,i)=>{
+      const img=imgs[i]||'';
+      return img?{text:t,image:img}:t;
+    });
+    q.answer=parseInt($('eqAns').value)||0;
+  }
+  if(D.editIdx>=0){D.editQs[D.editIdx]=q;D.editIdx=-1;tt('Soal diperbarui!');}
+  else{D.editQs.push(q);tt('Soal ditambahkan!');}
+  renderEditSoal(D.ex.find(e=>e.id===eid));
+}
+
+async function simpanAllSoal(eid){
+  if(D.editQs.length===0)return tt('Belum ada soal!','er');
+  ld('Menyimpan soal ke Firebase...');
+  try{
+    const ex=D.ex.find(e=>e.id===eid);
+    await eR(D.sch.npsn).doc(eid).update({questions:D.editQs});
+    ex.questions=D.editQs;hd();tt(D.editQs.length+' soal berhasil disimpan!');
+    renderEditSoal(ex);
+  }catch(e){hd();tt('Gagal: '+e.message,'er')}
+}
+
+function editSoalIdx(eid,idx){
+  D.editIdx=idx;
+  renderEditSoal(D.ex.find(e=>e.id===eid));
+  /* Scroll ke form */
+  $('aC').scrollTo({top:0,behavior:'smooth'});
+}
+
+function hapusSoalIdx(eid,idx){
+  oMo(`<div class="text-center"><div style="font-size:2rem;margin-bottom:10px">🗑️</div><h3 style="margin-bottom:6px">Hapus Soal ${idx+1}?</h3><p style="color:var(--mt);margin-bottom:16px;font-size:.85rem">Tindakan ini tidak bisa dibatalkan.</p>
+  <div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();doHapusSoal('${eid}',${idx})">Hapus</button></div></div>`);
+}
+function doHapusSoal(eid,idx){
+  D.editQs.splice(idx,1);D.editIdx=-1;
+  renderEditSoal(D.ex.find(e=>e.id===eid));tt('Soal dihapus');
+}
+
+async function hapusUjian(eid){
+  oMo(`<div class="text-center"><div style="font-size:2rem;margin-bottom:10px">⚠️</div><h3 style="margin-bottom:6px">Hapus Paket Ujian?</h3><p style="color:var(--mt);margin-bottom:16px;font-size:.85rem">Semua soal dan hasil terkait akan ikut terhapus!</p>
+  <div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();doHapusUjian('${eid}')">Hapus Permanen</button></div></div>`);
+}
+async function doHapusUjian(eid){
+  ld('Menghapus...');try{
+    await eR(D.sch.npsn).doc(eid).delete();
+    /* Hapus hasil terkait */
+    const related=D.rs.filter(r=>r.examId===eid);
+    for(const r of related){await rR(D.sch.npsn).doc(r.id).delete();}
+    D.ex=D.ex.filter(e=>e.id!==eid);D.rs=D.rs.filter(r=>r.examId!==eid);
+    hd();renderSoal($('aC'));tt('Paket ujian dihapus!');
+  }catch(e){hd();tt('Gagal: '+e.message,'er')}
+}
+
+/* ===== EXPORT EXAM JSON ===== */
+function exportExamJSON(eid){
+  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
+  const data={
+    mapel:ex.mapel,
+    kelas:ex.kelas,
+    timeLimit:ex.timeLimit,
+    questions:ex.questions.map(q=>{
+      const obj={text:q.text,type:q.type||'pg'};
+      if(q.image)obj.image=q.image;
+      if(q.type==='essay'){obj.key=q.key||'';}
+      else{
+        obj.options=q.options.map(o=>typeof o==='object'?{text:o.text||'',image:o.image||''}:o);
+        obj.answer=q.answer;
+      }
+      return obj;
+    })
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`Soal_${ex.mapel}_Kelas${ex.kelas}.json`;a.click();URL.revokeObjectURL(url);
+  tt('File JSON berhasil diunduh!');
+}
+
+/* ================================================================
+   IMPORT JSON (dengan validasi & contoh)
+   ================================================================ */
+function showContohJSON(){
+  const contoh={
+    mapel:"Matematika",
+    kelas:3,
+    timeLimit:60,
+    questions:[
+      {
+        text:"Perhatikan gambar berikut! Berapakah hasil penjumlahan dari gambar di bawah ini?",
+        image:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Mathematics.jpg/220px-Mathematics.jpg",
+        type:"pg",
+        options:[
+          {text:"15 apel",image:""},
+          {text:"18 apel",image:""},
+          {text:"20 apel",image:"https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Red_Apple.jpg/100px-Red_Apple.jpg"},
+          {text:"22 apel",image:""}
+        ],
+        answer:2
+      },
+      {
+        text:"Hasil dari 125 + 75 = ...",
+        image:"",
+        type:"pg",
+        options:["180","200","210","190"],
+        answer:1
+      },
+      {
+        text:"Sebutkan 3 contoh bangun datar yang memiliki 4 sisi sama panjang!",
+        image:"",
+        type:"essay",
+        key:"Persegi, belah ketupat, layang-layang (boleh jawaban lain yang sesuai)",
+        score:100
+      },
+      {
+        text:"Manakah gambar di bawah ini yang menunjukkan bangun segitiga?",
+        image:"",
+        type:"pg",
+        options:[
+          {text:"Gambar A",image:"https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Circle_-_black_simple.svg/80px-Circle_-_black_simple.svg.png"},
+          {text:"Gambar B",image:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Triangle-01.svg/80px-Triangle-01.svg.png"},
+          {text:"Gambar C",image:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Square.svg/80px-Square.svg.png"},
+          {text:"Gambar D",image:"https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Pentagon.svg/80px-Pentagon.svg.png"}
+        ],
+        answer:1
+      }
+    ]
+  };
+  oMo(`<div>
+    <div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-code mr-2" style="color:var(--ac2)"></i>Contoh Format JSON Soal</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
+    <div style="background:#FEF3C7;border:2px solid #F59E0B;border-radius:12px;padding:14px;margin-bottom:16px">
+      <p style="font-size:.85rem;color:#92400E;font-weight:700;margin-bottom:8px"><i class="fas fa-lightbulb mr-1"></i> Penjelasan Field:</p>
+      <ul style="font-size:.8rem;color:#92400E;margin-left:18px;list-style:disc;line-height:1.8">
+        <li><b>mapel</b>: Nama mata pelajaran (harus sesuai daftar)</li>
+        <li><b>kelas</b>: 1-6</li>
+        <li><b>timeLimit</b>: Waktu dalam menit</li>
+        <li><b>questions</b>: Array soal</li>
+        <li><b>text</b>: Teks pertanyaan</li>
+        <li><b>image</b>: URL gambar soal (kosongkan jika tidak ada)</li>
+        <li><b>type</b>: "pg" (pilihan ganda) atau "essay" (uraian)</li>
+        <li><b>options</b>: Array opsi. Bisa string saja ATAU objek <code>{text, image}</code></li>
+        <li><b>answer</b>: Index jawaban benar (mulai dari 0)</li>
+        <li><b>key</b>: Kunci jawaban uraian (hanya untuk type "essay")</li>
+      </ul>
+    </div>
+    <div style="position:relative">
+      <button onclick="copyContohJSON()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,.2);color:#fff;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:.75rem;font-family:'Nunito';z-index:2"><i class="fas fa-copy"></i> Salin</button>
+      <textarea id="contohTA" class="json-ta" readonly style="min-height:400px">${JSON.stringify(contoh,null,2)}</textarea>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button class="bt bt2 bts" onclick="downloadContohJSON()"><i class="fas fa-download"></i> Download File Contoh</button>
+      <button class="bt bt1 bts" onclick="cMo();showImportJSON()"><i class="fas fa-file-import"></i> Langsung Import</button>
+    </div>
+  </div>`);
+}
+
+function copyContohJSON(){
+  const ta=$('contohTA');
+  navigator.clipboard.writeText(ta.value).then(()=>tt('Contoh JSON disalin!')).catch(()=>{ta.select();document.execCommand('copy');tt('Contoh JSON disalin!')});
+}
+
+function downloadContohJSON(){
+  const ta=$('contohTA');
+  const blob=new Blob([ta.value],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='contoh_format_soal.json';a.click();URL.revokeObjectURL(url);
+  tt('File contoh berhasil diunduh!');
+}
+
+function showImportJSON(){
+  oMo(`<div>
+    <div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-file-import mr-2" style="color:var(--ac2)"></i>Import Soal dari JSON</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
+    <div style="background:#E0F7FA;border:2px solid var(--ac2);border-radius:12px;padding:14px;margin-bottom:16px">
+      <p style="font-size:.85rem;color:#0E7490;font-weight:700"><i class="fas fa-info-circle mr-1"></i> Cara Import:</p>
+      <ol style="font-size:.8rem;color:#0E7490;margin:6px 0 0 18px;list-style:decimal;line-height:1.8">
+        <li>Siapkan file JSON sesuai format (klik "Lihat Contoh JSON" untuk referensi)</li>
+        <li>Paste isi file JSON di bawah ATAU upload file .json</li>
+        <li>Sistem akan memvalidasi format sebelum menyimpan</li>
+      </ol>
+    </div>
+    <div class="mb-3">
+      <label class="block mb-1 font-bold" style="font-size:.82rem">Upload File JSON</label>
+      <input type="file" id="jsonFile" accept=".json" onchange="readJSONFile(this)" class="ip" style="padding:10px">
+    </div>
+    <div class="mb-3" style="position:relative">
+      <label class="block mb-1 font-bold" style="font-size:.82rem">Atau Paste JSON di Sini</label>
+      <textarea id="jsonTA" class="json-ta" placeholder='Paste konten file JSON di sini...'></textarea>
+    </div>
+    <div id="jsonPreview" style="display:none;margin-bottom:16px"></div>
+    <div class="flex gap-2">
+      <button class="bt bt3 bts" onclick="cMo();showContohJSON()"><i class="fas fa-code"></i> Lihat Contoh</button>
+      <button class="bt bt2 bts" onclick="validateAndImport()" style="flex:1;justify-content:center"><i class="fas fa-check-circle"></i> Validasi & Import</button>
+    </div>
+  </div>`);
+}
+
+function readJSONFile(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){$('jsonTA').value=e.target.result;tt('File JSON dimuat!');};
+  reader.readAsText(file);
+}
+
+function validateAndImport(){
+  let raw=$('jsonTA').value.trim();
+  if(!raw)return tt('Paste atau upload file JSON dulu!','er');
+  let data;
+  try{data=JSON.parse(raw);}catch(e){return tt('JSON tidak valid: '+e.message,'er');}
+  /* Validasi struktur */
+  const errors=[];
+  if(!data.mapel)errors.push('Field "mapel" wajib diisi');
+  if(!data.kelas||data.kelas<1||data.kelas>6)errors.push('Field "kelas" harus 1-6');
+  if(!data.timeLimit||data.timeLimit<5)errors.push('Field "timeLimit" minimal 5 menit');
+  if(!Array.isArray(data.questions)||data.questions.length===0)errors.push('Field "questions" harus berupa array dan tidak kosong');
+  if(errors.length>0){return tt('Error validasi: '+errors.join('; '),'er');}
+  /* Validasi setiap soal */
+  data.questions.forEach((q,i)=>{
+    if(!q.text)errors.push(`Soal ${i+1}: "text" wajib diisi`);
+    if(q.type&&q.type==='essay'){
+      if(!q.key)errors.push(`Soal ${i+1}: uraian harus punya "key" (kunci jawaban)`);
+    }else{
+      q.type='pg';
+      if(!Array.isArray(q.options)||q.options.length<2)errors.push(`Soal ${i+1}: PG minimal 2 opsi`);
+      else{
+        q.options.forEach((o,j)=>{
+          const txt=typeof o==='object'?o.text:o;
+          if(!txt)errors.push(`Soal ${i+1} opsi ${j+1}: teks wajib diisi`);
+        });
+      }
+      if(typeof q.answer!=='number'||q.answer<0||q.answer>=q.options.length)errors.push(`Soal ${i+1}: "answer" harus index valid (0-${(q.options?.length||1)-1})`);
+    }
+    /* Validasi URL gambar jika ada */
+    if(q.image&&typeof q.image==='string'&&!q.image.match(/^https?:\/\/.+/)){
+      errors.push(`Soal ${i+1}: "image" harus URL yang valid (http/https)`);
+    }
+    if(q.options&&Array.isArray(q.options)){
+      q.options.forEach((o,j)=>{
+        if(typeof o==='object'&&o.image&&!o.image.match(/^https?:\/\/.+/)){
+          errors.push(`Soal ${i+1} opsi ${j+1}: "image" harus URL yang valid`);
+        }
+      });
+    }
+  });
+  if(errors.length>0){return tt('Error: '+errors.join('; '),'er');}
+
+  /* Tampilkan preview */
+  const m=gm(data.mapel);
+  let prev=`<div style="background:#F0FDF4;border:2px solid var(--ok);border-radius:12px;padding:16px">
+    <p style="font-weight:800;color:var(--ok);margin-bottom:10px"><i class="fas fa-check-circle mr-1"></i> Validasi Berhasil! ${data.questions.length} soal siap diimport</p>
+    <div class="flex items-center gap-2 mb-2" style="font-size:.85rem"><span style="font-weight:700">${data.mapel}</span><span style="color:var(--mt)">· Kelas ${data.kelas} · ${data.timeLimit} menit</span></div>
+    <div style="font-size:.8rem;color:var(--mt);max-height:120px;overflow-y:auto">`;
+  data.questions.forEach((q,i)=>{
+    const hasImg=q.image?'<i class="fas fa-image" style="color:var(--ac2)" title="Ada gambar soal"></i>':'';
+    const optImgCount=q.options?q.options.filter(o=>typeof o==='object'&&o.image).length:0;
+    prev+=`<p style="margin-bottom:2px">${i+1}. ${q.text.substring(0,60)}${q.text.length>60?'...':''} ${hasImg}${optImgCount?'<span style="color:var(--ac2);font-size:.7rem">('+optImgCount+' gambar opsi)</span>':''} <span style="opacity:.5">[${q.type==='essay'?'Uraian':'PG'}]</span></p>`;
+  });
+  prev+=`</div></div>`;
+  $('jsonPreview').innerHTML=prev;$('jsonPreview').style.display='block';
+
+  /* Simpan data ke state untuk di-import */
+  window._pendingImport=data;
+  /* Tambah tombol konfirmasi */
+  const btn=$('jsonPreview').querySelector('div');
+  btn.innerHTML+=`<button class="bt bt1 bts mt-3" onclick="doImportJSON()"><i class="fas fa-cloud-upload-alt"></i> Ya, Import Sekarang</button>`;
+}
+
+async function doImportJSON(){
+  const data=window._pendingImport;if(!data)return;
+  /* Normalisasi soal */
+  const questions=data.questions.map(q=>{
+    const obj={id:uid(),text:q.text,image:q.image||'',type:q.type||'pg'};
+    if(obj.type==='essay'){obj.key=q.key||'';}
+    else{
+      obj.options=q.options.map(o=>{
+        if(typeof o==='object'&&o!==null){
+          return (o.image&&o.image.trim())?{text:o.text||'',image:o.image}:o.text||'';
+        }
+        return String(o);
+      });
+      obj.answer=parseInt(q.answer)||0;
+    }
+    return obj;
+  });
+  const id=uid();
+  const exam={id,mapel:data.mapel,kelas:data.kelas,timeLimit:data.timeLimit,questions,createdAt:Date.now()};
+  ld('Mengimport soal ke Firebase...');
+  try{
+    await eR(D.sch.npsn).doc(id).set(exam);
+    D.ex.push(exam);hd();cMo();
+    tt(questions.length+' soal berhasil diimport!');
+    renderSoal($('aC'));
+  }catch(e){hd();tt('Gagal import: '+e.message,'er')}
+}
+
+/* ===== Render daftar soal di editor ===== */
+/* Override renderEditSoal untuk menambahkan daftar soal */
+const _origRenderEditSoal=renderEditSoal;
+renderEditSoal=function(ex){
+  _origRenderEditSoal(ex);
+  const list=$('eqList');
+  if(!list)return;
+  let h='';
+  D.editQs.forEach((q,i)=>{
+    const hasImg=q.image?'<i class="fas fa-image" style="color:var(--ac2);font-size:.7rem" title="Ada gambar soal"></i>':'';
+    const optImgs=q.options?q.options.filter(o=>typeof o==='object'&&o.image).length:0;
+    const typeLabel=q.type==='essay'?'<span style="background:rgba(99,102,241,.1);color:var(--pr);padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700">Uraian</span>':'<span style="background:rgba(34,197,94,.1);color:#16a34a;padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700">PG</span>';
+    h+=`<div class="cd ec" style="padding:12px 16px;display:flex;align-items:center;gap:12px">
+      <div style="min-width:28px;text-align:center;font-weight:800;color:var(--ac);font-size:.9rem">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <p style="font-size:.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${q.text} ${hasImg}${optImgs?'<span style="color:var(--ac2);font-size:.68rem">('+optImgs+' img)</span>':''}</p>
+        <div style="margin-top:3px;display:flex;align-items:center;gap:6px">${typeLabel}
+          ${q.type!=='essay'&&q.options?`<span style="font-size:.68rem;color:var(--mt)">${q.options.length} opsi · Jawaban: ${OL_FULL[q.answer]||q.answer}</span>`:''}
+        </div>
+        ${q.image?`<img src="${q.image}" style="max-width:50px;max-height:40px;border-radius:4px;margin-top:4px;object-fit:cover" onerror="this.style.display='none'">`:''}
+      </div>
+      <div class="flex gap-1 flex-shrink-0">
+        <button class="bt bt2 btx" onclick="editSoalIdx('${ex.id}',${i})" style="padding:4px 8px"><i class="fas fa-edit"></i></button>
+        <button class="bt bt4 btx" onclick="hapusSoalIdx('${ex.id}',${i})" style="padding:4px 8px"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>`;
+  });
+  list.innerHTML=h||`<p style="text-align:center;color:var(--mt);font-size:.85rem;padding:20px">Belum ada soal. Tambahkan soal di form atas.</p>`;
+};
+
+/* ================================================================
+   HASIL UJIAN
+   ================================================================ */
+function renderHasil(c){
+  if(D.rs.length===0){
+    c.innerHTML=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Hasil Ujian</h2><div class="cd" style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px;opacity:.3"><i class="fas fa-trophy"></i></div><p style="font-weight:700;color:var(--mt)">Belum ada hasil ujian</p></div></div>`;return;
+  }
+  /* Kelompokkan per mapel-kelas */
+  const grouped={};
+  D.rs.forEach(r=>{const k=r.mapel+'|'+r.kelas;if(!grouped[k])grouped[k]={mapel:r.mapel,kelas:r.kelas,items:[]};grouped[k].items.push(r);});
+  let h=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Hasil Ujian</h2>
+    <div class="flex gap-2 mb-4 flex-wrap">
+      <select id="fMapel" class="ip" style="max-width:200px" onchange="filterHasil()"><option value="">Semua Mapel</option>${[...new Set(D.rs.map(r=>r.mapel))].map(m=>`<option value="${m}">${m}</option>`).join('')}</select>
+      <select id="fKelas" class="ip" style="max-width:140px" onchange="filterHasil()"><option value="">Semua Kelas</option>${[...new Set(D.rs.map(r=>r.kelas))].sort().map(k=>`<option value="${k}">Kelas ${k}</option>`).join('')}</select>
+    </div>
+    <div class="grid gap-3" id="hasilList">`;
+  Object.values(grouped).forEach(g=>{
+    const m=gm(g.mapel);
+    const avg=Math.round(g.items.reduce((a,r)=>a+(r.score||0),0)/g.items.length);
+    const max=Math.max(...g.items.map(r=>r.score||0));
+    const min=Math.min(...g.items.map(r=>r.score||0));
+    const hasEssay=g.items.some(r=>r.essays&&r.essays.length>0);
+    h+=`<div class="cd hasil-card" data-mapel="${g.mapel}" data-kelas="${g.kelas}" style="padding:18px">
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+        <div class="flex items-center gap-3">
+          <div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div>
+          <div><p style="font-weight:800">${g.mapel} — Kelas ${g.kelas}</p><p style="font-size:.75rem;color:var(--mt)">${g.items.length} siswa${hasEssay?' · <span style="color:var(--inf)">Ada uraian belum dikoreksi</span>':''}</p></div>
+        </div>
+        <div class="flex gap-3" style="font-size:.78rem">
+          <span style="color:var(--ok);font-weight:700">Rata-rata: ${avg}</span>
+          <span style="color:var(--ac);font-weight:700">Tertinggi: ${max}</span>
+          <span style="color:var(--er);font-weight:700">Terendah: ${min}</span>
+        </div>
+      </div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem">
+        <thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Benar</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Nilai</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead>
+        <tbody>`;
+    g.items.sort((a,b)=>(b.score||0)-(a.score||0)).forEach((r,i)=>{
+      const sc=r.score||0;
+      let stC,stL;
+      if(r.essays&&r.essays.length>0){stC='var(--inf)';stL='Menunggu Koreksi';}
+      else if(sc>=70){stC='var(--ok)';stL='Tuntas';}
+      else{stC='var(--er)';stL='Belum Tuntas';}
+      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.correct}/${r.total}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${r.essays&&r.essays.length>0?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i> Koreksi</button>`:''}<button class="bt bt4 btx" onclick="hapusHasil('${r.id}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button></div></td></tr>`;
+    });
+    h+=`</tbody></table></div></div>`;
+  });
+  h+=`</div></div>`;c.innerHTML=h;
+}
+
+function filterHasil(){
+  const fm=$v('fMapel'),fk=$v('fKelas');
+  document.querySelectorAll('.hasil-card').forEach(card=>{
+    const m=card.dataset.mapel,k=card.dataset.kelas;
+    let show=true;
+    if(fm&&m!==fm)show=false;
+    if(fk&&k!==fk)show=false;
+    card.style.display=show?'':'none';
+  });
+}
+
+async function hapusHasil(rid){
+  oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus Hasil Ini?</h3><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();doHapusHasil('${rid}')">Hapus</button></div></div>`);
+}
+async function doHapusHasil(rid){
+  ld('Menghapus...');try{
+    await rR(D.sch.npsn).doc(rid).delete();
+    D.rs=D.rs.filter(r=>r.id!==rid);hd();renderHasil($('aC'));tt('Hasil dihapus!');
+  }catch(e){hd();tt('Gagal: '+e.message,'er')}
+}
+
+/* ===== KOREKSI ESSAY ===== */
+function koreksiEssay(rid){
   const r=D.rs.find(x=>x.id===rid);if(!r||!r.essays)return;
-  let tot=0;r.essays.forEach((e,i)=>{const v=parseInt($('scE'+i).value)||0;e.score=v;e.graded=true;tot+=v});
-  const avgE=Math.round(tot/r.essays.length);const pgScore=r.autoScore||0;
-  r.score=Math.round((pgScore*0.5)+(avgE*0.5));
-  ld('Menyimpan nilai...');await rR(D.sch.npsn).doc(rid).set(r);hd();cMo();aHasil();tt('Nilai uraian disimpan!');
-}
-async function dR(id){ld('Menghapus...');await rR(D.sch.npsn).doc(id).delete();D.rs=D.rs.filter(r=>r.id!==id);hd();aHasil();tt('Dihapus!','in')}
-function cfCR(){oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px">⚠️</div><h3 style="font-size:1.1rem;margin-bottom:6px">Hapus Semua Hasil?</h3><p style="color:var(--mt);margin-bottom:16px">Semua hasil ujian akan dihapus permanen.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="doCR()">Hapus</button></div></div>`)}
-async function doCR(){ld('Menghapus...');const snap=await rR(D.sch.npsn).get();await Promise.all(snap.docs.map(d=>d.ref.delete()));D.rs=[];hd();cMo();aHasil();tt('Semua hasil dihapus!','in')}
-
-function aSiswa(){
-  $('aC').innerHTML=`<div class="asu"><div class="flex flex-wrap items-center justify-between gap-3 mb-5">
-  <h2 style="font-size:1.35rem">Data Siswa</h2>
-  <div class="flex gap-2 flex-wrap">
-    <select id="fStK" class="ip" style="width:auto;padding:7px 30px 7px 12px;font-size:.78rem" onchange="fSt()"><option value="">Semua Kelas</option>${KL.map(k=>`<option value="${k.v}">Kelas ${k.l}</option>`).join('')}</select>
-    <input id="fStQ" class="ip" placeholder="Cari nama/NIS..." style="width:180px;padding:7px 12px;font-size:.78rem" oninput="fSt()">
-    <button class="bt bt1 btx" onclick="addStu()"><i class="fas fa-user-plus"></i> Tambah</button>
-    <button class="bt bt2 btx" onclick="impStu()"><i class="fas fa-file-import"></i> Import</button>
-  </div></div><div id="stT">${stR(D.ss)}</div></div>`;
-}
-function fSt(){const fk=$('fStK').value,q=$('fStQ').value.toLowerCase();let f=D.ss;if(fk)f=f.filter(s=>s.kelas===parseInt(fk));if(q)f=f.filter(s=>s.nama.toLowerCase().includes(q)||s.nis.includes(q));$('stT').innerHTML=stR(f)}
-function stR(list){
-  if(!list.length)return`<div class="text-center py-14"><div style="font-size:3.5rem;margin-bottom:10px">👥</div><h3>Belum Ada Siswa</h3><p style="color:var(--mt);font-size:.85rem;margin-top:6px">Klik "Tambah" untuk menambahkan data siswa.</p></div>`;
-  const sorted=[...list].sort((a,b)=>a.kelas-b.kelas||a.nama.localeCompare(b.nama));
-  return`<div class="overflow-x-auto" style="border:2px solid var(--bd);border-radius:12px;overflow:hidden"><table style="width:100%;border-collapse:collapse;min-width:620px">
-  <thead><tr style="background:var(--bg)"><th style="padding:8px 10px;text-align:left;font-size:.7rem;color:var(--mt)">NIS</th><th style="padding:8px 10px;text-align:left;font-size:.7rem;color:var(--mt)">Nama</th><th style="padding:8px 10px;text-align:center;font-size:.7rem;color:var(--mt)">Kelas</th><th style="padding:8px 10px;text-align:left;font-size:.7rem;color:var(--mt)">Password</th><th style="padding:8px 10px;text-align:left;font-size:.7rem;color:var(--mt)">Orang Tua</th><th style="padding:8px 10px;text-align:center;font-size:.7rem;color:var(--mt)">Ujian</th><th style="padding:8px 10px;text-align:center;font-size:.7rem;color:var(--mt)">Aksi</th></tr></thead>
-  <tbody>${sorted.map(s=>{const rc=D.rs.filter(r=>r.nis===s.nis).length;
-  return`<tr style="border-bottom:2px solid var(--bd)"><td style="padding:8px 10px;font-size:.78rem;font-weight:700">${s.nis}</td><td style="padding:8px 10px;font-size:.78rem">${s.nama}</td><td style="padding:8px 10px;text-align:center;font-size:.78rem">Kelas ${s.kelas}</td><td style="padding:8px 10px;font-size:.78rem;color:var(--mt)"><code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:.72rem">${s.password}</code></td><td style="padding:8px 10px;font-size:.78rem;color:var(--mt)">${s.ortu||'-'}</td><td style="padding:8px 10px;text-align:center;font-size:.78rem">${rc}x</td>
-  <td style="padding:8px 10px;text-align:center"><div class="flex gap-1 justify-center"><button onclick="edStu('${s.id}')" style="width:25px;height:25px;border-radius:6px;border:2px solid var(--bd);background:var(--cd);cursor:pointer;color:var(--ac2);font-size:.68rem" title="Edit"><i class="fas fa-pen"></i></button><button onclick="cfDS('${s.id}','${s.nis}')" style="width:25px;height:25px;border-radius:6px;border:2px solid var(--bd);background:var(--cd);cursor:pointer;color:var(--er);font-size:.68rem" title="Hapus"><i class="fas fa-trash"></i></button></div></td></tr>`}).join('')}</tbody></table></div>
-  <p style="margin-top:10px;font-size:.76rem;color:var(--mt)">Total: ${list.length} siswa</p>`;
+  let h=`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-pen mr-2" style="color:var(--pr)"></i>Koreksi Uraian — ${r.nama}</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>`;
+  r.essays.forEach((e,i)=>{
+    h+=`<div class="cd mb-3" style="padding:16px">
+      <p style="font-weight:800;margin-bottom:6px">Soal ${i+1}:</p>
+      <p style="margin-bottom:8px;font-size:.9rem">${e.text}</p>
+      ${e.image?`<img src="${e.image}" class="q-img" style="max-height:160px" onerror="this.style.display='none'">`:''}
+      <div style="background:var(--bg);padding:10px;border-radius:10px;margin-bottom:8px"><p style="font-size:.78rem;color:var(--mt);margin-bottom:4px"><b>Kunci Jawaban:</b></p><p style="font-size:.85rem">${e.key||'-'}</p></div>
+      <div style="background:#EFF6FF;padding:10px;border-radius:10px;margin-bottom:10px"><p style="font-size:.78rem;color:var(--inf);margin-bottom:4px"><b>Jawaban Siswa:</b></p><p style="font-size:.85rem">${e.answer||'(Tidak dijawab)'}</p></div>
+      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Nilai (0-100)</label><input class="ip" type="number" id="esScore${i}" value="${e.score||0}" min="0" max="100" style="max-width:120px"></div>
+    </div>`;
+  });
+  h+=`<button class="bt bt1 w-full justify-center" onclick="simpanKoreksi('${rid}')"><i class="fas fa-save"></i> Simpan Nilai Koreksi</button></div>`;
+  oMo(h);
 }
 
-function addStu(){oMo(`<h3 style="font-size:1.1rem;margin-bottom:14px">Tambah Siswa</h3>
-<div class="grid grid-cols-2 gap-3 mb-3"><div><label class="block mb-1 font-bold" style="font-size:.78rem">NIS *</label><input id="stNis" class="ip" placeholder="NIS siswa"></div>
-<div><label class="block mb-1 font-bold" style="font-size:.78rem">Kelas *</label><select id="stK" class="ip">${KL.map(k=>`<option value="${k.v}">Kelas ${k.l}</option>`).join('')}</select></div></div>
-<div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.78rem">Nama Lengkap *</label><input id="stNm" class="ip" placeholder="Nama siswa"></div>
-<div class="grid grid-cols-2 gap-3 mb-3"><div><label class="block mb-1 font-bold" style="font-size:.78rem">Password *</label><input id="stPw" class="ip" placeholder="Password login" value="siswa123"></div>
-<div><label class="block mb-1 font-bold" style="font-size:.78rem">Orang Tua/Wali</label><input id="stOt" class="ip" placeholder="Nama orang tua"></div></div>
-<p style="font-size:.72rem;color:var(--mt);margin-bottom:16px"><i class="fas fa-info-circle mr-1"></i> Bagikan NIS dan Password ini ke siswa untuk login.</p>
-<div class="flex gap-3 justify-end"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt1 bts" onclick="svNS()">Simpan</button></div>`);}
-async function svNS(){const nis=$v('stNis'),nama=$v('stNm'),kelas=parseInt($('stK').value),password=$v('stPw'),ortu=$v('stOt');
-  if(!nis||!nama||!password)return tt('NIS, Nama, Password wajib diisi!','er');
-  if(D.ss.find(s=>s.nis===nis))return tt('NIS sudah terdaftar!','er');
-  const stu={id:uid(),nis,nama,kelas,password,ortu,createdAt:Date.now()};
-  ld('Menyimpan...');await wR(D.sch.npsn).doc(stu.id).set(stu);D.ss.push(stu);hd();cMo();aSiswa();tt('Siswa '+nama+' ditambahkan!');}
-function edStu(id){const s=D.ss.find(x=>x.id===id);if(!s)return;
-  oMo(`<h3 style="font-size:1.1rem;margin-bottom:14px">Edit Siswa</h3>
-<div class="grid grid-cols-2 gap-3 mb-3"><div><label class="block mb-1 font-bold" style="font-size:.78rem">NIS</label><input id="stNis" class="ip" value="${s.nis}" disabled style="opacity:.6"></div>
-<div><label class="block mb-1 font-bold" style="font-size:.78rem">Kelas</label><select id="stK" class="ip">${KL.map(k=>`<option value="${k.v}" ${k.v===s.kelas?'selected':''}>Kelas ${k.l}</option>`).join('')}</select></div></div>
-<div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.78rem">Nama Lengkap</label><input id="stNm" class="ip" value="${s.nama}"></div>
-<div class="grid grid-cols-2 gap-3 mb-3"><div><label class="block mb-1 font-bold" style="font-size:.78rem">Password</label><input id="stPw" class="ip" value="${s.password}"></div>
-<div><label class="block mb-1 font-bold" style="font-size:.78rem">Orang Tua/Wali</label><input id="stOt" class="ip" value="${s.ortu||''}"></div></div>
-<div class="flex gap-3 justify-end"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt1 bts" onclick="svES('${id}')">Simpan</button></div>`);}
-async function svES(id){const s=D.ss.find(x=>x.id===id);if(!s)return;
-  s.nama=$v('stNm');s.kelas=parseInt($('stK').value);s.password=$v('stPw');s.ortu=$v('stOt');
-  ld('Menyimpan...');await wR(D.sch.npsn).doc(id).set(s);hd();cMo();aSiswa();tt('Diperbarui!');}
-function cfDS(id,nis){const s=D.ss.find(x=>x.id===id);if(!s)return;
-  oMo(`<div class="text-center"><div style="font-size:2.5rem;margin-bottom:10px">🗑️</div><h3 style="font-size:1.05rem;margin-bottom:6px">Hapus Siswa?</h3><p style="color:var(--mt);margin-bottom:16px"><strong>${s.nama}</strong> (NIS: ${s.nis}) + hasil ujian dihapus.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="doDS('${id}','${nis}')">Hapus</button></div></div>`);}
-async function doDS(id,nis){ld('Menghapus...');await wR(D.sch.npsn).doc(id).delete();D.ss=D.ss.filter(x=>x.id!==id);const td=D.rs.filter(r=>r.nis===nis);await Promise.all(td.map(r=>rR(D.sch.npsn).doc(r.id).delete()));D.rs=D.rs.filter(r=>r.nis!==nis);hd();cMo();aSiswa();tt('Dihapus!','in');}
-function impStu(){oMo(`<h3 style="font-size:1.1rem;margin-bottom:14px">Import Siswa Massal</h3>
-<p style="color:var(--mt);font-size:.82rem;margin-bottom:12px">Format: <strong>NIS, Nama, Password, Orang Tua</strong> (satu siswa per baris)</p>
-<div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.78rem">Kelas (untuk semua)</label><select id="impK" class="ip" style="max-width:200px">${KL.map(k=>`<option value="${k.v}">Kelas ${k.l}</option>`).join('')}</select></div>
-<div class="mb-4"><label class="block mb-1 font-bold" style="font-size:.78rem">Data Siswa</label><textarea id="impD" class="ip" rows="8" placeholder="2024001, Ahmad Rizki, siswa123, Bapak Rizki
-2024002, Siti Aminah, siswa123, Ibu Aminah" style="font-size:.82rem;font-family:monospace"></textarea></div>
-<p style="font-size:.72rem;color:var(--mt);margin-bottom:14px"><i class="fas fa-info-circle mr-1"></i> Kolom Password boleh kosong (default: "siswa123").</p>
-<div class="flex gap-3 justify-end"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt1 bts" onclick="doImp()"><i class="fas fa-file-import"></i> Import</button></div>`);}
-async function doImp(){const kelas=parseInt($('impK').value),raw=$('impD').value.trim();if(!raw)return tt('Data kosong!','er');
-  const lines=raw.split('\n').map(l=>l.trim()).filter(l=>l);let added=0,skipped=0;const batch=db.batch();
-  for(const line of lines){const p=line.split(',').map(s=>s.trim());const nis=p[0],nama=p[1]||'',pw=p[2]||'siswa123',ortu=p[3]||'-';
-    if(!nis||!nama){skipped++;continue}if(D.ss.find(s=>s.nis===nis)){skipped++;continue}
-    const stu={id:uid(),nis,nama,kelas,password:pw,ortu,createdAt:Date.now()};batch.set(wR(D.sch.npsn).doc(stu.id),stu);D.ss.push(stu);added++}
-  if(!added)return tt('Tidak ada data baru!','er');
-  ld('Mengimport '+added+' siswa...');await batch.commit();hd();cMo();aSiswa();tt(`${added} siswa diimport!${skipped?' ('+skipped+' dilewati)':''}`);}
+async function simpanKoreksi(rid){
+  const r=D.rs.find(x=>x.id===rid);if(!r)return;
+  let totalEssay=0;
+  r.essays.forEach((e,i)=>{
+    const sc=parseInt(document.getElementById('esScore'+i).value)||0;
+    e.score=Math.min(100,Math.max(0,sc));e.graded=true;
+    totalEssay+=e.score;
+  });
+  /* Hitung nilai akhir: rata-rata autoScore PG dan essay */
+  const pgCount=r.total-r.essays.length;
+  const pgScore=pgCount>0?r.autoScore:0;
+  const essayAvg=r.essays.length>0?Math.round(totalEssay/r.essays.length):0;
+  /* Bobot: 60% PG, 40% Essay jika ada keduanya */
+  let finalScore;
+  if(pgCount>0&&r.essays.length>0){finalScore=Math.round(pgScore*0.6+essayAvg*0.4);}
+  else if(r.essays.length>0){finalScore=essayAvg;}
+  else{finalScore=pgScore;}
+  r.score=finalScore;
+  ld('Menyimpan koreksi...');
+  await rR(D.sch.npsn).doc(rid).update({essays:r.essays,score:finalScore});
+  hd();cMo();renderHasil($('aC'));tt('Nilai koreksi disimpan! Nilai akhir: '+finalScore);
+}
 
-function aSet(){
-  const sch=D.sch;
-  $('aC').innerHTML=`<div class="asu"><div class="schb mb-5" style="background:rgba(255,107,53,.08);color:var(--ac)"><i class="fas fa-school"></i> ${sch.nama} — NPSN: ${sch.npsn}</div>
-  <h2 style="font-size:1.35rem;margin-bottom:16px">Pengaturan</h2>
-  <div class="cd mb-4" style="max-width:480px"><h3 style="font-size:1rem;margin-bottom:12px">Informasi Sekolah</h3>
-    <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.78rem">NPSN</label><input class="ip" value="${sch.npsn}" disabled style="opacity:.6"></div>
-    <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.78rem">Nama Sekolah</label><input id="sN" class="ip" value="${sch.nama}"></div>
-    <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.78rem">Kabupaten/Kota</label><input id="sK" class="ip" value="${sch.kota}"></div>
-    <div class="mb-5"><label class="block mb-1 font-bold" style="font-size:.78rem">Provinsi</label><input id="sP" class="ip" value="${sch.prov}"></div>
-    <button class="bt bt1 bts" onclick="svSet()"><i class="fas fa-save"></i> Simpan</button></div>
-  <div class="cd mb-4" style="max-width:480px"><h3 style="font-size:1rem;margin-bottom:12px">Ubah Password Admin Sekolah</h3>
-    <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.78rem">Password Lama</label><input id="sO" class="ip" type="password"></div>
-    <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.78rem">Password Baru</label><input id="sW" class="ip" type="password" placeholder="Minimal 6 karakter"></div>
-    <div class="mb-5"><label class="block mb-1 font-bold" style="font-size:.78rem">Konfirmasi</label><input id="sC" class="ip" type="password"></div>
-    <button class="bt bt2 bts" onclick="chPw()"><i class="fas fa-key"></i> Ubah Password</button></div>
-  ${D.isPusat?'':`<div class="cd" style="max-width:480px;border-color:var(--er)"><h3 style="font-size:1rem;margin-bottom:8px;color:var(--er)">Zona Bahaya</h3>
-    <p style="font-size:.82rem;color:var(--mt);margin-bottom:14px">Hapus SEMUA data sekolah permanen.</p>
-    <button class="bt bt4 bts" onclick="cfDSc()"><i class="fas fa-bomb"></i> Hapus Data Sekolah</button></div>`}
+/* ================================================================
+   DATA SISWA
+   ================================================================ */
+function renderSiswa(c){
+  let h=`<div class="asu"><div class="flex items-center justify-between flex-wrap gap-3 mb-5">
+    <div><h2 style="font-size:1.5rem;margin-bottom:2px">Data Siswa</h2><p style="color:var(--mt);font-size:.85rem">${D.ss.length} siswa terdaftar</p></div>
+    <div class="flex gap-2"><button class="bt bt2 bts" onclick="showImportSiswaJSON()"><i class="fas fa-file-import"></i> Import JSON</button><button class="bt bt1 bts" onclick="showTambahSiswa()"><i class="fas fa-user-plus"></i> Tambah Siswa</button></div>
   </div>`;
+  if(D.ss.length===0){
+    h+=`<div class="cd" style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px;opacity:.3"><i class="fas fa-users"></i></div><p style="font-weight:700;color:var(--mt)">Belum ada data siswa</p><p style="font-size:.85rem;color:var(--mt);margin-top:4px">Tambahkan manual atau import dari JSON</p></div>`;
+  }else{
+    const byKelas={};
+    D.ss.forEach(s=>{if(!byKelas[s.kelas])byKelas[s.kelas]=[];byKelas[s.kelas].push(s);});
+    Object.keys(byKelas).sort((a,b)=>a-b).forEach(k=>{
+      const list=byKelas[k].sort((a,b)=>a.nama.localeCompare(b.nama));
+      h+=`<div class="cd mb-4" style="padding:16px"><h3 style="font-size:1rem;margin-bottom:10px"><i class="fas fa-graduation-cap mr-2" style="color:var(--ac)"></i>Kelas ${k} (${list.length} siswa)</h3>
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem">
+          <thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">NIS</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Ortu/Wali</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead>
+          <tbody>`;
+      list.forEach(s=>{
+        h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${s.nis}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${s.nama}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${s.ortu||'-'}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center"><button class="bt bt2 btx" onclick="editSiswa('${s.nis}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-edit"></i></button><button class="bt bt4 btx" onclick="hapusSiswa('${s.nis}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt5 btx" onclick="resetPwdSiswa('${s.nis}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-key"></i></button></div></td></tr>`;
+      });
+      h+=`</tbody></table></div></div>`;
+    });
+  }
+  h+=`</div>`;c.innerHTML=h;
 }
-async function svSet(){if(D.isPusat)return tt('Admin Pusat tidak bisa edit info sekolah!','er');const nama=$v('sN'),kota=$v('sK'),prov=$v('sP');if(!nama||!kota||!prov)return tt('Semua field wajib diisi!','er');
-  D.sch.nama=nama;D.sch.kota=kota;D.sch.prov=prov;ld('Menyimpan...');await sR(D.sch.npsn).set(D.sch);hd();$('aSN2').textContent=nama;tt('Tersimpan!');}
-async function chPw(){if(D.isPusat)return tt('Admin Pusat tidak punya password sekolah!','er');const old=$v('sO'),nw=$v('sW'),cfm=$v('sC');if(old!==D.sch.adminPass)return tt('Password lama salah!','er');if(nw.length<6)return tt('Minimal 6 karakter!','er');if(nw!==cfm)return tt('Konfirmasi tidak cocok!','er');
-  D.sch.adminPass=nw;ld('Menyimpan...');await sR(D.sch.npsn).set(D.sch);hd();['sO','sW','sC'].forEach(i=>$(i).value='');tt('Password diubah!');}
-function cfDSc(){if(D.isPusat)return tt('Akses ditolak!','er');oMo(`<div class="text-center"><div style="font-size:2.8rem;margin-bottom:10px">💣</div><h3 style="font-size:1.1rem;margin-bottom:6px;color:var(--er)">Hapus Seluruh Data Sekolah?</h3><p style="color:var(--mt);margin-bottom:14px">SEMUA data <strong>${D.sch.nama}</strong> dihapus permanen.</p>
-<div class="mb-4"><label class="block mb-1 font-bold" style="font-size:.8rem">Ketik NPSN: <strong>${D.sch.npsn}</strong></label><input id="dN" class="ip" placeholder="Masukkan NPSN"></div>
-<div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="doDSc()">Hapus Selamanya</button></div></div>`);}
-async function doDSc(){if(D.isPusat)return tt('Akses ditolak!','er');if($('dN').value.trim()!==D.sch.npsn){tt('NPSN tidak cocok!','er');return}
-  ld('Menghapus semua data...');const npsn=D.sch.npsn;
-  const[a,b,c]=await Promise.all([eR(npsn).get(),rR(npsn).get(),wR(npsn).get()]);
-  await Promise.all([...a.docs,...b.docs,...c.docs].map(d=>d.ref.delete()));await sR(npsn).delete();
-  D.sch=null;D.aIn=false;D.isPusat=false;D.ex=[];D.rs=[];D.ss=[];hd();cMo();go('pH');tt('Data sekolah dihapus permanen.','in');}
 
-/* ============================
-   INIT
-   ============================ */
-(async function(){
+function showTambahSiswa(edit){
+  oMo(`<div>
+    <div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-user-plus mr-2" style="color:var(--ac)"></i>${edit?'Edit':'Tambah'} Siswa</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div><label class="block mb-1 font-bold" style="font-size:.82rem">NIS <span style="color:var(--er)">*</span></label><input id="swNIS" class="ip" placeholder="NIS siswa" maxlength="20" ${edit?'readonly style="opacity:.6"':''} value="${edit?edit.nis:''}"></div>
+      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas <span style="color:var(--er)">*</span></label><select id="swKelas" class="ip">${KL.map(k=>`<option value="${k.v}" ${edit&&edit.kelas===k.v?'selected':''}>Kelas ${k.l}</option>`).join('')}</select></div>
+    </div>
+    <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Nama Lengkap <span style="color:var(--er)">*</span></label><input id="swNama" class="ip" placeholder="Nama lengkap siswa" value="${edit?edit.nama:''}"></div>
+    <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Nama Orang Tua/Wali</label><input id="swOrtu" class="ip" placeholder="Nama orang tua/wali" value="${edit?edit.ortu||'':''}"></div>
+    <div class="mb-4"><label class="block mb-1 font-bold" style="font-size:.82rem">Password <span style="color:var(--er)">*</span></label><input id="swPwd" class="ip" type="text" placeholder="Password untuk login siswa" value="${edit?edit.password:'siswa123'}"></div>
+    <button class="bt bt1 w-full justify-center" onclick="simpanSiswa('${edit?edit.nis:''}')"><i class="fas fa-save"></i> ${edit?'Update':'Simpan'}</button>
+  </div>`);
+}
+
+async function simpanSiswa(oldNis){
+  const nis=$v('swNIS'),kelas=parseInt($('swKelas').value),nama=$v('swNama'),ortu=$v('swOrtu'),password=$v('swPwd');
+  if(!nis||!nama||!password)return tt('NIS, Nama, Password wajib diisi!','er');
+  ld('Menyimpan...');
+  try{
+    if(oldNis){
+      /* Update */
+      await wR(D.sch.npsn).doc(oldNis).update({kelas,nama,ortu,password});
+      const idx=D.ss.findIndex(s=>s.nis===oldNis);
+      if(idx>=0)D.ss[idx]={...D.ss[idx],kelas,nama,ortu,password};
+      hd();cMo();renderSiswa($('aC'));tt('Data siswa diperbarui!');
+    }else{
+      /* Cek duplikat */
+      const existing=await wR(D.sch.npsn).doc(nis).get();
+      if(existing.exists){hd();return tt('NIS sudah terdaftar!','er');}
+      await wR(D.sch.npsn).doc(nis).set({nis,kelas,nama,ortu,password,createdAt:Date.now()});
+      D.ss.push({id:nis,nis,kelas,nama,ortu,password,createdAt:Date.now()});
+      hd();cMo();renderSiswa($('aC'));tt('Siswa berhasil ditambahkan!');
+    }
+  }catch(e){hd();tt('Gagal: '+e.message,'er')}
+}
+
+function editSiswa(nis){const s=D.ss.find(x=>x.nis===nis);if(s)showTambahSiswa(s);}
+
+async function hapusSiswa(nis){
+  oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus Siswa ${nis}?</h3><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();doHapusSiswa('${nis}')">Hapus</button></div></div>`);
+}
+async function doHapusSiswa(nis){
+  ld('Menghapus...');try{
+    await wR(D.sch.npsn).doc(nis).delete();
+    D.ss=D.ss.filter(s=>s.nis!==nis);hd();renderSiswa($('aC'));tt('Siswa dihapus!');
+  }catch(e){hd();tt('Gagal: '+e.message,'er')}
+}
+
+async function resetPwdSiswa(nis){
+  oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Reset Password Siswa?</h3><p style="color:var(--mt);font-size:.85rem;margin-bottom:12px">NIS: ${nis}</p>
+    <input id="newPwd" class="ip" placeholder="Password baru" style="margin-bottom:12px;max-width:250px;margin-left:auto;margin-right:auto">
+    <div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt5 bts" onclick="doResetPwd('${nis}')">Reset</button></div></div>`);
+}
+async function doResetPwd(nis){
+  const pwd=$v('newPwd');if(!pwd)return tt('Password baru wajib diisi!','er');
+  ld('Mereset...');try{
+    await wR(D.sch.npsn).doc(nis).update({password:pwd});
+    const idx=D.ss.findIndex(s=>s.nis===nis);if(idx>=0)D.ss[idx].password=pwd;
+    hd();cMo();tt('Password berhasil direset!');
+  }catch(e){hd();tt('Gagal: '+e.message,'er')}
+}
+
+/* Import Siswa JSON */
+function showImportSiswaJSON(){
+  oMo(`<div>
+    <div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-file-import mr-2" style="color:var(--ac2)"></i>Import Data Siswa dari JSON</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
+    <div style="background:#E0F7FA;border:2px solid var(--ac2);border-radius:12px;padding:14px;margin-bottom:16px">
+      <p style="font-size:.82rem;color:#0E7490"><b>Format JSON:</b></p>
+      <pre style="font-size:.75rem;color:#0E7490;margin:6px 0 0;background:#1e1e1e;padding:10px;border-radius:8px;color:#d4d4d4;overflow-x:auto">[
+  {"nis":"001","nama":"Budi Santoso","kelas":1,"ortu":"Pak Santoso","password":"siswa123"},
+  {"nis":"002","nama":"Ani Rahayu","kelas":1,"ortu":"Bu Rahayu","password":"siswa123"}
+]</pre>
+    </div>
+    <div class="mb-3"><input type="file" id="siswaJsonFile" accept=".json" onchange="readSiswaJSON(this)" class="ip" style="padding:10px"></div>
+    <textarea id="siswaJsonTA" class="json-ta" placeholder='Atau paste JSON di sini...' style="min-height:160px"></textarea>
+    <button class="bt bt1 w-full justify-center mt-3" onclick="doImportSiswaJSON()"><i class="fas fa-cloud-upload-alt"></i> Import Siswa</button>
+  </div>`);
+}
+function readSiswaJSON(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){$('siswaJsonTA').value=e.target.result;tt('File dimuat!');};
+  reader.readAsText(file);
+}
+async function doImportSiswaJSON(){
+  let raw=$('siswaJsonTA').value.trim();if(!raw)return tt('Paste atau upload JSON dulu!','er');
+  let data;try{data=JSON.parse(raw);}catch(e){return tt('JSON tidak valid: '+e.message,'er');}
+  if(!Array.isArray(data))return tt('Data harus berupa array!','er');
+  const errors=[];let count=0;
+  ld('Mengimport...');
+  for(const s of data){
+    if(!s.nis||!s.nama||!s.kelas){errors.push(`Data ${s.nama||'?'}: nis/nama/kelas wajib`);continue;}
+    const existing=await wR(D.sch.npsn).doc(String(s.nis)).get();
+    const pwd=s.password||'siswa123';
+    const ortu=s.ortu||'';
+    if(!existing.exists){
+      await wR(D.sch.npsn).doc(String(s.nis)).set({nis:String(s.nis),kelas:s.kelas,nama:s.nama,ortu,password:pwd,createdAt:Date.now()});
+      D.ss.push({id:String(s.nis),nis:String(s.nis),kelas:s.kelas,nama:s.nama,ortu,password:pwd,createdAt:Date.now()});
+      count++;
+    }else{
+      await wR(D.sch.npsn).doc(String(s.nis)).update({kelas:s.kelas,nama:s.nama,ortu,password:pwd});
+      const idx=D.ss.findIndex(x=>x.nis===String(s.nis));
+      if(idx>=0)D.ss[idx]={...D.ss[idx],kelas:s.kelas,nama:s.nama,ortu,password:pwd};
+      count++;
+    }
+  }
+  hd();cMo();renderSiswa($('aC'));
+  if(errors.length>0)tt(count+' siswa diimport. Error: '+errors.join('; '),'er');
+  else tt(count+' siswa berhasil diimport!');
+}
+
+/* ================================================================
+   PENGATURAN
+   ================================================================ */
+function renderSetting(c){
+  const sch=D.sch;
+  let h=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Pengaturan</h2>
+    <div class="cd mb-4" style="max-width:500px">
+      <h3 style="font-size:1rem;margin-bottom:12px"><i class="fas fa-school mr-2" style="color:var(--ac)"></i>Informasi Sekolah</h3>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">NPSN</label><input class="ip" value="${sch.npsn}" readonly style="opacity:.6"></div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Nama Sekolah</label><input id="setNama" class="ip" value="${sch.nama}"></div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Kabupaten/Kota</label><input id="setKota" class="ip" value="${sch.kota}"></div>
+      <div class="mb-4"><label class="block mb-1 font-bold" style="font-size:.82rem">Provinsi</label><input id="setProv" class="ip" value="${sch.prov}"></div>
+      <button class="bt bt1 bts" onclick="simpanSetting()"><i class="fas fa-save"></i> Simpan Perubahan</button>
+    </div>
+    ${!D.isPusat?`<div class="cd" style="max-width:500px">
+      <h3 style="font-size:1rem;margin-bottom:12px"><i class="fas fa-key mr-2" style="color:var(--pr)"></i>Ganti Password Admin</h3>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Password Lama</label><input id="setOld" class="ip" type="password"></div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Password Baru</label><input id="setNew" class="ip" type="password"></div>
+      <button class="bt bt5 bts" onclick="gantiPwdAdmin()"><i class="fas fa-key"></i> Ganti Password</button>
+    </div>`:''}</div>`;
+  c.innerHTML=h;
+}
+
+async function simpanSetting(){
+  const nama=$v('setNama'),kota=$v('setKota'),prov=$v('setProv');
+  if(!nama)return tt('Nama wajib diisi!','er');
+  ld('Menyimpan...');
+  await sR(D.sch.npsn).update({nama,kota,prov});
+  D.sch.nama=nama;D.sch.kota=kota;D.sch.prov=prov;
+  $('aSN2').textContent=nama;hd();tt('Pengaturan disimpan!');
+}
+
+async function gantiPwdAdmin(){
+  const old=$v('setOld'),nw=$v('setNew');
+  if(!old||!nw)return tt('Semua field wajib diisi!','er');
+  if(old!==D.sch.adminPass)return tt('Password lama salah!','er');
+  if(nw.length<6)return tt('Password baru minimal 6 karakter!','er');
+  ld('Mengganti password...');
+  await sR(D.sch.npsn).update({adminPass:nw});
+  D.sch.adminPass=nw;hd();tt('Password admin berhasil diganti!');
+}
+
+/* ===== SISWA DASHBOARD ===== */
+function renderSD(){
+  const s=D.st;const exs=D.ex.filter(e=>e.kelas===s.kelas);
+  $('sdN').textContent=D.sch.nama;$('sdI').textContent=`Kelas ${s.kelas} · ${s.nama}`;
+  const done=D.rs.filter(r=>r.nis===s.nis);
+  let h=`<h3 style="font-size:1.15rem;margin-bottom:16px">Halo, ${s.nama}!</h3>`;
+  if(exs.length===0){
+    h+=`<div class="cd" style="text-align:center;padding:30px"><p style="color:var(--mt)">Belum ada ujian tersedia untuk kelas ${s.kelas}</p></div>`;
+  }else{
+    h+=`<div class="grid gap-3">`;
+    exs.forEach(ex=>{
+      const m=gm(ex.mapel);
+      const rd=done.find(r=>r.examId===ex.id);
+      const hasImg=ex.questions.some(q=>q.image||(q.options&&q.options.some(o=>typeof o==='object'&&o.image)));
+      h+=`<div class="cd" style="padding:16px 20px">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div class="flex items-center gap-3">
+            <div style="width:44px;height:44px;border-radius:12px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center;font-size:1.1rem"><i class="fas ${m.ic}"></i></div>
+            <div>
+              <p style="font-weight:800">${ex.mapel} ${hasImg?'<span class="tag-img"><i class="fas fa-image"></i></span>':''}</p>
+              <p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit} menit</p>
+            </div>
+          </div>
+          ${rd?
+            `<div style="text-align:right"><p style="font-size:.7rem;color:var(--mt)">Sudah dikerjakan</p><p style="font-weight:800;color:${rd.score>=70?'var(--ok)':'var(--er)'}">${rd.essays&&rd.essays.length>0?'Menunggu koreksi':rd.score}</p></div>`:
+            `<button class="bt bt2 bts" onclick="startEx('${ex.id}')"><i class="fas fa-play"></i> Mulai</button>`
+          }
+        </div></div>`;
+    });
+    h+=`</div>`;
+  }
+  /* Riwayat */
+  if(done.length>0){
+    h+=`<h3 style="font-size:1rem;margin:24px 0 12px"><i class="fas fa-history mr-2" style="color:var(--ac)"></i>Riwayat</h3><div class="grid gap-2">`;
+    done.sort((a,b)=>b.timestamp-a.timestamp).forEach(r=>{
+      const sc=r.score||0;const d=new Date(r.timestamp);
+      const tgl=d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      h+=`<div class="cd" style="padding:12px 16px;display:flex;align-items:center;justify-content:between;gap:12px">
+        <div style="flex:1"><p style="font-weight:700;font-size:.88rem">${r.mapel}</p><p style="font-size:.72rem;color:var(--mt)">${tgl} · Benar ${r.correct}/${r.total}</p></div>
+        <div style="text-align:right"><p style="font-weight:800;font-size:1.1rem;color:${r.essays&&r.essays.length>0?'var(--inf)':sc>=70?'var(--ok)':'var(--er)'}">${r.essays&&r.essays.length>0?'?':sc}</p></div>
+      </div>`;
+    });
+    h+=`</div>`;
+  }
+  $('sdL').innerHTML=h;
+}
+
+/* ===== INIT ===== */
+(async function init(){
+  ld('Menguji koneksi...');
   try{
     const testRef=db.collection('_connection_test').doc('ping');
-    await testRef.set({t:Date.now()});await testRef.delete();go('pH');
-  }catch(e){go('pSU');}
+    await testRef.set({ts:Date.now()});await testRef.delete();
+    hd();go('pH');
+  }catch(e){
+    hd();go('pSU');
+  }
 })();
 </script>
 </body>
