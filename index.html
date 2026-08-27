@@ -890,7 +890,20 @@ function renderHasil(c){
   Object.values(grouped).forEach(g=>{const m=gm(g.mapel);const avg=Math.round(g.items.reduce((a,r)=>a+(r.score||0),0)/g.items.length);
     h+=`<div class="cd hasil-card" data-mapel="${g.mapel}" data-kelas="${g.kelas}" style="padding:18px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${g.mapel} — Kelas ${g.kelas}</p><p style="font-size:.75rem;color:var(--mt)">${g.schoolName} · ${g.items.length} siswa · Rata-rata: ${avg}</p></div></div></div>
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Benar</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Nilai</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`;
-    g.items.sort((a,b)=>(b.score||0)-(a.score||0)).forEach((r,i)=>{const sc=r.score||0;let stC,stL;if(r.essays&&r.essays.length>0){stC='var(--inf)';stL='Menunggu';}else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}
+    g.items.sort((a,b)=>(b.score||0)-(a.score||0)).forEach((r,i)=>{
+      const sc=r.score||0;
+      let stC, stL;
+      // PERBAIKAN STATUS MENUNGGU
+      if(r.essays && r.essays.length > 0) {
+        const isGraded = r.essays.every(e => e.graded === true);
+        if(isGraded) {
+          if(sc >= 70) { stC='var(--ok)'; stL='Tuntas'; } 
+          else { stC='var(--er)'; stL='Belum Tuntas'; }
+        } else {
+          stC='var(--inf)'; stL='Menunggu';
+        }
+      } else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}
+      
       h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.correct}/${r.total}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${r.essays&&r.essays.length>0?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cPDF('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;});
     h+=`</tbody></table></div></div>`;});
   h+=`</div></div>`;c.innerHTML=h;
