@@ -384,7 +384,7 @@ function rQ(){
   $('eP').style.width=((i+1)/t*100)+'%';
   let h=`<div class="asu"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p><h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:4px">${q.text}</h3>`;
   if(q.image)h+=`<img src="${q.image}" class="q-img" alt="Gambar" onerror="this.style.display='none'">`;
-  h+=`<div class="grid gap-3" style="margin-top:12px)">`;
+  h+=`<div class="grid gap-3" style="margin-top:12px">`;
   if(q.type==='essay'){
     h+=`<textarea class="ip" id="ansEss" rows="5" placeholder="Tulis jawaban uraian..." oninput="D.an[${i}]=$('ansEss').value">${D.an[i]||''}</textarea>`;
   }else{
@@ -467,6 +467,45 @@ async function cPDF(rid, npsn){
   ${essayHtml}<div style="margin-top:36px;display:flex;justify-content:space-between"><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Orang Tua</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Guru Mapel</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Kepala Sekolah</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div></div></div>`;
   tt('Membuat PDF...','in');
   try{await html2pdf().set({margin:10,filename:`UTS_${r.nama}_${r.mapel}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdE')).save();tt('PDF berhasil!')}catch(e){tt('Gagal: '+e.message,'er')}
+  box.style.left='-9999px';box.style.zIndex='-1';
+}
+
+async function cRekapPDF(){
+  const list = D.rs;
+  if(list.length === 0) return tt('Belum ada hasil untuk direkap!', 'er');
+  
+  const grouped = {};
+  list.forEach(r=>{
+    const k = r.kelas;
+    if(!grouped[k]) grouped[k] = { kelas: k, items: {} };
+    if(!grouped[k].items[r.mapel]) grouped[k].items[r.mapel] = [];
+    grouped[k].items[r.mapel].push(r);
+  });
+
+  let html = `<div class="pd" id="pdRekap"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><h2 style="font-size:14pt;margin:2px 0">${D.sch.nama.toUpperCase()}</h2><p style="font-size:9pt;color:#555">${D.sch.kota}, ${D.sch.prov}</p><p style="font-size:12pt;margin:8px 0 0;font-weight:700">REKAPITULASI NILAI PTS</p></div>`;
+  
+  Object.keys(grouped).sort((a,b)=>a-b).forEach(k=>{
+    const kelasData = grouped[k];
+    html += `<h3 style="font-size:12pt;margin:14px 0 6px">Kelas ${k}</h3>`;
+    Object.keys(kelasData.items).forEach(mapel=>{
+      const siswa = kelasData.items[mapel];
+      const avg = Math.round(siswa.reduce((a,r)=>a+(r.score||0),0)/siswa.length);
+      html += `<p style="font-size:10pt;font-weight:700;margin:8px 0 4px">${mapel} <span style="font-weight:400;font-size:8pt">(Rata-rata: ${avg})</span></p>`;
+      html += `<table style="width:100%;border-collapse:collapse;margin-bottom:12px"><thead><tr style="background:#f0f0f0"><th style="border:1px solid #333;padding:4px">No</th><th style="border:1px solid #333;padding:4px;text-align:left">Nama</th><th style="border:1px solid #333;padding:4px">Benar</th><th style="border:1px solid #333;padding:4px">Total Soal</th><th style="border:1px solid #333;padding:4px">Nilai</th><th style="border:1px solid #333;padding:4px">Status</th></tr></thead><tbody>`;
+      siswa.sort((a,b)=>a.nama.localeCompare(b.nama)).forEach((r,i)=>{
+        let st = r.essays&&r.essays.length>0?'Menunggu':(r.score>=70?'Tuntas':'Belum');
+        html += `<tr><td style="border:1px solid #333;padding:4px;text-align:center">${i+1}</td><td style="border:1px solid #333;padding:4px">${r.nama}</td><td style="border:1px solid #333;padding:4px;text-align:center">${r.correct}</td><td style="border:1px solid #333;padding:4px;text-align:center">${r.total}</td><td style="border:1px solid #333;padding:4px;text-align:center;font-weight:700">${r.score||0}</td><td style="border:1px solid #333;padding:4px;text-align:center">${st}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+    });
+  });
+  
+  html += `<div style="margin-top:36px;display:flex;justify-content:space-between"><div style="text-align:center;width:40%"><p style="font-size:9pt;font-weight:700">Guru Mapel</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div><div style="text-align:center;width:40%"><p style="font-size:9pt;font-weight:700">Kepala Sekolah</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div></div></div>`;
+  
+  const box=$('pB');box.style.left='0';box.style.top='0';box.style.zIndex='9999';
+  box.innerHTML = html;
+  tt('Membuat PDF Rekap...','in');
+  try{await html2pdf().set({margin:10,filename:`Rekap_Nilai_${D.sch.nama}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdRekap')).save();tt('Rekap PDF berhasil!')}catch(e){tt('Gagal: '+e.message,'er')}
   box.style.left='-9999px';box.style.zIndex='-1';
 }
 
@@ -558,19 +597,15 @@ function renderSoal(c){
         <div class="flex gap-2 flex-wrap">`;
       
       if(D.isPusat){
-        /* ADMIN PUSAT: bisa edit & sebar */
         h+=`<button class="bt bt2 btx" onclick="editUjian('${ex.id}',true)"><i class="fas fa-edit"></i> Edit</button>
           <button class="bt bt1 btx" onclick="sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Sebar</button>
           <button class="bt bt4 btx" onclick="D.ex=D.ex.filter(e=>e.id!=='${ex.id}');renderSoal($('aC'));tt('Dihapus dari memori')"><i class="fas fa-trash"></i></button>`;
       }else{
-        /* ADMIN SEKOLAH: cek apakah soal dari pusat */
         if(isFromPusat){
-          /* Soal dari pusat: TIDAK BISA EDIT, hanya bisa hapus */
           h+=`<span style="font-size:.72rem;color:var(--pr);font-weight:700;background:rgba(99,102,241,.08);padding:4px 10px;border-radius:8px"><i class="fas fa-lock mr-1"></i>Tidak bisa diedit</span>
             <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button>
             <button class="bt bt4 btx" onclick="hapusUjian('${ex.id}')"><i class="fas fa-trash"></i> Hapus</button>`;
         }else{
-          /* Soal buatan sendiri: bisa edit */
           h+=`<button class="bt bt2 btx" onclick="editUjian('${ex.id}',false)"><i class="fas fa-edit"></i> Edit</button>
             <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button>
             <button class="bt bt4 btx" onclick="hapusUjian('${ex.id}')"><i class="fas fa-trash"></i> Hapus</button>`;
@@ -836,11 +871,16 @@ function doImportJSON(){
 function renderHasil(c){
   const list = D.isPusat ? D.allResults : D.rs;
   if(list.length===0){c.innerHTML=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Hasil Ujian</h2><div class="cd" style="text-align:center;padding:40px"><p style="color:var(--mt)">Belum ada hasil.</p></div></div>`;return;}
+  
   const grouped={};
   list.forEach(r=>{const k=(D.isPusat?r.schoolNpsn+'|':'')+r.mapel+'|'+r.kelas;if(!grouped[k])grouped[k]={mapel:r.mapel,kelas:r.kelas,schoolName:r.schoolName||D.sch.nama,schoolNpsn:r.schoolNpsn||D.sch.npsn,items:[]};grouped[k].items.push(r);});
+  
   let h=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Hasil Ujian ${D.isPusat?'(Semua Sekolah)':''}</h2>
-    <div class="flex gap-2 mb-4 flex-wrap"><select id="fMapel" class="ip" style="max-width:200px" onchange="filterHasil()"><option value="">Semua Mapel</option>${[...new Set(list.map(r=>r.mapel))].map(m=>`<option value="${m}">${m}</option>`).join('')}</select><select id="fKelas" class="ip" style="max-width:140px" onchange="filterHasil()"><option value="">Semua Kelas</option>${[...new Set(list.map(r=>r.kelas))].sort().map(k=>`<option value="${k}">Kelas ${k}</option>`).join('')}</select></div>
+    <div class="flex gap-2 mb-4 flex-wrap"><select id="fMapel" class="ip" style="max-width:200px" onchange="filterHasil()"><option value="">Semua Mapel</option>${[...new Set(list.map(r=>r.mapel))].map(m=>`<option value="${m}">${m}</option>`).join('')}</select><select id="fKelas" class="ip" style="max-width:140px" onchange="filterHasil()"><option value="">Semua Kelas</option>${[...new Set(list.map(r=>r.kelas))].sort().map(k=>`<option value="${k}">Kelas ${k}</option>`).join('')}</select> 
+    ${!D.isPusat ? `<button class="bt bt1 bts" onclick="cRekapPDF()"><i class="fas fa-file-pdf"></i> Cetak Rekap Keseluruhan</button>` : ''}
+    </div>
     <div class="grid gap-3" id="hasilList">`;
+    
   Object.values(grouped).forEach(g=>{const m=gm(g.mapel);const avg=Math.round(g.items.reduce((a,r)=>a+(r.score||0),0)/g.items.length);
     h+=`<div class="cd hasil-card" data-mapel="${g.mapel}" data-kelas="${g.kelas}" style="padding:18px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${g.mapel} — Kelas ${g.kelas}</p><p style="font-size:.75rem;color:var(--mt)">${g.schoolName} · ${g.items.length} siswa · Rata-rata: ${avg}</p></div></div></div>
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Benar</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Nilai</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`;
