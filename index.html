@@ -470,9 +470,15 @@ async function cPDF(rid, npsn){
   box.style.left='-9999px';box.style.zIndex='-1';
 }
 
-async function cRekapPDF(){
-  const list = D.rs;
-  if(list.length === 0) return tt('Belum ada hasil untuk direkap!', 'er');
+async function cRekapPDF(filterKelas, filterMapel){
+  const list = D.rs.filter(r => {
+    let pass = true;
+    if(filterKelas && r.kelas !== parseInt(filterKelas)) pass = false;
+    if(filterMapel && r.mapel !== filterMapel) pass = false;
+    return pass;
+  });
+
+  if(list.length === 0) return tt('Tidak ada hasil untuk filter ini!', 'er');
   
   const grouped = {};
   list.forEach(r=>{
@@ -482,7 +488,7 @@ async function cRekapPDF(){
     grouped[k].items[r.mapel].push(r);
   });
 
-  let html = `<div class="pd" id="pdRekap"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><h2 style="font-size:14pt;margin:2px 0">${D.sch.nama.toUpperCase()}</h2><p style="font-size:9pt;color:#555">${D.sch.kota}, ${D.sch.prov}</p><p style="font-size:12pt;margin:8px 0 0;font-weight:700">REKAPITULASI NILAI PTS</p></div>`;
+  let html = `<div class="pd" id="pdRekap"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><h2 style="font-size:14pt;margin:2px 0">${D.sch.nama.toUpperCase()}</h2><p style="font-size:9pt;color:#555">${D.sch.kota}, ${D.sch.prov}</p><p style="font-size:12pt;margin:8px 0 0;font-weight:700">REKAPITULASI NILAI PTS</p>${filterKelas?`<p style="font-size:10pt">Kelas ${filterKelas}</p>`:''}${filterMapel?`<p style="font-size:10pt">Mapel ${filterMapel}</p>`:''}</div>`;
   
   Object.keys(grouped).sort((a,b)=>a-b).forEach(k=>{
     const kelasData = grouped[k];
@@ -877,7 +883,7 @@ function renderHasil(c){
   
   let h=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Hasil Ujian ${D.isPusat?'(Semua Sekolah)':''}</h2>
     <div class="flex gap-2 mb-4 flex-wrap"><select id="fMapel" class="ip" style="max-width:200px" onchange="filterHasil()"><option value="">Semua Mapel</option>${[...new Set(list.map(r=>r.mapel))].map(m=>`<option value="${m}">${m}</option>`).join('')}</select><select id="fKelas" class="ip" style="max-width:140px" onchange="filterHasil()"><option value="">Semua Kelas</option>${[...new Set(list.map(r=>r.kelas))].sort().map(k=>`<option value="${k}">Kelas ${k}</option>`).join('')}</select> 
-    ${!D.isPusat ? `<button class="bt bt1 bts" onclick="cRekapPDF()"><i class="fas fa-file-pdf"></i> Cetak Rekap Keseluruhan</button>` : ''}
+    ${!D.isPusat ? `<button class="bt bt1 bts" onclick="cetakFilterRekap()"><i class="fas fa-file-pdf"></i> Cetak Rekap Filter</button>` : ''}
     </div>
     <div class="grid gap-3" id="hasilList">`;
     
@@ -889,6 +895,14 @@ function renderHasil(c){
     h+=`</tbody></table></div></div>`;});
   h+=`</div></div>`;c.innerHTML=h;
 }
+
+function cetakFilterRekap(){
+  const fMapel = $('fMapel').value;
+  const fKelas = $('fKelas').value;
+  if(!fMapel || !fKelas) return tt('Pilih Kelas dan Mapel dulu!', 'er');
+  cRekapPDF(fKelas, fMapel);
+}
+
 function filterHasil(){const fm=$v('fMapel'),fk=$v('fKelas');document.querySelectorAll('.hasil-card').forEach(card=>{let show=true;if(fm&&card.dataset.mapel!==fm)show=false;if(fk&&card.dataset.kelas!==fk)show=false;card.style.display=show?'':'none';});}
 async function doHapusHasil(rid,npsn){ld('Menghapus...');try{await rR(npsn).doc(rid).delete();if(!D.isPusat){D.rs=D.rs.filter(r=>r.id!==rid);}else{D.allResults=D.allResults.filter(r=>r.id!==rid);}hd();renderHasil($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}}
 
