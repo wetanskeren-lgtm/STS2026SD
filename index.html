@@ -497,96 +497,45 @@ async function cPDF(rid, npsn){
   box.style.left='-9999px';box.style.zIndex='-1';
 }
 
-async function cRekapPDF(filterKelas, filterMapel){
-  const list = D.rs.filter(r => {
-    let pass = true;
-    if(filterKelas && r.kelas !== parseInt(filterKelas)) pass = false;
-    if(filterMapel && r.mapel !== filterMapel) pass = false;
-    return pass;
-  });
-
-  if(list.length === 0) return tt('Tidak ada hasil untuk filter ini!', 'er');
+async function cPDF(rid, npsn){
+  let r;
+  if(npsn){
+    const doc = await rR(npsn).doc(rid).get();
+    if(!doc.exists) return tt('Hasil tidak ditemukan!', 'er');
+    r = {id:doc.id, ...doc.data()};
+    const sDoc = await sR(npsn).get();
+    D.sch = sDoc.exists ? sDoc.data() : {nama:'Sekolah', npsn, kota:'', prov:''};
+    const ssSnap = await wR(npsn).get();
+    D.ss = ssSnap.docs.map(d=>d.data());
+  } else {
+    r = D.rs.find(x=>x.id===rid);
+  }
+  if(!r) return tt('Hasil tidak ditemukan!','er');
+  const stu=D.ss.find(s=>s.nis===r.nis);const ortu=stu?stu.ortu:'-';const sch=D.sch;
+  const d=new Date(r.timestamp),tgl=d.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+  let grade,label;if(r.score>=90){grade='A';label='Sangat Baik'}else if(r.score>=80){grade='B';label='Baik'}else if(r.score>=70){grade='C';label='Cukup'}else if(r.score>=60){grade='D';label='Kurang'}else{grade='E';label='Sangat Kurang'}
+  const tm=Math.floor(r.timeUsed/60),ts=r.timeUsed%60;
   
-  const grouped = {};
-  list.forEach(r=>{
-    const k = r.kelas;
-    if(!grouped[k]) grouped[k] = { kelas: k, items: {} };
-    if(!grouped[k].items[r.mapel]) grouped[k].items[r.mapel] = [];
-    grouped[k].items[r.mapel].push(r);
-  });
-
-  let html = `<div class="pd" id="pdRekap"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><h2 style="font-size:14pt;margin:2px 0">${D.sch.nama.toUpperCase()}</h2><p style="font-size:9pt;color:#555">${D.sch.kota}, ${D.sch.prov}</p><p style="font-size:12pt;margin:8px 0 0;font-weight:700">REKAPITULASI NILAI PTS</p>${filterKelas?`<p style="font-size:10pt">Kelas ${filterKelas}</p>`:''}${filterMapel?`<p style="font-size:10pt">Mapel ${filterMapel}</p>`:''}</div>`;
+  // LOGIKA TANDA TANGAN (PAI/PJOK)
+  let labelGuru = "Guru Mapel";
+  if(/agama/i.test(r.mapel)) labelGuru = "Guru Mapel PAI";
+  else if(/pjok|jasmani|olahraga/i.test(r.mapel)) labelGuru = "Guru Mapel PJOK";
+  else labelGuru = "Guru Kelas";
   
-  Object.keys(grouped).sort((a,b)=>a-b).forEach(k=>{
-    const kelasData = grouped[k];
-    html += `<h3 style="font-size:12pt;margin:14px 0 6px">Kelas ${k}</h3>`;
-    
-    Object.keys(kelasData.items).forEach(mapel=>{
-      const siswa = kelasData.items[mapel];
-      const avg = Math.round(siswa.reduce((a,r)=>a+(r.score||0),0)/siswa.length);
-      
-      // LOGIKA TANDA TANGAN: PAI & PJOK = GURU MAPEL, SELAIN ITU = GURU KELAS
-      let labelGuru = "Guru Kelas";
-      if(mapel === 'PAI') labelGuru = "Guru Mapel PAI";
-      else if(mapel === 'PJOK') labelGuru = "Guru Mapel PJOK";
-      
-      html += `<p style="font-size:10pt;font-weight:700;margin:8px 0 4px">${mapel} <span style="font-weight:400;font-size:8pt">(Rata-rata: ${avg})</span></p>`;
-      html += `<table style="width:100%;border-collapse:collapse;margin-bottom:12px"><thead><tr style="background:#f0f0f0"><th style="border:1px solid #333;padding:4px">No</th><th style="border:1px solid #333;padding:4px;text-align:left">Nama</th><th style="border:1px solid #333;padding:4px">Benar</th><th style="border:1px solid #333;padding:4px">Total Soal</th><th style="border:1px solid #333;padding:4px">Nilai</th><th style="border:1px solid #333;padding:4px">Status</th></tr></thead><tbody>`;
-      
-      siswa.sort((a,b)=>a.nama.localeCompare(b.nama)).forEach((r,i)=>{
-        // LOGIKA STATUS MENUNGGU (DIPERBAIKI)
-        let st = '';
-        if(r.essays && r.essays.length > 0) {
-          const isGraded = r.essays.every(e => e.graded === true);
-          if(isGraded) {
-            if((r.score||0) >= 70) { st = 'Tuntas'; } 
-            else { st = 'Belum Tuntas'; }
-          } else {
-            st = 'Menunggu';
-          }
-        } else {
-          st = (r.score||0) >= 70 ? 'Tuntas' : 'Belum Tuntas';
-        }
-        
-        html += `<tr><td style="border:1px solid #333;padding:4px;text-align:center">${i+1}</td><td style="border:1px solid #333;padding:4px">${r.nama}</td><td style="border:1px solid #333;padding:4px;text-align:center">${r.correct}</td><td style="border:1px solid #333;padding:4px;text-align:center">${r.total}</td><td style="border:1px solid #333;padding:4px;text-align:center;font-weight:700">${r.score||0}</td><td style="border:1px solid #333;padding:4px;text-align:center">${st}</td></tr>`;
-      });
-      
-      // TANDA TANGAN MENGGUNAKAN labelGuru (PAI/PJOK = Guru Mapel, Lainnya = Guru Kelas)
-      html += `</tbody></table>
-      <div style="margin-top:20px;margin-bottom:30px;display:flex;justify-content:space-between">
-        <div style="text-align:center;width:40%">
-          <p style="font-size:9pt;font-weight:700">${labelGuru}</p>
-          <div style="height:45px"></div>
-          <p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p>
-        </div>
-        <div style="text-align:center;width:40%">
-          <p style="font-size:9pt;font-weight:700">Kepala Sekolah</p>
-          <div style="height:45px"></div>
-          <p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p>
-        </div>
-      </div>`;
-    });
-  });
-  
-  html += `</div>`;
-  
+  let essayHtml='';if(r.essays&&r.essays.length>0){r.essays.forEach((e,i)=>{
+    const status = e.graded ? `<b>Nilai:</b> ${e.score}/100` : `<b style="color:#dc2626">Menunggu Koreksi</b>`;
+    essayHtml+=`<div class="essay-block"><p style="font-weight:bold">${i+1}. ${e.text}</p><p><b>Kunci:</b> ${e.key||'-'}</p><p><b>Jawaban:</b> ${e.answer||'-'}</p><p>${status}</p></div>`;
+  });}
   const box=$('pB');box.style.left='0';box.style.top='0';box.style.zIndex='9999';
-  box.innerHTML = html;
-  tt('Membuat PDF Rekap...','in');
-  try{await html2pdf().set({margin:10,filename:`Rekap_Nilai_${D.sch.nama}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdRekap')).save();tt('Rekap PDF berhasil!')}catch(e){tt('Gagal: '+e.message,'er')}
-  box.style.left='-9999px';box.style.zIndex='-1';
-}
-async function cSoalPDF(exId,targetNpsn){
-  let ex;if(targetNpsn){const snap=await eR(targetNpsn).doc(exId).get();if(!snap.exists)return tt('Tidak ditemukan!','er');ex={id:snap.id,...snap.data()};}else{ex=D.ex.find(e=>e.id===exId);}
-  if(!ex)return;const sch=D.isPusat?{npsn:targetNpsn,nama:targetNpsn,kota:'',prov:''}:D.sch;
-  const box=$('pB');box.style.left='0';box.style.top='0';box.style.zIndex='9999';let soalHtml='';
-  ex.questions.forEach((q,i)=>{soalHtml+=`<div style="page-break-inside:avoid;margin-bottom:16px"><p style="font-weight:bold;margin-bottom:4px">${i+1}. ${q.text}</p>`;if(q.image)soalHtml+=`<img src="${q.image}" class="q-img-print" style="margin:6px 0;display:block"><br>`;if(q.type==='pg'&&q.options){q.options.forEach((o,j)=>{let txt=typeof o==='object'?o.text:o;soalHtml+=`<p style="margin-left:24px;margin-bottom:2px">${OL_FULL[j]}. ${txt}</p>`;});}soalHtml+=`</div>`;});
-  box.innerHTML=`<div class="pd" id="pdS"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><p style="font-size:9pt;color:#555">NPSN: ${sch.npsn}</p><h2 style="font-size:14pt;margin:2px 0">${sch.nama.toUpperCase()}</h2><p style="font-size:12pt;margin:8px 0 0;font-weight:700">SOAL PTS</p><p style="font-size:10pt;margin:4px 0 0">${ex.mapel} — Kelas ${ex.kelas}</p><p style="font-size:9pt;color:#555">Waktu: ${ex.timeLimit}m | ${ex.questions.length} soal | Opsi: ${maxOpts(ex.kelas)}</p></div>${soalHtml}</div>`;
+  box.innerHTML=`<div class="pd" id="pdE"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><p style="font-size:9pt;color:#555">NPSN: ${sch.npsn}</p><h2 style="font-size:14pt;margin:2px 0">${sch.nama.toUpperCase()}</h2><p style="font-size:9pt;color:#555">${sch.kota}, ${sch.prov}</p><p style="font-size:12pt;margin:8px 0 0;font-weight:700">LAPORAN HASIL PTS</p></div>
+  <table style="border:none;margin-bottom:14px"><tr><td style="border:none;padding:2px 8px;width:140px;font-weight:700">Nama</td><td style="border:none;padding:2px 8px">: ${r.nama}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">NIS</td><td style="border:none;padding:2px 8px">: ${r.nis}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">Kelas</td><td style="border:none;padding:2px 8px">: ${r.kelas}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">Ortu/Wali</td><td style="border:none;padding:2px 8px">: ${ortu}</td></tr></table>
+  <table><thead><tr><th>No</th><th>Mapel</th><th>Soal</th><th>Benar</th><th>Salah</th><th>Nilai</th><th>Grade</th><th>Ket</th></tr></thead><tbody><tr><td>1</td><td>${r.mapel}</td><td>${r.total}</td><td>${r.correct}</td><td>${r.total-r.correct}</td><td style="font-weight:800">${r.score}</td><td>${grade}</td><td>${label}</td></tr></tbody></table>
+  <table style="border:none;margin-top:12px"><tr><td style="border:none;padding:2px 8px;font-weight:700">Waktu</td><td style="border:none;padding:2px 8px">: ${tm}m ${ts}s</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">Tanggal</td><td style="border:none;padding:2px 8px">: ${tgl}</td></tr></table>
+  ${essayHtml}<div style="margin-top:36px;display:flex;justify-content:space-between"><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Orang Tua</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">${labelGuru}</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Kepala Sekolah</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div></div></div>`;
   tt('Membuat PDF...','in');
-  try{await html2pdf().set({margin:10,filename:`Soal_${ex.mapel}_K${ex.kelas}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdS')).save();tt('PDF soal berhasil!')}catch(e){tt('Gagal: '+e.message,'er')}
+  try{await html2pdf().set({margin:10,filename:`UTS_${r.nama}_${r.mapel}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdE')).save();tt('PDF berhasil!')}catch(e){tt('Gagal: '+e.message,'er')}
   box.style.left='-9999px';box.style.zIndex='-1';
 }
-
 /* ================================================================
    ADMIN TABS
    ================================================================ */
