@@ -386,33 +386,6 @@ function sT(){clearInterval(D.tI);uT();D.tI=setInterval(()=>{D.tL--;uT();if(D.tL
 function uT(){const m=Math.floor(D.tL/60),s=D.tL%60;const el=$('eTm');el.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');el.style.color=D.tL<=60?'var(--er)':'var(--ac)'}
 
 function rQ(){
-  const ex=D.cEx,i=D.cQ,q=ex.questions[i],t=ex.questions.length;
-  $('eP').style.width=((i+1)/t*100)+'%';
-  let h=`<div class="asu"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p><h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:4px">${q.text}</h3>`;
-  if(q.image)h+=`<img src="${q.image}" class="q-img" alt="Gambar" onerror="this.style.display='none'">`;
-  h+=`<div class="grid gap-3" style="margin-top:12px">`;
-  if(q.type==='essay'){
-    h+=`<textarea class="ip" id="ansEss" rows="5" placeholder="Tulis jawaban uraian..." oninput="D.an[${i}]=$('ansEss').value">${D.an[i]||''}</textarea>`;
-  }else{
-    q.options.forEach((o,j)=>{
-      let optText='',optImg='';
-      if(typeof o==='object'&&o!==null){optText=o.text||'';optImg=o.image||'';}else{optText=String(o);}
-      let inner='';if(optImg)inner+=`<img src="${optImg}" class="oc-img" alt="${OL_FULL[j]}" onerror="this.style.display='none'">`;
-      inner+=`<span class="lt">${OL_FULL[j]}</span><span style="flex:1">${optText}</span>`;
-      h+=`<div class="oc ${D.an[i]===j?'sl':''}" onclick="pA(${j})">${inner}</div>`;
-    });
-  }
-  h+=`</div></div>`;$('eA').innerHTML=h;
-  
-  // PERBAIKAN TOMBOL SEBELUMNYA/SELANJUTNYA BIAR RAPI DI HP
-  $('eN').innerHTML=`
-    <button class="bt bt3 bts" onclick="pvQ()" ${i===0?'disabled style="opacity:.4;pointer-events:none"':''}><i class="fas fa-arrow-left"></i> Sebelumnya</button>
-    <div class="flex gap-1 flex-wrap justify-center">
-      ${ex.questions.map((_,j)=>`<div onclick="jQ(${j})" style="width:27px;height:27px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:800;cursor:pointer;transition:all .2s;${j===i?'background:var(--ac);color:#fff':D.an[j]!==undefined?'background:rgba(34,197,94,.15);color:#16a34a':'background:var(--bd);color:var(--mt)'}">${j+1}</div>`).join('')}
-    </div>
-    ${i===t-1?`<button class="bt bt1 bts" onclick="cfF()"><i class="fas fa-check"></i> Selesai</button>`:`<button class="bt bt1 bts" onclick="nxQ()">Selanjutnya <i class="fas fa-arrow-right"></i></button>`}
-  `;
-}
 function pA(j){D.an[D.cQ]=j;rQ()}function pvQ(){if(D.cQ>0){D.cQ--;rQ()}}function nxQ(){if(D.cQ<D.cEx.questions.length-1){D.cQ++;rQ()}}function jQ(j){D.cQ=j;rQ()}
 function cfF(){const a=Object.keys(D.an).length,t=D.cEx.questions.length;oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px">⚠️</div><h3 style="margin-bottom:6px">Selesaikan Ujian?</h3><p style="color:var(--mt);margin-bottom:16px">Dijawab ${a} dari ${t} soal.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt1 bts" onclick="cMo();finEx()">Ya, Selesai</button></div></div>`)}
 
