@@ -921,17 +921,92 @@ function renderHasil(c){
 function cetakFilterRekap(){
   const fMapel = $('fMapel').value;
   const fKelas = $('fKelas').value;
-  
-  // Validasi
-  if(!fMapel || !fKelas) {
-    return tt('Pilih Kelas dan Mapel dulu!', 'er');
-  }
-  
-  // Tampilkan loading dan panggil fungsi cetak
+  if(!fMapel || !fKelas) return tt('Pilih Kelas dan Mapel dulu!', 'er');
   ld('Menyiapkan Rekap...');
-  setTimeout(() => {
-    cRekapPDF(fKelas, fMapel);
-  }, 100);
+  setTimeout(() => { cRekapPDF(fKelas, fMapel); }, 100);
+}
+
+async function cRekapPDF(filterKelas, filterMapel){
+  const list = D.rs.filter(r => {
+    let pass = true;
+    if(filterKelas && r.kelas !== parseInt(filterKelas)) pass = false;
+    if(filterMapel && r.mapel !== filterMapel) pass = false;
+    return pass;
+  });
+
+  if(list.length === 0){ hd(); return tt('Tidak ada hasil untuk filter ini!', 'er'); }
+  
+  const grouped = {};
+  list.forEach(r=>{
+    const k = r.kelas;
+    if(!grouped[k]) grouped[k] = { kelas: k, items: {} };
+    if(!grouped[k].items[r.mapel]) grouped[k].items[r.mapel] = [];
+    grouped[k].items[r.mapel].push(r);
+  });
+
+  let html = `<div class="pd" id="pdRekap"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><h2 style="font-size:14pt;margin:2px 0">${D.sch.nama.toUpperCase()}</h2><p style="font-size:9pt;color:#555">${D.sch.kota}, ${D.sch.prov}</p><p style="font-size:12pt;margin:8px 0 0;font-weight:700">REKAPITULASI NILAI PTS</p>${filterKelas?`<p style="font-size:10pt">Kelas ${filterKelas}</p>`:''}${filterMapel?`<p style="font-size:10pt">Mapel ${filterMapel}</p>`:''}</div>`;
+  
+  Object.keys(grouped).sort((a,b)=>a-b).forEach(k=>{
+    const kelasData = grouped[k];
+    html += `<h3 style="font-size:12pt;margin:14px 0 6px">Kelas ${k}</h3>`;
+    
+    Object.keys(kelasData.items).forEach(mapel=>{
+      const siswa = kelasData.items[mapel];
+      const avg = Math.round(siswa.reduce((a,r)=>a+(r.score||0),0)/siswa.length);
+      
+      let labelGuru = "Guru Kelas";
+      if(/agama/i.test(mapel)) labelGuru = "Guru Mapel PAI";
+      else if(/pjok|jasmani|olahraga/i.test(mapel)) labelGuru = "Guru Mapel PJOK";
+      
+      html += `<p style="font-size:10pt;font-weight:700;margin:8px 0 4px">${mapel} <span style="font-weight:400;font-size:8pt">(Rata-rata: ${avg})</span></p>`;
+      html += `<table style="width:100%;border-collapse:collapse;margin-bottom:12px"><thead><tr style="background:#f0f0f0"><th style="border:1px solid #333;padding:4px">No</th><th style="border:1px solid #333;padding:4px;text-align:left">Nama</th><th style="border:1px solid #333;padding:4px">Benar</th><th style="border:1px solid #333;padding:4px">Total Soal</th><th style="border:1px solid #333;padding:4px">Nilai</th><th style="border:1px solid #333;padding:4px">Status</th></tr></thead><tbody>`;
+      
+      siswa.sort((a,b)=>a.nama.localeCompare(b.nama)).forEach((r,i)=>{
+        let st = '';
+        if(r.essays && r.essays.length > 0) {
+          const isGraded = r.essays.every(e => e.graded === true);
+          if(isGraded) {
+            if((r.score||0) >= 70) { st = 'Tuntas'; } 
+            else { st = 'Belum Tuntas'; }
+          } else {
+            st = 'Menunggu';
+          }
+        } else {
+          st = (r.score||0) >= 70 ? 'Tuntas' : 'Belum Tuntas';
+        }
+        
+        html += `<tr><td style="border:1px solid #333;padding:4px;text-align:center">${i+1}</td><td style="border:1px solid #333;padding:4px">${r.nama}</td><td style="border:1px solid #333;padding:4px;text-align:center">${r.correct}</td><td style="border:1px solid #333;padding:4px;text-align:center">${r.total}</td><td style="border:1px solid #333;padding:4px;text-align:center;font-weight:700">${r.score||0}</td><td style="border:1px solid #333;padding:4px;text-align:center">${st}</td></tr>`;
+      });
+      
+      html += `</tbody></table>
+      <div style="margin-top:20px;margin-bottom:30px;display:flex;justify-content:space-between">
+        <div style="text-align:center;width:40%">
+          <p style="font-size:9pt;font-weight:700">${labelGuru}</p>
+          <div style="height:45px"></div>
+          <p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p>
+        </div>
+        <div style="text-align:center;width:40%">
+          <p style="font-size:9pt;font-weight:700">Kepala Sekolah</p>
+          <div style="height:45px"></div>
+          <p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p>
+        </div>
+      </div>`;
+    });
+  });
+  
+  html += `</div>`;
+  
+  const box=$('pB');box.style.left='0';box.style.top='0';box.style.zIndex='9999';
+  box.innerHTML = html;
+  tt('Membuat PDF Rekap...','in');
+  try {
+    await html2pdf().set({margin:10,filename:`Rekap_Nilai_${D.sch.nama}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdRekap')).save();
+    tt('Rekap PDF berhasil!');
+  } catch(e) {
+    tt('Gagal: '+e.message,'er');
+  }
+  hd(); // Hentikan loading muter
+  box.style.left='-9999px';box.style.zIndex='-1';
 }
 function filterHasil(){const fm=$v('fMapel'),fk=$v('fKelas');document.querySelectorAll('.hasil-card').forEach(card=>{let show=true;if(fm&&card.dataset.mapel!==fm)show=false;if(fk&&card.dataset.kelas!==fk)show=false;card.style.display=show?'':'none';});}
 async function doHapusHasil(rid,npsn){ld('Menghapus...');try{await rR(npsn).doc(rid).delete();if(!D.isPusat){D.rs=D.rs.filter(r=>r.id!==rid);}else{D.allResults=D.allResults.filter(r=>r.id!==rid);}hd();renderHasil($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}}
