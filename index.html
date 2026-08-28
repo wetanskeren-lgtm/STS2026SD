@@ -516,11 +516,9 @@ async function cPDF(rid, npsn){
   let grade,label;if(r.score>=90){grade='A';label='Sangat Baik'}else if(r.score>=80){grade='B';label='Baik'}else if(r.score>=70){grade='C';label='Cukup'}else if(r.score>=60){grade='D';label='Kurang'}else{grade='E';label='Sangat Kurang'}
   const tm=Math.floor(r.timeUsed/60),ts=r.timeUsed%60;
   
-  // LOGIKA TANDA TANGAN (PAI/PJOK)
-  let labelGuru = "Guru Mapel";
+  let labelGuru = "Guru Kelas";
   if(/agama/i.test(r.mapel)) labelGuru = "Guru Mapel PAI";
   else if(/pjok|jasmani|olahraga/i.test(r.mapel)) labelGuru = "Guru Mapel PJOK";
-  else labelGuru = "Guru Kelas";
   
   let essayHtml='';if(r.essays&&r.essays.length>0){r.essays.forEach((e,i)=>{
     const status = e.graded ? `<b>Nilai:</b> ${e.score}/100` : `<b style="color:#dc2626">Menunggu Koreksi</b>`;
@@ -529,7 +527,32 @@ async function cPDF(rid, npsn){
   const box=$('pB');box.style.left='0';box.style.top='0';box.style.zIndex='9999';
   box.innerHTML=`<div class="pd" id="pdE"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><p style="font-size:9pt;color:#555">NPSN: ${sch.npsn}</p><h2 style="font-size:14pt;margin:2px 0">${sch.nama.toUpperCase()}</h2><p style="font-size:9pt;color:#555">${sch.kota}, ${sch.prov}</p><p style="font-size:12pt;margin:8px 0 0;font-weight:700">LAPORAN HASIL PTS</p></div>
   <table style="border:none;margin-bottom:14px"><tr><td style="border:none;padding:2px 8px;width:140px;font-weight:700">Nama</td><td style="border:none;padding:2px 8px">: ${r.nama}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">NIS</td><td style="border:none;padding:2px 8px">: ${r.nis}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">Kelas</td><td style="border:none;padding:2px 8px">: ${r.kelas}</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">Ortu/Wali</td><td style="border:none;padding:2px 8px">: ${ortu}</td></tr></table>
-  <table><thead><tr><th>No</th><th>Mapel</th><th>Soal</th><th>Benar</th><th>Salah</th><th>Nilai</th><th>Grade</th><th>Ket</th></tr></thead><tbody><tr><td>1</td><td>${r.mapel}</td><td>${r.total}</td><td>${r.correct}</td><td>${r.total-r.correct}</td><td style="font-weight:800">${r.score}</td><td>${grade}</td><td>${label}</td></tr></tbody></table>
+  <table style="width:100%; border:2px solid #000; border-collapse:collapse;">
+    <thead>
+      <tr style="background:#f0f0f0">
+        <th style="border:1px solid #000; padding:6px;">No</th>
+        <th style="border:1px solid #000; padding:6px;">Mapel</th>
+        <th style="border:1px solid #000; padding:6px;">Soal</th>
+        <th style="border:1px solid #000; padding:6px;">Benar</th>
+        <th style="border:1px solid #000; padding:6px;">Salah</th>
+        <th style="border:1px solid #000; padding:6px;">Nilai</th>
+        <th style="border:1px solid #000; padding:6px;">Grade</th>
+        <th style="border:1px solid #000; padding:6px;">Ket</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="border:1px solid #000; padding:6px; text-align:center;">1</td>
+        <td style="border:1px solid #000; padding:6px;">${r.mapel}</td>
+        <td style="border:1px solid #000; padding:6px; text-align:center;">${r.total}</td>
+        <td style="border:1px solid #000; padding:6px; text-align:center;">${r.correct}</td>
+        <td style="border:1px solid #000; padding:6px; text-align:center;">${r.total-r.correct}</td>
+        <td style="border:1px solid #000; padding:6px; text-align:center; font-weight:800;">${r.score}</td>
+        <td style="border:1px solid #000; padding:6px; text-align:center;">${grade}</td>
+        <td style="border:1px solid #000; padding:6px; text-align:center;">${label}</td>
+      </tr>
+    </tbody>
+  </table>
   <table style="border:none;margin-top:12px"><tr><td style="border:none;padding:2px 8px;font-weight:700">Waktu</td><td style="border:none;padding:2px 8px">: ${tm}m ${ts}s</td></tr><tr><td style="border:none;padding:2px 8px;font-weight:700">Tanggal</td><td style="border:none;padding:2px 8px">: ${tgl}</td></tr></table>
   ${essayHtml}<div style="margin-top:36px;display:flex;justify-content:space-between"><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Orang Tua</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">${labelGuru}</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div><div style="text-align:center;width:30%"><p style="font-size:9pt;font-weight:700">Kepala Sekolah</p><div style="height:55px"></div><p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p></div></div></div>`;
   tt('Membuat PDF...','in');
@@ -959,7 +982,18 @@ async function cRekapPDF(filterKelas, filterMapel){
       else if(/pjok|jasmani|olahraga/i.test(mapel)) labelGuru = "Guru Mapel PJOK";
       
       html += `<p style="font-size:10pt;font-weight:700;margin:8px 0 4px">${mapel} <span style="font-weight:400;font-size:8pt">(Rata-rata: ${avg})</span></p>`;
-      html += `<table style="width:100%;border-collapse:collapse;margin-bottom:12px"><thead><tr style="background:#f0f0f0"><th style="border:1px solid #333;padding:4px">No</th><th style="border:1px solid #333;padding:4px;text-align:left">Nama</th><th style="border:1px solid #333;padding:4px">Benar</th><th style="border:1px solid #333;padding:4px">Total Soal</th><th style="border:1px solid #333;padding:4px">Nilai</th><th style="border:1px solid #333;padding:4px">Status</th></tr></thead><tbody>`;
+      html += `<table style="width:100%; border:2px solid #000; border-collapse:collapse; margin-bottom:12px;">
+        <thead>
+          <tr style="background:#f0f0f0">
+            <th style="border:1px solid #000; padding:6px;">No</th>
+            <th style="border:1px solid #000; padding:6px; text-align:left;">Nama</th>
+            <th style="border:1px solid #000; padding:6px;">Benar</th>
+            <th style="border:1px solid #000; padding:6px;">Total Soal</th>
+            <th style="border:1px solid #000; padding:6px;">Nilai</th>
+            <th style="border:1px solid #000; padding:6px;">Status</th>
+          </tr>
+        </thead>
+        <tbody>`;
       
       siswa.sort((a,b)=>a.nama.localeCompare(b.nama)).forEach((r,i)=>{
         let st = '';
@@ -975,7 +1009,14 @@ async function cRekapPDF(filterKelas, filterMapel){
           st = (r.score||0) >= 70 ? 'Tuntas' : 'Belum Tuntas';
         }
         
-        html += `<tr><td style="border:1px solid #333;padding:4px;text-align:center">${i+1}</td><td style="border:1px solid #333;padding:4px">${r.nama}</td><td style="border:1px solid #333;padding:4px;text-align:center">${r.correct}</td><td style="border:1px solid #333;padding:4px;text-align:center">${r.total}</td><td style="border:1px solid #333;padding:4px;text-align:center;font-weight:700">${r.score||0}</td><td style="border:1px solid #333;padding:4px;text-align:center">${st}</td></tr>`;
+        html += `<tr>
+          <td style="border:1px solid #000; padding:6px; text-align:center;">${i+1}</td>
+          <td style="border:1px solid #000; padding:6px;">${r.nama}</td>
+          <td style="border:1px solid #000; padding:6px; text-align:center;">${r.correct}</td>
+          <td style="border:1px solid #000; padding:6px; text-align:center;">${r.total}</td>
+          <td style="border:1px solid #000; padding:6px; text-align:center; font-weight:700;">${r.score||0}</td>
+          <td style="border:1px solid #000; padding:6px; text-align:center;">${st}</td>
+        </tr>`;
       });
       
       html += `</tbody></table>
@@ -1005,7 +1046,7 @@ async function cRekapPDF(filterKelas, filterMapel){
   } catch(e) {
     tt('Gagal: '+e.message,'er');
   }
-  hd(); // Hentikan loading muter
+  hd(); 
   box.style.left='-9999px';box.style.zIndex='-1';
 }
 function filterHasil(){const fm=$v('fMapel'),fk=$v('fKelas');document.querySelectorAll('.hasil-card').forEach(card=>{let show=true;if(fm&&card.dataset.mapel!==fm)show=false;if(fk&&card.dataset.kelas!==fk)show=false;card.style.display=show?'':'none';});}
