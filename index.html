@@ -921,10 +921,18 @@ function renderHasil(c){
 function cetakFilterRekap(){
   const fMapel = $('fMapel').value;
   const fKelas = $('fKelas').value;
-  if(!fMapel || !fKelas) return tt('Pilih Kelas dan Mapel dulu!', 'er');
-  cRekapPDF(fKelas, fMapel);
+  
+  // Validasi
+  if(!fMapel || !fKelas) {
+    return tt('Pilih Kelas dan Mapel dulu!', 'er');
+  }
+  
+  // Tampilkan loading dan panggil fungsi cetak
+  ld('Menyiapkan Rekap...');
+  setTimeout(() => {
+    cRekapPDF(fKelas, fMapel);
+  }, 100);
 }
-
 function filterHasil(){const fm=$v('fMapel'),fk=$v('fKelas');document.querySelectorAll('.hasil-card').forEach(card=>{let show=true;if(fm&&card.dataset.mapel!==fm)show=false;if(fk&&card.dataset.kelas!==fk)show=false;card.style.display=show?'':'none';});}
 async function doHapusHasil(rid,npsn){ld('Menghapus...');try{await rR(npsn).doc(rid).delete();if(!D.isPusat){D.rs=D.rs.filter(r=>r.id!==rid);}else{D.allResults=D.allResults.filter(r=>r.id!==rid);}hd();renderHasil($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}}
 
