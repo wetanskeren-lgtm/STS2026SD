@@ -224,15 +224,21 @@ service cloud.firestore {
 </div>
 
 <!-- UJIAN -->
-<div id="pEX" class="pg flex-col" style="background:var(--bg)">
-  <header class="w-full p-3 flex items-center justify-between" style="background:var(--cd);border-bottom:2px solid var(--bd)">
-    <div><h3 style="font-size:.88rem" id="eT"></h3><p style="font-size:.65rem;color:var(--mt)" id="eI"></p></div>
-    <div class="text-right"><p style="font-size:.58rem;color:var(--mt)">Sisa Waktu</p><p style="font-size:1.15rem;font-weight:800;font-family:'Fredoka';color:var(--ac)" id="eTm">00:00</p></div>
+<div id="pEX" class="pg flex-col" style="background:var(--bg); height:100vh; height:100dvh;">
+  <header class="w-full p-3 flex items-center justify-between" style="background:var(--cd);border-bottom:2px solid var(--bd); flex-shrink:0;">
+    <div style="min-width:0; padding-right:8px;">
+      <h3 style="font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="eT"></h3>
+      <p style="font-size:.65rem;color:var(--mt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="eI"></p>
+    </div>
+    <div class="text-right" style="flex-shrink:0;">
+      <p style="font-size:.58rem;color:var(--mt)">Sisa Waktu</p>
+      <p style="font-size:1.15rem;font-weight:800;font-family:'Fredoka';color:var(--ac)" id="eTm">00:00</p>
+    </div>
   </header>
-  <div class="w-full max-w-3xl mx-auto px-4 py-5 flex-1 overflow-y-auto" style="max-height:calc(100vh - 62px)">
+  <div class="w-full max-w-3xl mx-auto px-4 py-5 d-flex flex-col" style="flex:1 1 0; min-height:0; overflow-y:auto;">
     <div class="pb mb-5"><div class="pf" id="eP" style="width:0%;background:var(--ac)"></div></div>
-    <div id="eA"></div>
-    <div class="flex justify-between mt-6 pb-8" id="eN"></div>
+    <div id="eA" style="flex:1;"></div>
+    <div class="flex justify-between items-center mt-6 gap-2" id="eN" style="flex-shrink:0;"></div>
   </div>
 </div>
 
@@ -397,9 +403,15 @@ function rQ(){
     });
   }
   h+=`</div></div>`;$('eA').innerHTML=h;
-  $('eN').innerHTML=`<button class="bt bt3 bts" onclick="pvQ()" ${i===0?'disabled style="opacity:.4;pointer-events:none"':''}><i class="fas fa-arrow-left"></i> Sebelumnya</button>
-  <div class="flex gap-1 flex-wrap justify-center">${ex.questions.map((_,j)=>`<div onclick="jQ(${j})" style="width:27px;height:27px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:800;cursor:pointer;transition:all .2s;${j===i?'background:var(--ac);color:#fff':D.an[j]!==undefined?'background:rgba(34,197,94,.15);color:#16a34a':'background:var(--bd);color:var(--mt)'}">${j+1}</div>`).join('')}</div>
-  ${i===t-1?`<button class="bt bt1 bts" onclick="cfF()"><i class="fas fa-check"></i> Selesai</button>`:`<button class="bt bt1 bts" onclick="nxQ()">Selanjutnya <i class="fas fa-arrow-right"></i></button>`}`;
+  
+  // PERBAIKAN TOMBOL SEBELUMNYA/SELANJUTNYA BIAR RAPI DI HP
+  $('eN').innerHTML=`
+    <button class="bt bt3 bts" onclick="pvQ()" ${i===0?'disabled style="opacity:.4;pointer-events:none"':''}><i class="fas fa-arrow-left"></i> Sebelumnya</button>
+    <div class="flex gap-1 flex-wrap justify-center">
+      ${ex.questions.map((_,j)=>`<div onclick="jQ(${j})" style="width:27px;height:27px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:800;cursor:pointer;transition:all .2s;${j===i?'background:var(--ac);color:#fff':D.an[j]!==undefined?'background:rgba(34,197,94,.15);color:#16a34a':'background:var(--bd);color:var(--mt)'}">${j+1}</div>`).join('')}
+    </div>
+    ${i===t-1?`<button class="bt bt1 bts" onclick="cfF()"><i class="fas fa-check"></i> Selesai</button>`:`<button class="bt bt1 bts" onclick="nxQ()">Selanjutnya <i class="fas fa-arrow-right"></i></button>`}
+  `;
 }
 function pA(j){D.an[D.cQ]=j;rQ()}function pvQ(){if(D.cQ>0){D.cQ--;rQ()}}function nxQ(){if(D.cQ<D.cEx.questions.length-1){D.cQ++;rQ()}}function jQ(j){D.cQ=j;rQ()}
 function cfF(){const a=Object.keys(D.an).length,t=D.cEx.questions.length;oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px">⚠️</div><h3 style="margin-bottom:6px">Selesaikan Ujian?</h3><p style="color:var(--mt);margin-bottom:16px">Dijawab ${a} dari ${t} soal.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt1 bts" onclick="cMo();finEx()">Ya, Selesai</button></div></div>`)}
