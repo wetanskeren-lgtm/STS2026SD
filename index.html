@@ -551,7 +551,7 @@ async function cRekapPDF(filterKelas, filterMapel){
         html += `<tr><td style="border:1px solid #333;padding:4px;text-align:center">${i+1}</td><td style="border:1px solid #333;padding:4px">${r.nama}</td><td style="border:1px solid #333;padding:4px;text-align:center">${r.correct}</td><td style="border:1px solid #333;padding:4px;text-align:center">${r.total}</td><td style="border:1px solid #333;padding:4px;text-align:center;font-weight:700">${r.score||0}</td><td style="border:1px solid #333;padding:4px;text-align:center">${st}</td></tr>`;
       });
       
-      // TANDA TANGAN MENGGUNAKAN labelGuru
+      // TANDA TANGAN MENGGUNAKAN labelGuru (PAI/PJOK = Guru Mapel, Lainnya = Guru Kelas)
       html += `</tbody></table>
       <div style="margin-top:20px;margin-bottom:30px;display:flex;justify-content:space-between">
         <div style="text-align:center;width:40%">
@@ -576,7 +576,6 @@ async function cRekapPDF(filterKelas, filterMapel){
   try{await html2pdf().set({margin:10,filename:`Rekap_Nilai_${D.sch.nama}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdRekap')).save();tt('Rekap PDF berhasil!')}catch(e){tt('Gagal: '+e.message,'er')}
   box.style.left='-9999px';box.style.zIndex='-1';
 }
-
 async function cSoalPDF(exId,targetNpsn){
   let ex;if(targetNpsn){const snap=await eR(targetNpsn).doc(exId).get();if(!snap.exists)return tt('Tidak ditemukan!','er');ex={id:snap.id,...snap.data()};}else{ex=D.ex.find(e=>e.id===exId);}
   if(!ex)return;const sch=D.isPusat?{npsn:targetNpsn,nama:targetNpsn,kota:'',prov:''}:D.sch;
