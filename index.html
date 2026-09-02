@@ -69,11 +69,22 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .spn{width:36px;height:36px;border:4px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto}
 .lo{position:fixed;inset:0;background:rgba(255,248,240,.92);z-index:10000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 .lo.on{display:flex}
-.pd{width:210mm;min-height:297mm;padding:18mm;font-family:'Nunito',sans-serif;color:#000;background:#fff;font-size:11pt;line-height:1.6}
-.pd h2{font-family:'Fredoka';font-size:15pt;margin-bottom:4px}
+
+/* CSS UNTUK PDF SOAL UJIAN */
+.pd{width:210mm;min-height:297mm;padding:18mm 20mm;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.5}
+.pd h2{font-family:'Times New Roman', serif;font-size:14pt;margin:0;font-weight:800}
+.soal-block{page-break-inside:avoid;margin-bottom:20px;text-align:justify}
+.soal-text{font-weight:bold;margin-bottom:8px;text-align:justify}
+.opsi-wrap{display:flex;flex-wrap:wrap;gap:8px 20px;padding-left:20px}
+.opsi-item{display:flex;gap:8px;align-items:flex-start;box-sizing:border-box}
+.opsi-item.kelas-kecil{width:100%}
+.opsi-item.kelas-besar{width:48%}
+.opsi-item.full-width{width:100%}
 .pd table{width:100%;border-collapse:collapse;margin:10px 0}
 .pd th,.pd td{border:1px solid #333;padding:5px 10px;text-align:left;font-size:10pt}
 .pd th{background:#f0f0f0;font-weight:700}
+.pd .essay-block { page-break-inside: avoid; margin-bottom: 12px; border: 1px solid #ddd; padding: 10px; border-radius: 6px; }
+
 .schb{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:10px;font-size:.78rem;font-weight:700}
 .step-box{background:var(--bg);border:2px dashed var(--bd);border-radius:16px;padding:20px;text-align:center}
 .step-box.active{border-color:var(--ac);border-style:solid;background:rgba(255,107,53,.04)}
@@ -83,7 +94,6 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .json-ta{width:100%;min-height:220px;padding:14px;border:2.5px solid var(--bd);border-radius:12px;font-family:'Courier New',monospace;font-size:.78rem;line-height:1.5;background:#1e1e1e;color:#d4d4d4;resize:vertical;tab-size:2}
 .json-ta:focus{outline:none;border-color:var(--ac2)}
 .pd .q-img-print{max-width:160px;max-height:120px;object-fit:contain}
-.pd .essay-block { page-break-inside: avoid; margin-bottom: 12px; border: 1px solid #ddd; padding: 10px; border-radius: 6px; }
 .tag-img{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;background:rgba(0,180,216,.1);color:var(--ac2);font-size:.7rem;font-weight:700;margin-left:6px}
 .tag-pusat{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:6px;background:rgba(99,102,241,.1);color:var(--pr);font-size:.7rem;font-weight:700;margin-left:6px}
 .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -557,7 +567,7 @@ async function cPDF(rid, npsn){
   
   const bdr = 'border:1px solid #000 !important;';
   
-  box.innerHTML=`<div class="pd" id="pdE">
+  box.innerHTML=`<div class="pd" id="pdE" style="font-family: 'Nunito', sans-serif;">
     <div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px">
       <p style="font-size:9pt;color:#555">NPSN: ${sch.npsn}</p>
       <h2 style="font-size:14pt;margin:2px 0">${sch.nama.toUpperCase()}</h2>
@@ -617,7 +627,7 @@ async function cPDF(rid, npsn){
 }
 
 /* ================================================================
-   CETAK SOAL UJIAN (PDF DENGAN KOP)
+   CETAK SOAL UJIAN (PDF DENGAN KOP) - LAYOUT OTOMATIS & ANTAI MENGGANTUNG
    ================================================================ */
 async function cSoalPDF(exId, npsn){
   let ex;
@@ -633,31 +643,69 @@ async function cSoalPDF(exId, npsn){
   if(!ex || !ex.questions || ex.questions.length === 0) return tt('Soal belum diisi!', 'er');
   
   let soalHtml = '';
+  const kelas = ex.kelas;
+  const isKelasKecil = kelas <= 2;
+
   ex.questions.forEach((q, i) => {
-    soalHtml += `<div style="margin-bottom: 16px; page-break-inside: avoid;">
-      <p style="font-weight:700; margin-bottom:6px;">${i + 1}. ${q.text}</p>
-      ${q.image ? `<img src="${q.image}" style="max-width: 300px; max-height: 200px; margin: 5px 0; border: 1px solid #ccc; display:block;" onerror="this.style.display='none'"/>` : ''}
-      ${q.type === 'essay' ? 
-        `<div style="border:1px dashed #000; height: 100px; margin-top:5px; border-radius:4px;"></div>` :
-        `<div style="padding-left: 20px; margin-top:5px;">
-          ${q.options.map((o, j) => {
-            let optText = '', optImg = '';
-            if (typeof o === 'object' && o !== null) { optText = o.text || ''; optImg = o.image || ''; } else { optText = String(o); }
-            return `<div style="display:flex; gap:8px; margin-bottom:6px; align-items:flex-start;">
-              <span style="font-weight:700; min-width: 20px;">${OL_FULL[j]}.</span>
-              <div style="flex:1;">
-                <span>${optText}</span>
-                ${optImg ? `<br><img src="${optImg}" style="max-width: 120px; max-height: 80px; margin-top:4px; border:1px solid #ddd;" onerror="this.style.display='none'"/>` : ''}
-              </div>
-            </div>`;
-          }).join('')}
-        </div>`
+    let opsiHtml = '';
+    
+    if (q.type === 'essay') {
+      opsiHtml = `<div style="border:1px dashed #000; height: 100px; margin-top:8px; border-radius:4px;"></div>`;
+    } else {
+      // Hitung panjang teks opsi untuk menentukan layout
+      let totalTextLen = 0;
+      let hasLongText = false;
+      let hasImage = false;
+      
+      q.options.forEach((o, j) => {
+        let text = '';
+        if (typeof o === 'object' && o !== null) {
+          text = o.text || '';
+          if (o.image) hasImage = true;
+        } else {
+          text = String(o);
+        }
+        totalTextLen += text.length;
+        if (text.length > 30) hasLongText = true; // Jika teks lebih dari 30 karakter, dianggap panjang
+      });
+
+      // Tentukan kelas opsi
+      let optClass = '';
+      if (isKelasKecil) {
+        // Kelas 1-2: Sejajar jika pendek, Menurun jika panjang/ada gambar
+        optClass = (hasLongText || hasImage) ? 'full-width' : 'kelas-kecil';
+      } else {
+        // Kelas 3-6: 2 Kanan 2 Kiri jika pendek, Menurun jika panjang/ada gambar
+        optClass = (hasLongText || hasImage) ? 'full-width' : 'kelas-besar';
       }
+
+      // Buat HTML opsi
+      opsiHtml = `<div class="opsi-wrap ${optClass}">`;
+      q.options.forEach((o, j) => {
+        let optText = '', optImg = '';
+        if (typeof o === 'object' && o !== null) { optText = o.text || ''; optImg = o.image || ''; } else { optText = String(o); }
+        
+        opsiHtml += `<div class="opsi-item ${optClass}">
+          <span style="font-weight:700; min-width: 20px;">${OL_FULL[j]}.</span>
+          <div style="flex:1; display:flex; flex-direction:column;">
+            <span style="text-align:justify;">${optText}</span>
+            ${optImg ? `<img src="${optImg}" style="max-width: 120px; max-height: 80px; margin-top:4px; border:1px solid #ddd;" onerror="this.style.display='none'"/>` : ''}
+          </div>
+        </div>`;
+      });
+      opsiHtml += `</div>`;
+    }
+
+    // Bungkus setiap soal di dalam .soal-block (mencegah soal terpotong/menggantung)
+    soalHtml += `<div class="soal-block">
+      <p class="soal-text">${i + 1}. ${q.text}</p>
+      ${q.image ? `<img src="${q.image}" style="max-width: 300px; max-height: 200px; margin: 5px 0 10px 20px; border: 1px solid #ccc; display:block;" onerror="this.style.display='none'"/>` : ''}
+      ${opsiHtml}
     </div>`;
   });
 
   const html = `
-    <div class="pd" id="pdSoal" style="font-size: 12pt;">
+    <div class="pd" id="pdSoal">
       <!-- KOP SURAT -->
       <div style="text-align: center; border-bottom: 4px double #000; padding-bottom: 12px; margin-bottom: 20px;">
         <p style="font-size: 12pt; font-weight: 700; text-transform: uppercase; margin: 0; line-height: 1.4;">PEMERINTAH KABUPATEN ${D.sch.kota ? D.sch.kota.toUpperCase() : 'MAJALENGKA'}</p>
@@ -669,20 +717,21 @@ async function cSoalPDF(exId, npsn){
 
       <!-- JUDUL UJIAN -->
       <div style="text-align: center; margin-bottom: 16px;">
-        <h3 style="font-size: 14pt; font-weight: 700; text-decoration: underline; margin: 0;">SUMATIF TENGAH SEMESTER (STS)</h3>
-        <p style="font-size: 12pt; font-weight: 600; margin: 4px 0 0 0;">TAHUN PELAJARAN 2026/2027 SEMESTER I</p>
+        <p style="font-size: 13pt; font-weight: 700; text-decoration: underline; margin: 0;">SUMATIF TENGAH SEMESTER (STS)</p>
+        <p style="font-size: 12pt; font-weight: 700; margin: 4px 0 0 0;">TAHUN PELAJARAN 2026/2027 SEMESTER I</p>
       </div>
 
       <!-- INFO UJIAN -->
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 11pt;">
-        <tr><td style="width: 120px;">Mata Pelajaran</td><td style="width: 10px;">:</td><td><b>${ex.mapel}</b></td></tr>
-        <tr><td>Kelas</td><td>:</td><td><b>${ex.kelas}</b></td></tr>
-        <tr><td>Hari / Tanggal</td><td>:</td><td>.............................</td></tr>
-        <tr><td>Nama</td><td>:</td><td>.............................</td></tr>
-        <tr><td>Nilai</td><td>:</td><td>.............................</td></tr>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12pt;">
+        <tr><td style="width: 120px;">Mata Pelajaran</td><td style="width: 10px;">:</td><td><b>${ex.mapel}</b></td>
+            <td style="width: 80px; text-align:right;">Kelas</td><td style="width: 10px;">:</td><td><b>${ex.kelas}</b></td></tr>
+        <tr><td>Hari / Tanggal</td><td>:</td><td>.............................</td>
+            <td style="text-align:right;">Waktu</td><td>:</td><td>${ex.timeLimit} Menit</td></tr>
+        <tr><td>Nama</td><td>:</td><td style="border-bottom:1px solid #000;">&nbsp;</td>
+            <td style="text-align:right;">Nilai</td><td>:</td><td style="border-bottom:1px solid #000;">&nbsp;</td></tr>
       </table>
 
-      <p style="text-align: center; font-weight: 700; margin-bottom: 12px; text-decoration: underline; font-size: 11pt;">PETUNJUK: BacakSoal dengan teliti! Pilih jawaban yang paling tepat atau isi sesuai perintah.</p>
+      <p style="text-align: left; font-weight: 700; margin-bottom: 12px; font-size: 12pt;">A. Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf A, B, C, atau D!</p>
 
       <!-- SOAL -->
       <div id="soalContainer">
@@ -698,11 +747,12 @@ async function cSoalPDF(exId, npsn){
   tt('Membuat PDF Soal...', 'in');
   try {
     await html2pdf().set({
-      margin: 10,
+      margin: [15, 15, 15, 15], // margin top, left, bottom, right
       filename: `Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } // Setting penting untuk mencegah menggantung
     }).from($('pdSoal')).save();
     tt('PDF Soal berhasil dibuat!', 'ok');
   } catch (e) {
@@ -1154,7 +1204,7 @@ async function cRekapPDF(filterKelas, filterMapel){
     grouped[k].items[r.mapel].push(r);
   });
 
-  let html = `<div class="pd" id="pdRekap"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><h2 style="font-size:14pt;margin:2px 0">${D.sch.nama.toUpperCase()}</h2><p style="font-size:9pt;color:#555">${D.sch.kota}, ${D.sch.prov}</p><p style="font-size:12pt;margin:8px 0 0;font-weight:700">REKAPITULASI NILAI PTS</p>${filterKelas?`<p style="font-size:10pt">Kelas ${filterKelas}</p>`:''}${filterMapel?`<p style="font-size:10pt">Mapel ${filterMapel}</p>`:''}</div>`;
+  let html = `<div class="pd" id="pdRekap" style="font-family: 'Nunito', sans-serif;"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><h2 style="font-size:14pt;margin:2px 0">${D.sch.nama.toUpperCase()}</h2><p style="font-size:9pt;color:#555">${D.sch.kota}, ${D.sch.prov}</p><p style="font-size:12pt;margin:8px 0 0;font-weight:700">REKAPITULASI NILAI PTS</p>${filterKelas?`<p style="font-size:10pt">Kelas ${filterKelas}</p>`:''}${filterMapel?`<p style="font-size:10pt">Mapel ${filterMapel}</p>`:''}</div>`;
   
   Object.keys(grouped).sort((a,b)=>a-b).forEach(k=>{
     const kelasData = grouped[k];
