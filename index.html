@@ -70,12 +70,12 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .lo{position:fixed;inset:0;background:rgba(255,248,240,.92);z-index:10000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 .lo.on{display:flex}
 
-/* CSS UNTUK PDF SOAL UJIAN - LAYOUT KETAT & RAPI */
-.pd{width:210mm;min-height:297mm;padding:14mm 16mm;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.3}
+/* CSS UNTUK PDF SOAL UJIAN - LAYOUT FIX RAPI */
+.pd{width:210mm;min-height:297mm;padding:14mm 16mm;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.2}
 .pd h2{font-family:'Times New Roman', serif;font-size:14pt;margin:0;font-weight:800}
 
-/* Blok Soal Flex - Mencegah soal menggantung/terpotong di halaman berikutnya */
-.soal-block{page-break-inside:avoid;margin-bottom:16px;display:flex;gap:8px;align-items:flex-start;border-bottom:1px solid #eee;padding-bottom:10px}
+/* Blok Soal - Mencegah soal menggantung/terpotong di halaman berikutnya */
+.soal-block{page-break-inside:avoid;margin-bottom:14px;display:flex;gap:8px;align-items:flex-start;border-bottom:1px solid #eee;padding-bottom:10px}
 .soal-block:last-child{border-bottom:none}
 .soal-num{font-weight:bold;min-width:22px}
 .soal-content{flex:1;display:flex;flex-direction:column;gap:6px}
@@ -84,14 +84,19 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .soal-text{font-weight:bold;text-align:justify}
 
 /* Opsi & Gambar anti terpotong */
-.opsi-wrap{display:flex;flex-wrap:wrap;align-items:flex-start;margin-top:4px;gap:10px 20px}
-.opsi-item{display:flex;gap:6px;align-items:flex-start;box-sizing:border-box}
+.opsi-wrap{display:flex;flex-wrap:wrap;align-items:flex-start;margin-top:4px;gap:6px 0}
 
-/* Kelas 3-6: Mutlak 2 Kolom */
-.opsi-item.kelas-besar{width:calc(50% - 10px)}
+/* Item Opsi Dasar */
+.opsi-item{display:flex;gap:6px;align-items:flex-start;box-sizing:border-box;padding-right:15px;margin-bottom:4px}
 
-/* Kelas 1-2: Auto sejajar menyamping, jika panjang akan turun */
-.opsi-item.kelas-kecil{width:auto;min-width:25%;max-width:100%;flex-grow:1}
+/* Kelas 3-6: Mutlak 2 Kolom Sama Rapi (A,B Kiri | C,D Kanan) */
+.opsi-item.kelas-besar{width:50%}
+
+/* Kelas 1-2: Mutlak 3 Kolom Sama Rapi (A, B, C Sejajar) */
+.opsi-item.kelas-kecil{width:33.33%}
+
+/* Jika teks opsi memanjang dipaksa turun ke bawah */
+.opsi-item.kelas-kecil.w-100, .opsi-item.kelas-besar.w-100 { width: 100%; }
 
 .pd img{page-break-inside:avoid;max-width:100%}
 .pd table{width:100%;border-collapse:collapse;margin:10px 0}
