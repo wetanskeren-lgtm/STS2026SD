@@ -70,20 +70,21 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .lo{position:fixed;inset:0;background:rgba(255,248,240,.92);z-index:10000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 .lo.on{display:flex}
 
-/* CSS UNTUK PDF SOAL UJIAN - RAPI RATA KANAN KIRI & RAPAT */
+/* CSS UNTUK PDF SOAL UJIAN - LAYOUT TABEL FIX RAPI & ANTI TERPOTONG */
 .pd{width:210mm;min-height:297mm;padding:14mm 16mm;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.2}
 .pd h2{font-family:'Times New Roman', serif;font-size:14pt;margin:0;font-weight:800}
 
-/* Blok Soal - Mencegah soal menggantung/terpotong di halaman berikutnya */
-.soal-block{page-break-inside:avoid !important; margin-bottom:8px; display:flex; gap:6px; align-items:flex-start; border-bottom:1px solid #eee; padding-bottom:6px}
+/* Menggunakan display:table-row agar tidak bisa dipotong di tengah halaman */
+.soal-block{page-break-inside:avoid !important; display:table; width:100%; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:6px}
 .soal-block:last-child{border-bottom:none}
-.soal-num{font-weight:bold; min-width:22px; text-align:left}
-.soal-content{flex:1; display:flex; flex-direction:column; gap:4px}
+.soal-num{display:table-cell; width:25px; font-weight:bold; vertical-align:top; text-align:left}
+.soal-content{display:table-cell; vertical-align:top}
 
-/* Teks Soal Rata Kiri Kanan (Justify) */
-.soal-text{font-weight:bold; text-align:justify; margin-bottom:2px}
+/* Teks Soal & Opsi Mutlak Rata Kanan-Kiri (Justify) */
+.soal-text{font-weight:bold; text-align:justify; margin-bottom:6px; display:block}
+.opsi-text { text-align:justify; display:block }
 
-/* Opsi & Gambar anti terpotong */
+/* Opsi & Gambar */
 .opsi-wrap{display:flex; flex-wrap:wrap; align-items:flex-start; gap:4px 0}
 .opsi-item{display:flex; gap:6px; align-items:flex-start; box-sizing:border-box; padding-right:12px; margin-bottom:2px}
 
@@ -95,9 +96,6 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 
 /* Jika teks opsi memanjang dipaksa turun ke bawah */
 .opsi-item.kelas-kecil.w-100, .opsi-item.kelas-besar.w-100 { width: 100%; }
-
-/* Teks opsi rata kanan-kiri */
-.opsi-text { text-align:justify; }
 
 .pd img, .q-img-print { page-break-inside:avoid !important; max-width:100%; }
 .pd table{width:100%; border-collapse:collapse; margin:10px 0}
@@ -669,7 +667,7 @@ async function cPDF(rid, npsn){
 }
 
  /* ================================================================
-   CETAK SOAL UJIAN (PDF LAYOUT FIX & ANTI TERPOTONG)
+   CETAK SOAL UJIAN (PDF LAYOUT TABEL ANTI TERPOTONG)
    ================================================================ */
 async function cSoalPDF(exId, npsn){
   let ex;
@@ -700,11 +698,11 @@ async function cSoalPDF(exId, npsn){
         let optText = '', optImg = '';
         if (typeof o === 'object' && o !== null) { optText = o.text || ''; optImg = o.image || ''; } else { optText = String(o); }
         
-        // Cek panjang teks, jika terlalu panjang dipaksa 1 baris penuh (turun ke bawah)
+        // Jika teks terlalu panjang, opsi dipaksa memenuhi 1 baris penuh (turun sendiri)
         let widthClass = '';
         if(optText.length > 80) widthClass = 'w-100';
         
-                return `<div class="opsi-item ${itemClass} ${widthClass}">
+        return `<div class="opsi-item ${itemClass} ${widthClass}">
           <span style="font-weight:700;">${OL_FULL[j]}.</span>
           <div style="flex:1; display:flex; flex-direction:column;">
             <span class="opsi-text">${optText}</span>
@@ -716,12 +714,12 @@ async function cSoalPDF(exId, npsn){
       opsiHtml = `<div class="opsi-wrap">${opsiItemsHtml}</div>`;
     }
 
-    // Menggunakan struktur Flexbox
+    // Menggunakan struktur Tabel Display agar mutlak tidak terpotong di tengah soal
     soalHtml += `<div class="soal-block">
       <div class="soal-num">${i + 1}.</div>
       <div class="soal-content">
-        <div class="soal-text">${q.text}</div>
-        ${q.image ? `<img src="${q.image}" class="q-img-print" style="max-width: 280px; max-height: 180px; margin-top:4px; border: 1px solid #ccc; display:block;" onerror="this.style.display='none'"/>` : ''}
+        <span class="soal-text">${q.text}</span>
+        ${q.image ? `<img src="${q.image}" class="q-img-print" style="max-width: 280px; max-height: 180px; margin:4px 0; border: 1px solid #ccc; display:block;" onerror="this.style.display='none'"/>` : ''}
         ${opsiHtml}
       </div>
     </div>`;
@@ -775,7 +773,7 @@ async function cSoalPDF(exId, npsn){
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] } // Memaksa mematuhi aturan CSS page-break
+      pagebreak: { mode: ['css', 'legacy'] } // Memaksa jal aturan anti potong dengan sistem legacy
     }).from($('pdSoal')).save();
     tt('PDF Soal berhasil dibuat!', 'ok');
   } catch (e) {
