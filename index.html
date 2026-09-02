@@ -70,15 +70,16 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .lo{position:fixed;inset:0;background:rgba(255,248,240,.92);z-index:10000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 .lo.on{display:flex}
 
-/* CSS UNTUK PDF SOAL UJIAN - LAYOUT TABEL FIX RAPI & ANTI TERPOTONG */
+/* CSS UNTUK PDF SOAL UJIAN - LAYOUT FORCE A4 & ANTI TERPOTONG */
 .pd{width:210mm;min-height:297mm;padding:14mm 16mm;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.2}
 .pd h2{font-family:'Times New Roman', serif;font-size:14pt;margin:0;font-weight:800}
 
-/* Menggunakan display:table-row agar tidak bisa dipotong di tengah halaman */
-.soal-block{page-break-inside:avoid !important; display:table; width:100%; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:6px}
+/* Blok Soal - Diikat rapat tanpa border yang berantakan */
+.soal-block{margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #eee}
 .soal-block:last-child{border-bottom:none}
-.soal-num{display:table-cell; width:25px; font-weight:bold; vertical-align:top; text-align:left}
-.soal-content{display:table-cell; vertical-align:top}
+
+.soal-num{display:inline-block; width:25px; font-weight:bold; vertical-align:top; text-align:left}
+.soal-content{display:inline-block; width:calc(100% - 30px); vertical-align:top}
 
 /* Teks Soal & Opsi Mutlak Rata Kanan-Kiri (Justify) */
 .soal-text{font-weight:bold; text-align:justify; margin-bottom:6px; display:block}
@@ -97,11 +98,14 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 /* Jika teks opsi memanjang dipaksa turun ke bawah */
 .opsi-item.kelas-kecil.w-100, .opsi-item.kelas-besar.w-100 { width: 100%; }
 
-.pd img, .q-img-print { page-break-inside:avoid !important; max-width:100%; }
+.pd img, .q-img-print { max-width:100%; }
 .pd table{width:100%; border-collapse:collapse; margin:10px 0}
 .pd th,.pd td{border:1px solid #333; padding:5px 10px; text-align:left; font-size:10pt}
 .pd th{background:#f0f0f0; font-weight:700}
-.pd .essay-block { page-break-inside: avoid; margin-bottom: 12px; border: 1px solid #ddd; padding: 10px; border-radius: 6px; }
+.pd .essay-block { margin-bottom: 12px; border: 1px solid #ddd; padding: 10px; border-radius: 6px; }
+
+/* Pembatas Spasi Anti Putus (Dipaksa oleh JS) */
+.page-spacer { height: 0; overflow: hidden; }
 .schb{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:10px;font-size:.78rem;font-weight:700}
 .step-box{background:var(--bg);border:2px dashed var(--bd);border-radius:16px;padding:20px;text-align:center}
 .step-box.active{border-color:var(--ac);border-style:solid;background:rgba(255,107,53,.04)}
@@ -666,8 +670,8 @@ async function cPDF(rid, npsn){
   box.style.zIndex='-1';
 }
 
- /* ================================================================
-   CETAK SOAL UJIAN (PDF LAYOUT TABEL ANTI TERPOTONG)
+/* ================================================================
+   CETAK SOAL UJIAN (PDF PAKSA A4 & PERHITUNG RUANG OTOMATIS)
    ================================================================ */
 async function cSoalPDF(exId, npsn){
   let ex;
@@ -698,7 +702,6 @@ async function cSoalPDF(exId, npsn){
         let optText = '', optImg = '';
         if (typeof o === 'object' && o !== null) { optText = o.text || ''; optImg = o.image || ''; } else { optText = String(o); }
         
-        // Jika teks terlalu panjang, opsi dipaksa memenuhi 1 baris penuh (turun sendiri)
         let widthClass = '';
         if(optText.length > 80) widthClass = 'w-100';
         
@@ -714,8 +717,8 @@ async function cSoalPDF(exId, npsn){
       opsiHtml = `<div class="opsi-wrap">${opsiItemsHtml}</div>`;
     }
 
-    // Menggunakan struktur Tabel Display agar mutlak tidak terpotong di tengah soal
-    soalHtml += `<div class="soal-block">
+    // Setiap blok soal dibungkus id unik agar bisa diukur tingginya oleh JS
+    soalHtml += `<div class="soal-block" id="soal-${i}">
       <div class="soal-num">${i + 1}.</div>
       <div class="soal-content">
         <span class="soal-text">${q.text}</span>
@@ -765,15 +768,40 @@ async function cSoalPDF(exId, npsn){
   box.style.left = '0'; box.style.top = '0'; box.style.zIndex = '9999';
   box.innerHTML = html;
 
-  tt('Membuat PDF Soal...', 'in');
+  tt('Menyesuaikan layout PDF...', 'in');
+  
+  // SISTEM PENCEGAH TERPOTONG OTOMATIS (JavaScript tinggi dinamis)
+  await new Promise(r => setTimeout(r, 300)); // Tunggu render DOM selesai
+  
+  const pageHeight = 279; // Tinggi A4 - margin (297 - 12 atas - 12 bawah)
+  let currentY = document.querySelector('#soalContainer > div').offsetTop;
+  
+  ex.questions.forEach((q, i) => {
+    const soalEl = document.getElementById(`soal-${i}`);
+    if(!soalEl) return;
+    
+    const soalHeight = soalEl.offsetHeight;
+    
+    // Jika soal ini posisinya melewati batas bawah halaman, sisipkan ruang kosong (spasi)
+    // Agar soal otomatis terdorong ke halaman selanjutnya secara utuh
+    if (currentY % pageHeight + soalHeight > pageHeight) {
+      const spaceNeeded = pageHeight - (currentY % pageHeight);
+      const spacer = document.createElement('div');
+      spacer.className = 'page-spacer';
+      spacer.style.height = spaceNeeded + 'px';
+      soalEl.parentNode.insertBefore(spacer, soalEl);
+      currentY += spaceNeeded;
+    }
+    currentY += soalHeight;
+  });
+
   try {
     await html2pdf().set({
       margin: [12, 12, 12, 12], 
       filename: `Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] } // Memaksa jal aturan anti potong dengan sistem legacy
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     }).from($('pdSoal')).save();
     tt('PDF Soal berhasil dibuat!', 'ok');
   } catch (e) {
@@ -782,7 +810,6 @@ async function cSoalPDF(exId, npsn){
   box.style.left = '-9999px';
   box.style.zIndex = '-1';
 }
-
 /* ================================================================
    ADMIN TABS
    ================================================================ */
