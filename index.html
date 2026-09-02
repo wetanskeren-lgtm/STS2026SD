@@ -71,11 +71,11 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .lo.on{display:flex}
 
 /* CSS UNTUK PDF SOAL UJIAN - LAYOUT FORCE A4, RAPI, ANTI TERPOTONG */
-.pd{width:210mm;padding:15mm 15mm 10mm 20mm;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.2;box-sizing:border-box}
+.pd{width:210mm;padding:0;margin:0;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.4;box-sizing:border-box}
 .pd h2{font-family:'Times New Roman', serif;font-size:14pt;margin:0;font-weight:800}
 
 /* Blok Soal - Rapat */
-.soal-block{margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #eee}
+.soal-block{margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #eee; page-break-inside: avoid; break-inside: avoid;}
 .soal-block:last-child{border-bottom:none}
 
 .soal-num{display:inline-block; width:25px; font-weight:bold; vertical-align:top; text-align:left}
@@ -87,7 +87,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 
 /* Opsi & Gambar */
 .opsi-wrap{display:flex; flex-wrap:wrap; align-items:flex-start; gap:4px 0}
-.opsi-item{display:flex; gap:6px; align-items:flex-start; box-sizing:border-box; padding-right:12px; margin-bottom:2px}
+.opsi-item{display:flex; gap:6px; align-items:flex-start; box-sizing:border-box; padding-right:12px; margin-bottom:2px; page-break-inside: avoid; break-inside: avoid;}
 
 /* Kelas 3-6: Mutlak 2 Kolom Sama Rapi (A,B Kiri | C,D Kanan) */
 .opsi-item.kelas-besar{width:50%}
@@ -102,10 +102,13 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .pd table{width:100%; border-collapse:collapse; margin:10px 0}
 .pd th,.pd td{border:1px solid #333; padding:5px 10px; text-align:left; font-size:10pt}
 .pd th{background:#f0f0f0; font-weight:700}
-.pd .essay-block { margin-bottom: 12px; border: 1px solid #ddd; padding: 10px; border-radius: 6px; }
+.pd .essay-block { margin-bottom: 12px; border: 1px solid #ddd; padding: 10px; border-radius: 6px; page-break-inside: avoid; break-inside: avoid; }
+
+/* Wrapper utama untuk batas area cetak */
+#pdSoal, #pdE, #pdRekap { padding: 15mm 15mm 15mm 20mm; box-sizing: border-box; }
 
 /* Pembatas Spasi Anti Putus (Dipaksa oleh JS) */
-.page-spacer { height: 0; overflow: hidden; }
+.page-spacer { height: 0; overflow: hidden; page-break-after: always; }
 .schb{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:10px;font-size:.78rem;font-weight:700}
 .step-box{background:var(--bg);border:2px dashed var(--bd);border-radius:16px;padding:20px;text-align:center}
 .step-box.active{border-color:var(--ac);border-style:solid;background:rgba(255,107,53,.04)}
@@ -746,12 +749,12 @@ async function cSoalPDF(exId, npsn){
 
       <!-- INFO UJIAN -->
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12pt;">
-        <tr><td style="width: 120px;">Mata Pelajaran</td><td style="width: 10px;">:</td><td><b>${ex.mapel}</b></td>
-            <td style="width: 80px; text-align:right;">Kelas</td><td style="width: 10px;">:</td><td><b>${ex.kelas}</b></td></tr>
-        <tr><td>Hari / Tanggal</td><td>:</td><td>.............................</td>
-            <td style="text-align:right;">Waktu</td><td>:</td><td>${ex.timeLimit} Menit</td></tr>
-        <tr><td>Nama</td><td>:</td><td style="border-bottom:1px solid #000;">&nbsp;</td>
-            <td style="text-align:right;">Nilai</td><td>:</td><td style="border-bottom:1px solid #000;">&nbsp;</td></tr>
+        <tr><td style="width: 120px; border:none; padding:2px 0;">Mata Pelajaran</td><td style="width: 10px; border:none; padding:2px 0;">:</td><td style="border:none; padding:2px 0;"><b>${ex.mapel}</b></td>
+            <td style="width: 80px; border:none; padding:2px 0; text-align:right;">Kelas</td><td style="width: 10px; border:none; padding:2px 0;">:</td><td style="border:none; padding:2px 0;"><b>${ex.kelas}</b></td></tr>
+        <tr><td style="border:none; padding:2px 0;">Hari / Tanggal</td><td style="border:none; padding:2px 0;">:</td><td style="border:none; padding:2px 0;">.............................</td>
+            <td style="border:none; padding:2px 0; text-align:right;">Waktu</td><td style="border:none; padding:2px 0;">:</td><td style="border:none; padding:2px 0;">${ex.timeLimit} Menit</td></tr>
+        <tr><td style="border:none; padding:2px 0;">Nama</td><td style="border:none; padding:2px 0;">:</td><td style="border:none; padding:2px 0; border-bottom:1px solid #000;">&nbsp;</td>
+            <td style="border:none; padding:2px 0; text-align:right;">Nilai</td><td style="border:none; padding:2px 0;">:</td><td style="border:none; padding:2px 0; border-bottom:1px solid #000;">&nbsp;</td></tr>
       </table>
 
       <p style="text-align: left; font-weight: 700; margin-bottom: 8px; font-size: 12pt;">A. Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf A, B, C, atau D!</p>
@@ -770,36 +773,40 @@ async function cSoalPDF(exId, npsn){
   tt('Menyesuaikan layout PDF...', 'in');
   
   // SISTEM PENCEGAH TERPOTONG OTOMATIS
-  await new Promise(r => setTimeout(r, 300)); 
+  await new Promise(r => setTimeout(r, 500)); 
   
-  const pageHeight = 267; // Tinggi A4 (297) - margin atas (15) - margin bawah (10) - toleransi(5)
-  let currentY = document.querySelector('#soalContainer > div').offsetTop;
+  // Tinggi A4 standar di html2pdf dengan margin 15mm = 297mm - 30mm = 267mm. 
+  // Kita ambil 265mm untuk aman.
+  const pageHeight = 265; 
+  const container = document.getElementById('soalContainer');
+  let currentY = container.offsetTop;
   
   ex.questions.forEach((q, i) => {
     const soalEl = document.getElementById(`soal-${i}`);
     if(!soalEl) return;
     
     const soalHeight = soalEl.offsetHeight;
+    const posBottomSoal = currentY + soalHeight;
     
-    if (currentY % pageHeight + soalHeight > pageHeight) {
-      const spaceNeeded = pageHeight - (currentY % pageHeight);
+    // Jika soal ini akan melewati batas tinggi halaman, sisipkan pembatas
+    if (Math.floor(currentY / pageHeight) !== Math.floor(posBottomSoal / pageHeight)) {
       const spacer = document.createElement('div');
       spacer.className = 'page-spacer';
-      // Tambahkan sedikit toleransi agar soal tidak mepet tepat di ujung
-      spacer.style.height = (spaceNeeded + 2) + 'px';
       soalEl.parentNode.insertBefore(spacer, soalEl);
-      currentY += spaceNeeded + 2;
+      // Reset posisi Y ke awal halaman baru
+      currentY = Math.ceil(currentY / pageHeight) * pageHeight;
     }
     currentY += soalHeight;
   });
 
   try {
     await html2pdf().set({
-      margin: [15, 15, 10, 20], // Margin Kiri 20mm (digeser)
+      margin: [15, 15, 15, 20], // Margin Kiri 20mm (digeser)
       filename: `Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollY: 0 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] }
     }).from($('pdSoal')).save();
     tt('PDF Soal berhasil dibuat!', 'ok');
   } catch (e) {
