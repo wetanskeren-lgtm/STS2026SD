@@ -70,22 +70,22 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .lo{position:fixed;inset:0;background:rgba(255,248,240,.92);z-index:10000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 .lo.on{display:flex}
 
-/* CSS UNTUK PDF SOAL UJIAN - LAYOUT FIX RAPI & ANTI TERPOTONG */
+/* CSS UNTUK PDF SOAL UJIAN - RAPI RATA KANAN KIRI & RAPAT */
 .pd{width:210mm;min-height:297mm;padding:14mm 16mm;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.2}
 .pd h2{font-family:'Times New Roman', serif;font-size:14pt;margin:0;font-weight:800}
 
-/* Blok Soal - Mutlak tidak boleh terpotong di antara dua halaman */
-.soal-block{page-break-inside:avoid !important; margin-bottom:14px; display:flex; gap:8px; align-items:flex-start; border-bottom:1px solid #eee; padding-bottom:10px}
+/* Blok Soal - Mencegah soal menggantung/terpotong di halaman berikutnya */
+.soal-block{page-break-inside:avoid !important; margin-bottom:8px; display:flex; gap:6px; align-items:flex-start; border-bottom:1px solid #eee; padding-bottom:6px}
 .soal-block:last-child{border-bottom:none}
-.soal-num{font-weight:bold; min-width:22px}
-.soal-content{flex:1; display:flex; flex-direction:column; gap:6px}
+.soal-num{font-weight:bold; min-width:22px; text-align:left}
+.soal-content{flex:1; display:flex; flex-direction:column; gap:4px}
 
-/* Teks Soal */
-.soal-text{font-weight:bold; text-align:justify}
+/* Teks Soal Rata Kiri Kanan (Justify) */
+.soal-text{font-weight:bold; text-align:justify; margin-bottom:2px}
 
 /* Opsi & Gambar anti terpotong */
-.opsi-wrap{display:flex; flex-wrap:wrap; align-items:flex-start; margin-top:4px; gap:6px 0}
-.opsi-item{display:flex; gap:6px; align-items:flex-start; box-sizing:border-box; padding-right:15px; margin-bottom:4px}
+.opsi-wrap{display:flex; flex-wrap:wrap; align-items:flex-start; gap:4px 0}
+.opsi-item{display:flex; gap:6px; align-items:flex-start; box-sizing:border-box; padding-right:12px; margin-bottom:2px}
 
 /* Kelas 3-6: Mutlak 2 Kolom Sama Rapi (A,B Kiri | C,D Kanan) */
 .opsi-item.kelas-besar{width:50%}
@@ -95,6 +95,9 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 
 /* Jika teks opsi memanjang dipaksa turun ke bawah */
 .opsi-item.kelas-kecil.w-100, .opsi-item.kelas-besar.w-100 { width: 100%; }
+
+/* Teks opsi rata kanan-kiri */
+.opsi-text { text-align:justify; }
 
 .pd img, .q-img-print { page-break-inside:avoid !important; max-width:100%; }
 .pd table{width:100%; border-collapse:collapse; margin:10px 0}
@@ -701,10 +704,10 @@ async function cSoalPDF(exId, npsn){
         let widthClass = '';
         if(optText.length > 80) widthClass = 'w-100';
         
-        return `<div class="opsi-item ${itemClass} ${widthClass}">
+                return `<div class="opsi-item ${itemClass} ${widthClass}">
           <span style="font-weight:700;">${OL_FULL[j]}.</span>
           <div style="flex:1; display:flex; flex-direction:column;">
-            <span style="text-align:justify;">${optText}</span>
+            <span class="opsi-text">${optText}</span>
             ${optImg ? `<img src="${optImg}" class="q-img-print" style="max-width: 120px; max-height: 80px; margin-top:4px; border:1px solid #ddd;" onerror="this.style.display='none'"/>` : ''}
           </div>
         </div>`;
