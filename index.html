@@ -70,11 +70,11 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .lo{position:fixed;inset:0;background:rgba(255,248,240,.92);z-index:10000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 .lo.on{display:flex}
 
-/* CSS UNTUK PDF SOAL UJIAN - LAYOUT FORCE A4 & ANTI TERPOTONG */
-.pd{width:210mm;min-height:297mm;padding:14mm 16mm;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.2}
+/* CSS UNTUK PDF SOAL UJIAN - LAYOUT FORCE A4, RAPI, ANTI TERPOTONG */
+.pd{width:210mm;padding:15mm 15mm 10mm 20mm;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.2;box-sizing:border-box}
 .pd h2{font-family:'Times New Roman', serif;font-size:14pt;margin:0;font-weight:800}
 
-/* Blok Soal - Diikat rapat tanpa border yang berantakan */
+/* Blok Soal - Rapat */
 .soal-block{margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #eee}
 .soal-block:last-child{border-bottom:none}
 
@@ -671,7 +671,7 @@ async function cPDF(rid, npsn){
 }
 
 /* ================================================================
-   CETAK SOAL UJIAN (PDF PAKSA A4 & PERHITUNG RUANG OTOMATIS)
+   CETAK SOAL UJIAN (PDF MARGIN KIRI & SPASI OTOMATIS)
    ================================================================ */
 async function cSoalPDF(exId, npsn){
   let ex;
@@ -717,7 +717,6 @@ async function cSoalPDF(exId, npsn){
       opsiHtml = `<div class="opsi-wrap">${opsiItemsHtml}</div>`;
     }
 
-    // Setiap blok soal dibungkus id unik agar bisa diukur tingginya oleh JS
     soalHtml += `<div class="soal-block" id="soal-${i}">
       <div class="soal-num">${i + 1}.</div>
       <div class="soal-content">
@@ -770,10 +769,10 @@ async function cSoalPDF(exId, npsn){
 
   tt('Menyesuaikan layout PDF...', 'in');
   
-  // SISTEM PENCEGAH TERPOTONG OTOMATIS (JavaScript tinggi dinamis)
-  await new Promise(r => setTimeout(r, 300)); // Tunggu render DOM selesai
+  // SISTEM PENCEGAH TERPOTONG OTOMATIS
+  await new Promise(r => setTimeout(r, 300)); 
   
-  const pageHeight = 279; // Tinggi A4 - margin (297 - 12 atas - 12 bawah)
+  const pageHeight = 267; // Tinggi A4 (297) - margin atas (15) - margin bawah (10) - toleransi(5)
   let currentY = document.querySelector('#soalContainer > div').offsetTop;
   
   ex.questions.forEach((q, i) => {
@@ -782,22 +781,21 @@ async function cSoalPDF(exId, npsn){
     
     const soalHeight = soalEl.offsetHeight;
     
-    // Jika soal ini posisinya melewati batas bawah halaman, sisipkan ruang kosong (spasi)
-    // Agar soal otomatis terdorong ke halaman selanjutnya secara utuh
     if (currentY % pageHeight + soalHeight > pageHeight) {
       const spaceNeeded = pageHeight - (currentY % pageHeight);
       const spacer = document.createElement('div');
       spacer.className = 'page-spacer';
-      spacer.style.height = spaceNeeded + 'px';
+      // Tambahkan sedikit toleransi agar soal tidak mepet tepat di ujung
+      spacer.style.height = (spaceNeeded + 2) + 'px';
       soalEl.parentNode.insertBefore(spacer, soalEl);
-      currentY += spaceNeeded;
+      currentY += spaceNeeded + 2;
     }
     currentY += soalHeight;
   });
 
   try {
     await html2pdf().set({
-      margin: [12, 12, 12, 12], 
+      margin: [15, 15, 10, 20], // Margin Kiri 20mm (digeser)
       filename: `Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' },
