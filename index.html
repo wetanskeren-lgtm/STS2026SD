@@ -71,32 +71,25 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .lo.on{display:flex}
 
 /* CSS UNTUK PDF SOAL UJIAN - LAYOUT FORCE A4, RAPI, ANTI TERPOTONG */
-.pd{width:210mm;padding:0;margin:0;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.4;box-sizing:border-box}
+.pd{width:210mm;padding:0;margin:0;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.5;box-sizing:border-box}
 .pd h2{font-family:'Times New Roman', serif;font-size:14pt;margin:0;font-weight:800}
 
-/* Blok Soal - Rapat */
-.soal-block{margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid #eee; page-break-inside: avoid; break-inside: avoid;}
+/* Blok Soal - Jarak antar soal lebih renggang */
+.soal-block{margin-bottom:20px; padding-bottom:20px; border-bottom:1px solid #eee; page-break-inside: avoid; break-inside: avoid;}
 .soal-block:last-child{border-bottom:none}
 
 .soal-num{display:inline-block; width:25px; font-weight:bold; vertical-align:top; text-align:left}
 .soal-content{display:inline-block; width:calc(100% - 30px); vertical-align:top}
 
-/* Teks Soal & Opsi Mutlak Rata Kanan-Kiri (Justify) */
-.soal-text{font-weight:bold; text-align:justify; margin-bottom:6px; display:block}
+/* Teks Soal Rata Kiri-Kiri (Justify) */
+.soal-text{font-weight:bold; text-align:justify; margin-bottom:8px; display:block}
+
+/* Opsi & Gambar - Disusun 1 Kolom Kebawah agar gambar tidak terpotong */
+.opsi-wrap{display:block; margin-top:8px}
+.opsi-item{display:flex; gap:8px; align-items:flex-start; box-sizing:border-box; margin-bottom:6px; page-break-inside: avoid; break-inside: avoid;}
+
+/* Teks Opsi Rata Kiri-Kiri (Justify) */
 .opsi-text { text-align:justify; display:block }
-
-/* Opsi & Gambar */
-.opsi-wrap{display:flex; flex-wrap:wrap; align-items:flex-start; gap:4px 0}
-.opsi-item{display:flex; gap:6px; align-items:flex-start; box-sizing:border-box; padding-right:12px; margin-bottom:2px; page-break-inside: avoid; break-inside: avoid;}
-
-/* Kelas 3-6: Mutlak 2 Kolom Sama Rapi (A,B Kiri | C,D Kanan) */
-.opsi-item.kelas-besar{width:50%}
-
-/* Kelas 1-2: Mutlak 3 Kolom Sama Rapi (A, B, C Sejajar) */
-.opsi-item.kelas-kecil{width:33.33%}
-
-/* Jika teks opsi memanjang dipaksa turun ke bawah */
-.opsi-item.kelas-kecil.w-100, .opsi-item.kelas-besar.w-100 { width: 100%; }
 
 .pd img, .q-img-print { max-width:100%; }
 .pd table{width:100%; border-collapse:collapse; margin:10px 0}
@@ -697,22 +690,19 @@ async function cSoalPDF(exId, npsn){
     let opsiHtml = '';
     
     if (q.type === 'essay') {
-      opsiHtml = `<div style="border:1px dashed #000; height: 100px; margin-top:4px; border-radius:4px;"></div>`;
+      // Kotak essay lebih proporsional
+      opsiHtml = `<div style="border:1px solid #000; height: 80px; margin-top:6px; border-radius:4px;"></div>`;
     } else {
-      let itemClass = isKelasKecil ? 'kelas-kecil' : 'kelas-besar';
-      
+      // Opsi disusun 1 kolom ke bawah agar gambar besar tidak terpotong
       let opsiItemsHtml = q.options.map((o, j) => {
         let optText = '', optImg = '';
         if (typeof o === 'object' && o !== null) { optText = o.text || ''; optImg = o.image || ''; } else { optText = String(o); }
         
-        let widthClass = '';
-        if(optText.length > 80) widthClass = 'w-100';
-        
-        return `<div class="opsi-item ${itemClass} ${widthClass}">
-          <span style="font-weight:700;">${OL_FULL[j]}.</span>
+        return `<div class="opsi-item">
+          <span style="font-weight:700; min-width: 20px;">${OL_FULL[j]}.</span>
           <div style="flex:1; display:flex; flex-direction:column;">
             <span class="opsi-text">${optText}</span>
-            ${optImg ? `<img src="${optImg}" class="q-img-print" style="max-width: 120px; max-height: 80px; margin-top:4px; border:1px solid #ddd;" onerror="this.style.display='none'"/>` : ''}
+            ${optImg ? `<img src="${optImg}" class="q-img-print" style="max-width: 100%; max-height: 150px; margin-top:4px; border:1px solid #ddd; display:block;" onerror="this.style.display='none'"/>` : ''}
           </div>
         </div>`;
       }).join('');
@@ -720,11 +710,19 @@ async function cSoalPDF(exId, npsn){
       opsiHtml = `<div class="opsi-wrap">${opsiItemsHtml}</div>`;
     }
 
+    // Gambar Soal utama dibuat rata tengah dan lebih besar
+    let imageHtml = '';
+    if(q.image) {
+      imageHtml = `<div style="text-align: center; margin: 10px 0;">
+        <img src="${q.image}" class="q-img-print" style="max-width: 300px; max-height: 250px; border: 1px solid #ccc; display:inline-block;" onerror="this.style.display='none'"/>
+      </div>`;
+    }
+
     soalHtml += `<div class="soal-block" id="soal-${i}">
       <div class="soal-num">${i + 1}.</div>
       <div class="soal-content">
         <span class="soal-text">${q.text}</span>
-        ${q.image ? `<img src="${q.image}" class="q-img-print" style="max-width: 280px; max-height: 180px; margin:4px 0; border: 1px solid #ccc; display:block;" onerror="this.style.display='none'"/>` : ''}
+        ${imageHtml}
         ${opsiHtml}
       </div>
     </div>`;
@@ -742,13 +740,13 @@ async function cSoalPDF(exId, npsn){
       </div>
 
       <!-- JUDUL UJIAN -->
-      <div style="text-align: center; margin-bottom: 12px;">
+      <div style="text-align: center; margin-bottom: 14px;">
         <p style="font-size: 13pt; font-weight: 700; text-decoration: underline; margin: 0;">SUMATIF TENGAH SEMESTER (STS)</p>
         <p style="font-size: 12pt; font-weight: 700; margin: 4px 0 0 0;">TAHUN PELAJARAN 2026/2027 SEMESTER I</p>
       </div>
 
       <!-- INFO UJIAN -->
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12pt;">
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 12pt;">
         <tr><td style="width: 120px; border:none; padding:2px 0;">Mata Pelajaran</td><td style="width: 10px; border:none; padding:2px 0;">:</td><td style="border:none; padding:2px 0;"><b>${ex.mapel}</b></td>
             <td style="width: 80px; border:none; padding:2px 0; text-align:right;">Kelas</td><td style="width: 10px; border:none; padding:2px 0;">:</td><td style="border:none; padding:2px 0;"><b>${ex.kelas}</b></td></tr>
         <tr><td style="border:none; padding:2px 0;">Hari / Tanggal</td><td style="border:none; padding:2px 0;">:</td><td style="border:none; padding:2px 0;">.............................</td>
@@ -757,7 +755,7 @@ async function cSoalPDF(exId, npsn){
             <td style="border:none; padding:2px 0; text-align:right;">Nilai</td><td style="border:none; padding:2px 0;">:</td><td style="border:none; padding:2px 0; border-bottom:1px solid #000;">&nbsp;</td></tr>
       </table>
 
-      <p style="text-align: left; font-weight: 700; margin-bottom: 8px; font-size: 12pt;">A. Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf A, B, C, atau D!</p>
+      <p style="text-align: left; font-weight: 700; margin-bottom: 12px; font-size: 12pt;">A. Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf A, B, C, atau D!</p>
 
       <!-- SOAL -->
       <div id="soalContainer">
@@ -775,8 +773,6 @@ async function cSoalPDF(exId, npsn){
   // SISTEM PENCEGAH TERPOTONG OTOMATIS
   await new Promise(r => setTimeout(r, 500)); 
   
-  // Tinggi A4 standar di html2pdf dengan margin 15mm = 297mm - 30mm = 267mm. 
-  // Kita ambil 265mm untuk aman.
   const pageHeight = 265; 
   const container = document.getElementById('soalContainer');
   let currentY = container.offsetTop;
@@ -788,12 +784,10 @@ async function cSoalPDF(exId, npsn){
     const soalHeight = soalEl.offsetHeight;
     const posBottomSoal = currentY + soalHeight;
     
-    // Jika soal ini akan melewati batas tinggi halaman, sisipkan pembatas
     if (Math.floor(currentY / pageHeight) !== Math.floor(posBottomSoal / pageHeight)) {
       const spacer = document.createElement('div');
       spacer.className = 'page-spacer';
       soalEl.parentNode.insertBefore(spacer, soalEl);
-      // Reset posisi Y ke awal halaman baru
       currentY = Math.ceil(currentY / pageHeight) * pageHeight;
     }
     currentY += soalHeight;
@@ -801,7 +795,7 @@ async function cSoalPDF(exId, npsn){
 
   try {
     await html2pdf().set({
-      margin: [15, 15, 15, 20], // Margin Kiri 20mm (digeser)
+      margin: [15, 15, 15, 20], // Margin: Atas 15, Kanan 15, Bawah 15, Kiri 20
       filename: `Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollY: 0 },
