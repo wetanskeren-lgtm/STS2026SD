@@ -617,6 +617,102 @@ async function cPDF(rid, npsn){
 }
 
 /* ================================================================
+   CETAK SOAL UJIAN (PDF DENGAN KOP)
+   ================================================================ */
+async function cSoalPDF(exId, npsn){
+  let ex;
+  if(npsn){
+    const doc = await eR(npsn).doc(exId).get();
+    if(!doc.exists) return tt('Soal tidak ditemukan!', 'er');
+    ex = {id:doc.id, ...doc.data()};
+    const sDoc = await sR(npsn).get();
+    D.sch = sDoc.exists ? sDoc.data() : {nama:'Sekolah', npsn};
+  } else {
+    ex = D.ex.find(e=>e.id===exId);
+  }
+  if(!ex || !ex.questions || ex.questions.length === 0) return tt('Soal belum diisi!', 'er');
+  
+  let soalHtml = '';
+  ex.questions.forEach((q, i) => {
+    soalHtml += `<div style="margin-bottom: 16px; page-break-inside: avoid;">
+      <p style="font-weight:700; margin-bottom:6px;">${i + 1}. ${q.text}</p>
+      ${q.image ? `<img src="${q.image}" style="max-width: 300px; max-height: 200px; margin: 5px 0; border: 1px solid #ccc; display:block;" onerror="this.style.display='none'"/>` : ''}
+      ${q.type === 'essay' ? 
+        `<div style="border:1px dashed #000; height: 100px; margin-top:5px; border-radius:4px;"></div>` :
+        `<div style="padding-left: 20px; margin-top:5px;">
+          ${q.options.map((o, j) => {
+            let optText = '', optImg = '';
+            if (typeof o === 'object' && o !== null) { optText = o.text || ''; optImg = o.image || ''; } else { optText = String(o); }
+            return `<div style="display:flex; gap:8px; margin-bottom:6px; align-items:flex-start;">
+              <span style="font-weight:700; min-width: 20px;">${OL_FULL[j]}.</span>
+              <div style="flex:1;">
+                <span>${optText}</span>
+                ${optImg ? `<br><img src="${optImg}" style="max-width: 120px; max-height: 80px; margin-top:4px; border:1px solid #ddd;" onerror="this.style.display='none'"/>` : ''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`
+      }
+    </div>`;
+  });
+
+  const html = `
+    <div class="pd" id="pdSoal" style="font-size: 12pt;">
+      <!-- KOP SURAT -->
+      <div style="text-align: center; border-bottom: 4px double #000; padding-bottom: 12px; margin-bottom: 20px;">
+        <p style="font-size: 12pt; font-weight: 700; text-transform: uppercase; margin: 0; line-height: 1.4;">PEMERINTAH KABUPATEN ${D.sch.kota ? D.sch.kota.toUpperCase() : 'MAJALENGKA'}</p>
+        <p style="font-size: 12pt; font-weight: 700; text-transform: uppercase; margin: 0; line-height: 1.4;">DINAS PENDIDIKAN</p>
+        <p style="font-size: 12pt; font-weight: 700; text-transform: uppercase; margin: 0; line-height: 1.4;">KECAMATAN MAJALENGKA</p>
+        <h2 style="font-size: 16pt; font-weight: 800; text-transform: uppercase; margin: 6px 0 0 0; line-height: 1.4;">${D.sch.nama ? D.sch.nama.toUpperCase() : 'SEKOLAH'}</h2>
+        <p style="font-size: 10pt; margin: 4px 0 0 0; font-style: italic;">NPSN: ${D.sch.npsn || '-'} ${D.sch.kota ? '· '+D.sch.kota : ''}</p>
+      </div>
+
+      <!-- JUDUL UJIAN -->
+      <div style="text-align: center; margin-bottom: 16px;">
+        <h3 style="font-size: 14pt; font-weight: 700; text-decoration: underline; margin: 0;">SUMATIF TENGAH SEMESTER (STS)</h3>
+        <p style="font-size: 12pt; font-weight: 600; margin: 4px 0 0 0;">TAHUN PELAJARAN 2026/2027 SEMESTER I</p>
+      </div>
+
+      <!-- INFO UJIAN -->
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 11pt;">
+        <tr><td style="width: 120px;">Mata Pelajaran</td><td style="width: 10px;">:</td><td><b>${ex.mapel}</b></td></tr>
+        <tr><td>Kelas</td><td>:</td><td><b>${ex.kelas}</b></td></tr>
+        <tr><td>Hari / Tanggal</td><td>:</td><td>.............................</td></tr>
+        <tr><td>Nama</td><td>:</td><td>.............................</td></tr>
+        <tr><td>Nilai</td><td>:</td><td>.............................</td></tr>
+      </table>
+
+      <p style="text-align: center; font-weight: 700; margin-bottom: 12px; text-decoration: underline; font-size: 11pt;">PETUNJUK: BacakSoal dengan teliti! Pilih jawaban yang paling tepat atau isi sesuai perintah.</p>
+
+      <!-- SOAL -->
+      <div id="soalContainer">
+        ${soalHtml}
+      </div>
+    </div>
+  `;
+
+  const box = $('pB');
+  box.style.left = '0'; box.style.top = '0'; box.style.zIndex = '9999';
+  box.innerHTML = html;
+
+  tt('Membuat PDF Soal...', 'in');
+  try {
+    await html2pdf().set({
+      margin: 10,
+      filename: `Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    }).from($('pdSoal')).save();
+    tt('PDF Soal berhasil dibuat!', 'ok');
+  } catch (e) {
+    tt('Gagal membuat PDF Soal: ' + e.message, 'er');
+  }
+  box.style.left = '-9999px';
+  box.style.zIndex = '-1';
+}
+
+/* ================================================================
    ADMIN TABS
    ================================================================ */
 function aTab(t,el){
