@@ -135,7 +135,7 @@ service cloud.firestore {
       <button class="bt bt5" onclick="go('pLA')" style="padding:15px 34px"><i class="fas fa-user-shield"></i> Admin Pusat</button>
       <button class="bt bt3" onclick="go('pLSA')" style="padding:15px 34px"><i class="fas fa-school"></i> Admin Sekolah</button>
     </div>
-    <p class="mt-4" style="color:var(--mt);font-size:.8rem"><i class="fas fa-info-circle mr-1"></i> Admin Pusat buat & sebar soal · Kelas 1-2: 3 opsi, Kelas 3-6: 4 opsi</p>
+    <p class="mt-4" style="color:var(--mt);font-size:.8rem"><i class="fas fa-info-circle mr-1"></i> Admin Pusat & Sekolah buat soal mandiri · Kelas 1-2: 3 opsi, Kelas 3-6: 4 opsi</p>
   </div>
 </div>
 
@@ -222,7 +222,7 @@ service cloud.firestore {
     <div class="flex items-center gap-3"><div style="font-size:1.2rem">📚</div><div><h3 style="font-size:.88rem;line-height:1.2" id="sdN"></h3><p style="font-size:.65rem;color:var(--mt)" id="sdI"></p></div></div>
     <button class="bt bt3 btx" onclick="outS()"><i class="fas fa-sign-out-alt"></i></button>
   </header>
-  <div class="w-full max-w-3xl mx-auto px-4 py-6 flex-1 overflow-y-auto" id="sdL"></div>
+  <div class="w-full max-w-3xl mx-auto px-4 py-6 flex-1 overflow-y:auto" id="sdL"></div>
 </div>
 
 <!-- UJIAN -->
@@ -319,13 +319,20 @@ async function loadAllResults(){
     D.allResults.push(...items);
   }
 }
+
+// PUSAT: Ambil soal dari sub-koleksi PUSAT_PUSAT
+async function loadPusatExams(){
+  const snap = await db.collection('schools').doc('PUSAT').collection('exams').get();
+  D.ex = snap.docs.map(d=>({id:d.id,...d.data()}));
+}
+// SEKOLAH: Ambil soal dari sub-koleksi sekolah tsb
 async function loadD(npsn){const[a,b,c]=await Promise.all([eR(npsn).get(),rR(npsn).get(),wR(npsn).get()]);D.ex=a.docs.map(d=>({id:d.id,...d.data()}));D.rs=b.docs.map(d=>({id:d.id,...d.data()}));D.ss=c.docs.map(d=>({id:d.id,...d.data()}));}
 
 async function logP(){
   const user=$v('aPU'),pass=$v('aPW');if(!user||!pass)return tt('Semua field wajib!','er');ld('Memverifikasi...');
   if(user==='adminpusat'&&pass==='adminpusat123'){
     D.sch={npsn:'PUSAT',nama:'Admin Pusat',kota:'Majalengka',prov:'Jawa Barat',isPusat:true};
-    D.aIn=true;D.isPusat=true;D.ex=[];D.rs=[];D.ss=[];await loadAllSchools(); await loadAllResults();
+    D.aIn=true;D.isPusat=true;D.rs=[];D.ss=[];await loadAllSchools(); await loadAllResults(); await loadPusatExams();
     hd();go('pAD');$('aSN2').textContent='Admin Pusat';$('navSch').style.display='';
     aTab('d',document.querySelector('#aSB a'));tt('Selamat datang, Admin Pusat!');
   }else{hd();return tt('Username atau password salah!','er')}
@@ -406,7 +413,6 @@ function rQ(){
   }
   h+=`</div></div>`;$('eA').innerHTML=h;
   
-  // ===== NAVIGASI: 10 KESAMPING, SISANYA TURUN KEBAWAH =====
   $('eN').innerHTML = `
     <div class="flex items-center justify-between gap-2 mt-4">
       <button class="bt bt3" style="padding:10px 14px;flex-shrink:0;${i===0?'opacity:.4;pointer-events:none':''}" onclick="pvQ()">
@@ -504,7 +510,6 @@ async function cPDF(rid, npsn){
   const box=$('pB');
   box.style.left='0';box.style.top='0';box.style.zIndex='9999';
   
-  // TRIK MENGATASI GARIS HILANG SAAT CETAK PDF
   const bdr = 'border:1px solid #000 !important;';
   
   box.innerHTML=`<div class="pd" id="pdE">
@@ -516,80 +521,36 @@ async function cPDF(rid, npsn){
     </div>
     
     <table style="width:100%; border-collapse:collapse; margin-bottom:14px;">
-      <tr>
-        <td style="border:none; padding:2px 8px; width:140px; font-weight:700">Nama</td>
-        <td style="border:none; padding:2px 8px;">: ${r.nama}</td>
-      </tr>
-      <tr>
-        <td style="border:none; padding:2px 8px; font-weight:700">NIS</td>
-        <td style="border:none; padding:2px 8px;">: ${r.nis}</td>
-      </tr>
-      <tr>
-        <td style="border:none; padding:2px 8px; font-weight:700">Kelas</td>
-        <td style="border:none; padding:2px 8px;">: ${r.kelas}</td>
-      </tr>
-      <tr>
-        <td style="border:none; padding:2px 8px; font-weight:700">Ortu/Wali</td>
-        <td style="border:none; padding:2px 8px;">: ${ortu}</td>
-      </tr>
+      <tr><td style="border:none; padding:2px 8px; width:140px; font-weight:700">Nama</td><td style="border:none; padding:2px 8px;">: ${r.nama}</td></tr>
+      <tr><td style="border:none; padding:2px 8px; font-weight:700">NIS</td><td style="border:none; padding:2px 8px;">: ${r.nis}</td></tr>
+      <tr><td style="border:none; padding:2px 8px; font-weight:700">Kelas</td><td style="border:none; padding:2px 8px;">: ${r.kelas}</td></tr>
+      <tr><td style="border:none; padding:2px 8px; font-weight:700">Ortu/Wali</td><td style="border:none; padding:2px 8px;">: ${ortu}</td></tr>
     </table>
     
     <table style="width:100%; border-collapse:collapse; border:2px solid #000; box-shadow:0 0 0 2px #000;">
       <thead>
         <tr style="background:#f0f0f0;">
-          <th style="${bdr} padding:6px;">No</th>
-          <th style="${bdr} padding:6px;">Mapel</th>
-          <th style="${bdr} padding:6px;">Soal</th>
-          <th style="${bdr} padding:6px;">Benar</th>
-          <th style="${bdr} padding:6px;">Salah</th>
-          <th style="${bdr} padding:6px;">Nilai</th>
-          <th style="${bdr} padding:6px;">Grade</th>
-          <th style="${bdr} padding:6px;">Ket</th>
+          <th style="${bdr} padding:6px;">No</th><th style="${bdr} padding:6px;">Mapel</th><th style="${bdr} padding:6px;">Soal</th><th style="${bdr} padding:6px;">Benar</th><th style="${bdr} padding:6px;">Salah</th><th style="${bdr} padding:6px;">Nilai</th><th style="${bdr} padding:6px;">Grade</th><th style="${bdr} padding:6px;">Ket</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td style="${bdr} padding:6px; text-align:center;">1</td>
-          <td style="${bdr} padding:6px;">${r.mapel}</td>
-          <td style="${bdr} padding:6px; text-align:center;">${r.total}</td>
-          <td style="${bdr} padding:6px; text-align:center;">${r.correct}</td>
-          <td style="${bdr} padding:6px; text-align:center;">${r.total-r.correct}</td>
-          <td style="${bdr} padding:6px; text-align:center; font-weight:800;">${r.score}</td>
-          <td style="${bdr} padding:6px; text-align:center;">${grade}</td>
-          <td style="${bdr} padding:6px; text-align:center;">${label}</td>
+          <td style="${bdr} padding:6px; text-align:center;">1</td><td style="${bdr} padding:6px;">${r.mapel}</td><td style="${bdr} padding:6px; text-align:center;">${r.total}</td><td style="${bdr} padding:6px; text-align:center;">${r.correct}</td><td style="${bdr} padding:6px; text-align:center;">${r.total-r.correct}</td><td style="${bdr} padding:6px; text-align:center; font-weight:800;">${r.score}</td><td style="${bdr} padding:6px; text-align:center;">${grade}</td><td style="${bdr} padding:6px; text-align:center;">${label}</td>
         </tr>
       </tbody>
     </table>
     
     <table style="width:100%; border-collapse:collapse; margin-top:12px; margin-bottom:20px;">
-      <tr>
-        <td style="border:none; padding:2px 8px; width:140px; font-weight:700">Waktu</td>
-        <td style="border:none; padding:2px 8px;">: ${tm}m ${ts}s</td>
-      </tr>
-      <tr>
-        <td style="border:none; padding:2px 8px; font-weight:700">Tanggal</td>
-        <td style="border:none; padding:2px 8px;">: ${tgl}</td>
-      </tr>
+      <tr><td style="border:none; padding:2px 8px; width:140px; font-weight:700">Waktu</td><td style="border:none; padding:2px 8px;">: ${tm}m ${ts}s</td></tr>
+      <tr><td style="border:none; padding:2px 8px; font-weight:700">Tanggal</td><td style="border:none; padding:2px 8px;">: ${tgl}</td></tr>
     </table>
     
     ${essayHtml}
     
     <div style="margin-top:36px; display:flex; justify-content:space-between;">
-      <div style="text-align:center; width:30%">
-        <p style="font-size:9pt; font-weight:700">Orang Tua</p>
-        <div style="height:55px"></div>
-        <p style="font-size:9pt; border-top:1px solid #000; padding-top:3px">(____________)</p>
-      </div>
-      <div style="text-align:center; width:30%">
-        <p style="font-size:9pt; font-weight:700">${labelGuru}</p>
-        <div style="height:55px"></div>
-        <p style="font-size:9pt; border-top:1px solid #000; padding-top:3px">(____________)</p>
-      </div>
-      <div style="text-align:center; width:30%">
-        <p style="font-size:9pt; font-weight:700">Kepala Sekolah</p>
-        <div style="height:55px"></div>
-        <p style="font-size:9pt; border-top:1px solid #000; padding-top:3px">(____________)</p>
-      </div>
+      <div style="text-align:center; width:30%"><p style="font-size:9pt; font-weight:700">Orang Tua</p><div style="height:55px"></div><p style="font-size:9pt; border-top:1px solid #000; padding-top:3px">(____________)</p></div>
+      <div style="text-align:center; width:30%"><p style="font-size:9pt; font-weight:700">${labelGuru}</p><div style="height:55px"></div><p style="font-size:9pt; border-top:1px solid #000; padding-top:3px">(____________)</p></div>
+      <div style="text-align:center; width:30%"><p style="font-size:9pt; font-weight:700">Kepala Sekolah</p><div style="height:55px"></div><p style="font-size:9pt; border-top:1px solid #000; padding-top:3px">(____________)</p></div>
     </div>
   </div>`;
   
@@ -609,6 +570,7 @@ async function cPDF(rid, npsn){
   box.style.left='-9999px';
   box.style.zIndex='-1';
 }
+
 /* ================================================================
    ADMIN TABS
    ================================================================ */
@@ -660,7 +622,7 @@ async function doHapusSoalSch(exId,npsn,nama){oMo(`<div class="text-center"><h3 
    ================================================================ */
 function renderSoal(c){
   let h=`<div class="asu"><div class="flex items-center justify-between flex-wrap gap-3 mb-6">
-    <div><h2 style="font-size:1.5rem;margin-bottom:2px">Kelola Soal</h2><p style="color:var(--mt);font-size:.85rem">${D.isPusat?'Buat soal lalu sebar ke sekolah':'Soal dari Admin Pusat muncul di sini'}</p></div>
+    <div><h2 style="font-size:1.5rem;margin-bottom:2px">Kelola Soal</h2><p style="color:var(--mt);font-size:.85rem">${D.isPusat?'Buat soal lalu sebar ke sekolah':'Buat soal mandiri atau terima dari Admin Pusat'}</p></div>
     <div class="flex gap-2 flex-wrap">
       <button class="bt bt2 bts" onclick="showImportJSON()"><i class="fas fa-file-import"></i> Import JSON</button>
       <button class="bt bt5 bts" onclick="showContohJSON()"><i class="fas fa-code"></i> Contoh JSON</button>
@@ -669,7 +631,7 @@ function renderSoal(c){
   </div>`;
 
   if(D.ex.length===0){
-    h+=`<div class="cd" style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px;opacity:.3"><i class="fas fa-file-alt"></i></div><p style="font-weight:700;color:var(--mt);margin-bottom:8px">${D.isPusat?'Belum ada soal di memori':'Belum ada soal di sekolah ini'}</p><p style="font-size:.85rem;color:var(--mt)">${D.isPusat?'Buat soal baru atau import JSON, lalu sebar ke sekolah.':'Soal dari Admin Pusat akan muncul setelah disebarkan.'}</p></div>`;
+    h+=`<div class="cd" style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px;opacity:.3"><i class="fas fa-file-alt"></i></div><p style="font-weight:700;color:var(--mt);margin-bottom:8px">Belum ada soal</p><p style="font-size:.85rem;color:var(--mt)">Buat soal mandiri, import JSON, atau tunggu sebaran dari Admin Pusat.</p></div>`;
   }else{
     h+=`<div class="grid gap-3">`;
     D.ex.forEach(ex=>{
@@ -679,23 +641,23 @@ function renderSoal(c){
         <div class="flex items-center gap-3">
           <div style="width:46px;height:46px;border-radius:12px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center;font-size:1.2rem"><i class="fas ${m.ic}"></i></div>
           <div>
-            <p style="font-weight:800;font-size:1rem">${ex.mapel} ${hasImg?'<span class="tag-img"><i class="fas fa-image"></i></span>':''}${isFromPusat&&!D.isPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Dari Pusat</span>':''}</p>
+            <p style="font-weight:800;font-size:1rem">${ex.mapel} ${hasImg?'<span class="tag-img"><i class="fas fa-image"></i></span>':''}${isFromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Dari Pusat</span>':''}</p>
             <p style="font-size:.78rem;color:var(--mt)">Kelas ${ex.kelas} · ${mo} opsi · ${ex.questions.length} soal · ${ex.timeLimit}m</p>
           </div>
         </div>
         <div class="flex gap-2 flex-wrap">`;
       
       if(D.isPusat){
-        h+=`<button class="bt bt2 btx" onclick="editUjian('${ex.id}',true)"><i class="fas fa-edit"></i> Edit</button>
+        h+=`<button class="bt bt2 btx" onclick="editUjian('${ex.id}')"><i class="fas fa-edit"></i> Edit</button>
           <button class="bt bt1 btx" onclick="sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Sebar</button>
-          <button class="bt bt4 btx" onclick="D.ex=D.ex.filter(e=>e.id!=='${ex.id}');renderSoal($('aC'));tt('Dihapus dari memori')"><i class="fas fa-trash"></i></button>`;
+          <button class="bt bt4 btx" onclick="hapusUjianPusat('${ex.id}')"><i class="fas fa-trash"></i></button>`;
       }else{
         if(isFromPusat){
           h+=`<span style="font-size:.72rem;color:var(--pr);font-weight:700;background:rgba(99,102,241,.08);padding:4px 10px;border-radius:8px"><i class="fas fa-lock mr-1"></i>Tidak bisa diedit</span>
             <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button>
             <button class="bt bt4 btx" onclick="hapusUjian('${ex.id}')"><i class="fas fa-trash"></i> Hapus</button>`;
         }else{
-          h+=`<button class="bt bt2 btx" onclick="editUjian('${ex.id}',false)"><i class="fas fa-edit"></i> Edit</button>
+          h+=`<button class="bt bt2 btx" onclick="editUjian('${ex.id}')"><i class="fas fa-edit"></i> Edit</button>
             <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button>
             <button class="bt bt4 btx" onclick="hapusUjian('${ex.id}')"><i class="fas fa-trash"></i> Hapus</button>`;
         }
@@ -745,7 +707,7 @@ function showBuatUjian(){
       <div><label class="block mb-1 font-bold" style="font-size:.82rem">Waktu (menit)</label><input id="bT" class="ip" type="number" value="60" min="10" max="300"></div>
     </div>
     <div id="opsiInfo" style="background:#EFF6FF;border:2px solid var(--inf);border-radius:12px;padding:14px;margin-bottom:16px"></div>
-    ${D.isPusat?`<div style="background:var(--bg);border:2px dashed var(--bd);border-radius:12px;padding:14px;margin-bottom:16px"><p style="font-size:.85rem;color:var(--mt)"><i class="fas fa-info-circle mr-1" style="color:var(--ac2)"></i> Soal disimpan di memori. Setelah selesai, klik <b>"Sebar ke Sekolah"</b>.</p></div>`:''}
+    <div style="background:var(--bg);border:2px dashed var(--bd);border-radius:12px;padding:14px;margin-bottom:16px"><p style="font-size:.85rem;color:var(--mt)"><i class="fas fa-info-circle mr-1" style="color:var(--ac2)"></i> Soal akan otomatis tersimpan permanen ke Database Cloud.</p></div>
     <button class="bt bt1 w-full justify-center" onclick="buatUjian()"><i class="fas fa-arrow-right"></i> Lanjut Input Soal</button></div>`);
   updateOpsiInfo();
 }
@@ -760,24 +722,31 @@ async function buatUjian(){
   const mapel=$v('bM'),kelas=parseInt($('bK').value),timeLimit=parseInt($('bT').value)||60;
   if(!mapel||!kelas)return tt('Lengkapi semua field!','er');
   const id=uid();const exam={id,mapel,kelas,timeLimit,questions:[],createdAt:Date.now()};
-  if(D.isPusat){D.ex.push(exam);cMo();tt('Paket ujian dibuat!');editUjian(id,true);}
-  else{ld('Menyimpan...');await eR(D.sch.npsn).doc(id).set(exam);D.ex.push(exam);hd();cMo();tt('Paket ujian dibuat!');editUjian(id,false);}
+  ld('Menyimpan paket ujian...');
+  try {
+    const targetNpsn = D.isPusat ? 'PUSAT' : D.sch.npsn;
+    await eR(targetNpsn).doc(id).set(exam);
+    D.ex.push(exam);
+    hd();cMo();tt('Paket ujian dibuat & disimpan permanen!');editUjian(id);
+  } catch(e) {
+    hd();tt('Gagal membuat: '+e.message,'er');
+  }
 }
 
 /* ===== EDIT SOAL ===== */
-function editUjian(eid,isMemori){
+function editUjian(eid){
   const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
-  D.editQs=JSON.parse(JSON.stringify(ex.questions));D.editIdx=-1;D.editTargetNpsn=isMemori?null:D.sch.npsn;D.editKelas=ex.kelas;
-  renderEditSoal(ex,isMemori);
+  D.editQs=JSON.parse(JSON.stringify(ex.questions));D.editIdx=-1;D.editKelas=ex.kelas;
+  renderEditSoal(ex);
 }
 
-function renderEditSoal(ex,isMemori){
+function renderEditSoal(ex){
   const c=$('aC');const m=gm(ex.mapel);const mo=maxOpts(ex.kelas);
   let h=`<div class="asu">
     <div class="flex items-center gap-3 mb-5">
       <button class="bt bt3 btx" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><i class="fas fa-arrow-left"></i></button>
       <div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div>
-      <div><h2 style="font-size:1.2rem;line-height:1.2">${ex.mapel} — Kelas ${ex.kelas}</h2><p style="font-size:.78rem;color:var(--mt)">${D.editQs.length} soal · ${ex.timeLimit}m · <b style="color:var(--ac)">${mo} opsi (A-${OL_FULL[mo-1]})</b>${isMemori?' · <span style="color:var(--inf)">[Memori Pusat]</span>':''}</p></div>
+      <div><h2 style="font-size:1.2rem;line-height:1.2">${ex.mapel} — Kelas ${ex.kelas}</h2><p style="font-size:.78rem;color:var(--mt)">${D.editQs.length} soal · ${ex.timeLimit}m · <b style="color:var(--ac)">${mo} opsi (A-${OL_FULL[mo-1]})</b> · <span style="color:var(--ok)">[Tersimpan di Cloud]</span></p></div>
     </div>
     <div class="cd mb-4" style="border-color:var(--ac);border-style:dashed">
       <h4 style="font-size:.95rem;margin-bottom:12px"><i class="fas fa-pen mr-2" style="color:var(--ac)"></i>${D.editIdx>=0?'Edit Soal '+(D.editIdx+1):'Tambah Soal Baru'}</h4>
@@ -787,31 +756,30 @@ function renderEditSoal(ex,isMemori){
       <div id="eqOptsWrap"><label class="block mb-2 font-bold" style="font-size:.82rem">Opsi Jawaban (maks ${mo})</label><div class="grid gap-2" id="eqOpts"></div><div id="addOptWrap"></div><div class="mt-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Jawaban Benar</label><select id="eqAns" class="ip" style="max-width:200px"></select></div></div>
       <div id="eqEssayWrap" style="display:none"><div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Kunci Jawaban Uraian</label><textarea id="eqKey" class="ip" rows="3" placeholder="Kunci jawaban...">${D.editIdx>=0?(D.editQs[D.editIdx].key||''):''}</textarea></div></div>
       <div class="flex gap-2 mt-4">
-        ${D.editIdx>=0?`<button class="bt bt3 bts" onclick="D.editIdx=-1;renderEditSoal(D.ex.find(e=>e.id==='${ex.id}'),${!!isMemori})"><i class="fas fa-times"></i> Batal</button>`:''}
-        <button class="bt bt1 bts" onclick="simpanSoal('${ex.id}',${!!isMemori})"><i class="fas fa-save"></i> ${D.editIdx>=0?'Update':'Tambah'} Soal</button>
+        ${D.editIdx>=0?`<button class="bt bt3 bts" onclick="D.editIdx=-1;renderEditSoal(D.ex.find(e=>e.id==='${ex.id}'))"><i class="fas fa-times"></i> Batal</button>`:''}
+        <button class="bt bt1 bts" onclick="simpanSoal('${ex.id}')"><i class="fas fa-save"></i> ${D.editIdx>=0?'Update':'Tambah'} Soal</button>
       </div>
     </div>
     <h3 style="font-size:1rem;margin-bottom:10px"><i class="fas fa-list-ol mr-2" style="color:var(--ac)"></i>Daftar Soal (${D.editQs.length})</h3>
     <div class="grid gap-2 mb-6" id="eqList"></div>
     <div class="flex gap-2 mb-8">
-      <button class="bt bt1 bts" onclick="simpanAllSoal('${ex.id}',${!!isMemori})"><i class="fas fa-save"></i> Simpan</button>
-      ${isMemori?`<button class="bt bt5 bts" onclick="simpanAllSoal('${ex.id}',true);sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Simpan & Sebarkan</button>`:''}
+      <button class="bt bt1 bts" onclick="simpanAllSoal('${ex.id}')"><i class="fas fa-save"></i> Simpan Permanen ke Cloud</button>
       <button class="bt bt2 bts" onclick="exportExamJSON('${ex.id}')"><i class="fas fa-download"></i> Export JSON</button>
     </div>
   </div>`;
   c.innerHTML=h;
   setQType(D.editIdx>=0&&D.editQs[D.editIdx].type==='essay'?'essay':'pg',true);
   if(D.editIdx<0||D.editQs[D.editIdx]?.type!=='essay')renderOptRows();
-  renderSoalList(ex,isMemori);
+  renderSoalList(ex);
 }
 
-function renderSoalList(ex,isMemori){
+function renderSoalList(ex){
   const list=$('eqList');if(!list)return;const mo=maxOpts(ex.kelas);
   if(D.editQs.length===0){list.innerHTML=`<p style="text-align:center;color:var(--mt);font-size:.85rem;padding:20px">Belum ada soal.</p>`;return;}
   let h='';D.editQs.forEach((q,i)=>{
     const typeL=q.type==='essay'?'<span style="background:rgba(99,102,241,.1);color:var(--pr);padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700">Uraian</span>':'<span style="background:rgba(34,197,94,.1);color:#16a34a;padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700">PG</span>';
     const optInfo=q.type!=='essay'?`<span style="font-size:.68rem;color:var(--mt)">${q.options.length}/${mo} opsi · Jawaban: ${OL_FULL[q.answer]||q.answer}</span>`:'';
-    h+=`<div class="cd" style="padding:12px 16px;display:flex;align-items:center;gap:12px"><div style="min-width:28px;text-align:center;font-weight:800;color:var(--ac);font-size:.9rem">${i+1}</div><div style="flex:1;min-width:0"><p style="font-size:.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${q.text}</p><div style="margin-top:3px;display:flex;align-items:center;gap:6px">${typeL}${optInfo}</div></div><div class="flex gap-1 flex-shrink-0"><button class="bt bt2 btx" onclick="D.editIdx=${i};renderEditSoal(D.ex.find(e=>e.id==='${ex.id}'),${!!isMemori});$('aC').scrollTo({top:0,behavior:'smooth'})" style="padding:4px 8px"><i class="fas fa-edit"></i></button><button class="bt bt4 btx" onclick="D.editQs.splice(${i},1);D.editIdx=-1;renderEditSoal(D.ex.find(e=>e.id==='${ex.id}'),${!!isMemori})" style="padding:4px 8px"><i class="fas fa-trash"></i></button></div></div>`;
+    h+=`<div class="cd" style="padding:12px 16px;display:flex;align-items:center;gap:12px"><div style="min-width:28px;text-align:center;font-weight:800;color:var(--ac);font-size:.9rem">${i+1}</div><div style="flex:1;min-width:0"><p style="font-size:.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${q.text}</p><div style="margin-top:3px;display:flex;align-items:center;gap:6px">${typeL}${optInfo}</div></div><div class="flex gap-1 flex-shrink:0"><button class="bt bt2 btx" onclick="D.editIdx=${i};renderEditSoal(D.ex.find(e=>e.id==='${ex.id}'));$('aC').scrollTo({top:0,behavior:'smooth'})" style="padding:4px 8px"><i class="fas fa-edit"></i></button><button class="bt bt4 btx" onclick="D.editQs.splice(${i},1);D.editIdx=-1;renderEditSoal(D.ex.find(e=>e.id==='${ex.id}'))" style="padding:4px 8px"><i class="fas fa-trash"></i></button></div></div>`;
   });
   list.innerHTML=h;
 }
@@ -862,7 +830,7 @@ function addOptRow(){
 
 function previewQImg(){const url=$v('eqImg');const prev=$('eqImgPrev');if(url){prev.innerHTML=`<img src="${url}" style="max-width:200px;max-height:150px;border-radius:10px;border:2px solid var(--bd);object-fit:contain" onerror="this.parentElement.innerHTML=''">`}else{prev.innerHTML=''}}
 
-function simpanSoal(eid,isMemori){
+function simpanSoal(eid){
   const text=$v('eqText');if(!text)return tt('Teks soal wajib!','er');
   const image=$v('eqImg')||'';const isEssay=$('eqEssayWrap').style.display!=='none';const mo=maxOpts(D.editKelas);
   let q={id:uid(),text,image,type:isEssay?'essay':'pg'};
@@ -879,10 +847,10 @@ function simpanSoal(eid,isMemori){
   }
   if(D.editIdx>=0){D.editQs[D.editIdx]=q;D.editIdx=-1;tt('Soal diperbarui!');}
   else{D.editQs.push(q);tt('Soal ditambahkan!');}
-  renderEditSoal(D.ex.find(e=>e.id===eid),isMemori);
+  renderEditSoal(D.ex.find(e=>e.id===eid));
 }
 
-async function simpanAllSoal(eid,isMemori){
+async function simpanAllSoal(eid){
   if(D.editQs.length===0)return tt('Belum ada soal!','er');
   const mo=maxOpts(D.editKelas);
   for(let i=0;i<D.editQs.length;i++){
@@ -891,16 +859,35 @@ async function simpanAllSoal(eid,isMemori){
       return tt(`Soal ${i+1} punya ${q.options.length} opsi, maks ${mo} untuk kelas ${D.editKelas}!`,'er');
     }
   }
-  if(isMemori){const ex=D.ex.find(e=>e.id===eid);if(ex)ex.questions=D.editQs;tt(D.editQs.length+' soal tersimpan!');renderEditSoal(ex,true);}
-  else{ld('Menyimpan...');try{const ex=D.ex.find(e=>e.id===eid);await eR(D.sch.npsn).doc(eid).update({questions:D.editQs});ex.questions=D.editQs;hd();tt(D.editQs.length+' soal disimpan!');renderEditSoal(ex,false);}catch(e){hd();tt('Gagal: '+e.message,'er')}}
+  ld('Menyimpan ke Database Cloud...');
+  try {
+    const ex=D.ex.find(e=>e.id===eid);
+    const targetNpsn = D.isPusat ? 'PUSAT' : D.sch.npsn;
+    await eR(targetNpsn).doc(eid).update({questions:D.editQs});
+    ex.questions=D.editQs;
+    hd();tt(D.editQs.length+' soal disimpan permanen!');
+    renderEditSoal(ex);
+  } catch(e) {
+    hd();tt('Gagal menyimpan: '+e.message,'er');
+  }
 }
 
 async function hapusUjian(eid){
   oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus Paket Ujian?</h3><p style="color:var(--mt);font-size:.85rem;margin-bottom:16px">Hasil terkait ikut terhapus!</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();doHapusUjian('${eid}')">Hapus</button></div></div>`);
 }
 async function doHapusUjian(eid){
-  ld('Menghapus...');try{await eR(D.sch.npsn).doc(eid).delete();const related=D.rs.filter(r=>r.examId===eid);for(const r of related){await rR(D.sch.npsn).doc(r.id).delete();}
-  D.ex=D.ex.filter(e=>e.id!==eid);D.rs=D.rs.filter(r=>r.examId!==eid);hd();renderSoal($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}
+  ld('Menghapus...');try{
+    const targetNpsn = D.isPusat ? 'PUSAT' : D.sch.npsn;
+    await eR(targetNpsn).doc(eid).delete();
+    if(!D.isPusat){
+      const related=D.rs.filter(r=>r.examId===eid);for(const r of related){await rR(D.sch.npsn).doc(r.id).delete();}
+      D.rs=D.rs.filter(r=>r.examId!==eid);
+    }
+    D.ex=D.ex.filter(e=>e.id!==eid);hd();renderSoal($('aC'));tt('Dihapus!');
+  }catch(e){hd();tt('Gagal: '+e.message,'er')}
+}
+async function hapusUjianPusat(eid){
+  oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus Soal Pusat?</h3><p style="color:var(--mt);font-size:.85rem;margin-bottom:16px">Soal akan dihapus dari database Pusat (tidak berdampak pada soal yang sudah disebarkan ke sekolah).</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();doHapusUjian('${eid}')">Hapus</button></div></div>`);
 }
 
 /* ===== EXPORT / IMPORT JSON ===== */
@@ -949,11 +936,20 @@ function validateAndImport(){
   $('jsonPreview').innerHTML=prev;$('jsonPreview').style.display='block';window._pendingImport=data;
 }
 
-function doImportJSON(){
+async function doImportJSON(){
   const data=window._pendingImport;if(!data)return;const mo=maxOpts(data.kelas);
   const questions=data.questions.map(q=>{const obj={id:uid(),text:q.text,image:q.image||'',type:q.type||'pg'};if(obj.type==='essay'){obj.key=q.key||'';}else{obj.options=q.options.map(o=>typeof o==='object'&&o.image?{text:o.text||'',image:o.image}:typeof o==='object'?o.text||'':String(o));obj.answer=parseInt(q.answer)||0;if(obj.answer>=obj.options.length)obj.answer=0;}return obj;});
   const id=uid();const exam={id,mapel:data.mapel,kelas:data.kelas,timeLimit:data.timeLimit||60,questions,createdAt:Date.now()};
-  if(D.isPusat){D.ex.push(exam);cMo();tt(questions.length+' soal diimport ke memori!');renderSoal($('aC'));}else{ld('Mengimport...');eR(D.sch.npsn).doc(id).set(exam).then(()=>{D.ex.push(exam);hd();cMo();tt(questions.length+' soal diimport!');renderSoal($('aC'));}).catch(e=>{hd();tt('Gagal: '+e.message,'er')});}
+  
+  ld('Mengimport & Menyimpan Permanen...');
+  try {
+    const targetNpsn = D.isPusat ? 'PUSAT' : D.sch.npsn;
+    await eR(targetNpsn).doc(id).set(exam);
+    D.ex.push(exam);
+    hd();cMo();tt(questions.length+' soal diimport & disimpan!');renderSoal($('aC'));
+  } catch(e) {
+    hd();tt('Gagal menyimpan: '+e.message,'er');
+  }
 }
 
 /* ===== HASIL UJIAN ===== */
