@@ -384,14 +384,38 @@ async function logS(){
 }
 function outS(){D.st=null;D.sch=null;['sN','sK','sI','sM','sW'].forEach(i=>$(i).value='');$('sLKA').style.display='none';go('pH')}
 
-/* ===== UJIAN ===== */
+/* ===== UJIAN MODE OFFLINE HYBRID ===== */
 function startEx(id){
   const ex=D.ex.find(e=>e.id===id);if(!ex||!ex.questions.length)return tt('Ujian belum punya soal!','er');
-  D.cEx=ex;D.cQ=0;D.an={};D.tL=ex.timeLimit*60;go('pEX');
+  D.cEx=ex;D.cQ=0;D.tL=ex.timeLimit*60;go('pEX');
   $('eT').textContent=ex.mapel;$('eI').textContent=`${D.sch.nama} · Kelas ${D.st.kelas} · ${D.st.nama} · ${ex.questions.length} soal`;
+  
+  // Cek apakah ada jawaban tersimpan sebelumnya (refresh/handphone mati)
+  const savedData = localStorage.getItem('ujian_'+D.st.nis+'_'+ex.id);
+  if(savedData){
+    const parsed = JSON.parse(savedData);
+    D.an = parsed.an || {};
+    D.tL = parsed.tL || (ex.timeLimit*60);
+    D.cQ = parsed.cQ || 0;
+    tt('Jawaban Anda sebelumnya telah dipulihkan!','in');
+  } else {
+    D.an={};
+  }
   rQ();sT();
 }
-function sT(){clearInterval(D.tI);uT();D.tI=setInterval(()=>{D.tL--;uT();if(D.tL<=0){clearInterval(D.tI);finEx()}},1000)}
+
+// Fungsi simpan otomatis ke localStorage (tanpa internet)
+function autoSaveLocal(){
+  if(!D.cEx || !D.st) return;
+  const data = {
+    an: D.an,
+    tL: D.tL,
+    cQ: D.cQ
+  };
+  localStorage.setItem('ujian_'+D.st.nis+'_'+D.cEx.id, JSON.stringify(data));
+}
+
+function sT(){clearInterval(D.tI);uT();D.tI=setInterval(()=>{D.tL--;uT();autoSaveLocal();if(D.tL<=0){clearInterval(D.tI);finEx()}},1000)}
 function uT(){const m=Math.floor(D.tL/60),s=D.tL%60;const el=$('eTm');el.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');el.style.color=D.tL<=60?'var(--er)':'var(--ac)'}
 
 function rQ(){
@@ -401,7 +425,7 @@ function rQ(){
   if(q.image)h+=`<img src="${q.image}" class="q-img" alt="Gambar" onerror="this.style.display='none'">`;
   h+=`<div class="grid gap-3" style="margin-top:12px">`;
   if(q.type==='essay'){
-    h+=`<textarea class="ip" id="ansEss" rows="5" placeholder="Tulis jawaban uraian..." oninput="D.an[${i}]=$('ansEss').value">${D.an[i]||''}</textarea>`;
+    h+=`<textarea class="ip" id="ansEss" rows="5" placeholder="Tulis jawaban uraian..." oninput="D.an[${i}]=$('ansEss').value;autoSaveLocal()">${D.an[i]||''}</textarea>`;
   }else{
     q.options.forEach((o,j)=>{
       let optText='',optImg='';
@@ -434,18 +458,39 @@ function rQ(){
     </div>
   `;
 }
-function pA(j){D.an[D.cQ]=j;rQ()}function pvQ(){if(D.cQ>0){D.cQ--;rQ()}}function nxQ(){if(D.cQ<D.cEx.questions.length-1){D.cQ++;rQ()}}function jQ(j){D.cQ=j;rQ()}
-function cfF(){const a=Object.keys(D.an).length,t=D.cEx.questions.length;oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px">⚠️</div><h3 style="margin-bottom:6px">Selesaikan Ujian?</h3><p style="color:var(--mt);margin-bottom:16px">Dijawab ${a} dari ${t} soal.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt1 bts" onclick="cMo();finEx()">Ya, Selesai</button></div></div>`)}
+function pA(j){D.an[D.cQ]=j;rQ();autoSaveLocal();}
+function pvQ(){if(D.cQ>0){D.cQ--;rQ()}}
+function nxQ(){if(D.cQ<D.cEx.questions.length-1){D.cQ++;rQ()}}
+function jQ(j){D.cQ=j;rQ()}
+function cfF(){const a=Object.keys(D.an).length,t=D.cEx.questions.length;oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px">⚠️</div><h3 style="margin-bottom:6px">Selesaikan Ujian?</h3><p style="color:var(--mt);margin-bottom:16px">Dijawab ${a} dari ${t} soal. Pastikan Anda memiliki koneksi internet untuk mengirim.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt1 bts" onclick="cMo();finEx()">Ya, Kirim Jawaban</button></div></div>`)}
 
 async function finEx(){
-  clearInterval(D.tI);const ex=D.cEx,s=D.st;let cor=0;let essays=[];
+  clearInterval(D.tI);
+  const ex=D.cEx,s=D.st;let cor=0;let essays=[];
+  
+  ld('Menghubungkan ke server & Mengirim...');
+  
   ex.questions.forEach((q,i)=>{
     if(q.type==='essay'){essays.push({id:q.id,text:q.text,image:q.image||'',key:q.key||'',answer:D.an[i]||'',score:0,graded:false});}
     else{if(D.an[i]===q.answer)cor++;}
   });
+  
   const hasEssay=essays.length>0;const autoScore=Math.round(cor/ex.questions.length*100);const finalScore=hasEssay?0:autoScore;const tu=ex.timeLimit*60-D.tL;
   const r={id:uid(),examId:ex.id,kelas:s.kelas,mapel:ex.mapel,nama:s.nama,nis:s.nis,score:finalScore,autoScore,correct:cor,total:ex.questions.length,essays,timeUsed:tu,timestamp:Date.now()};
-  ld('Menyimpan...');await rR(D.sch.npsn).doc(r.id).set(r);D.rs.push(r);hd();showR(r);
+  
+  try {
+    // ONLINE SAAT KIRIM JAWABAN
+    await rR(D.sch.npsn).doc(r.id).set(r);
+    
+    // Hapus data offline di localStorage karena sudah sukses terkirim
+    localStorage.removeItem('ujian_'+s.nis+'_'+ex.id);
+    
+    D.rs.push(r);hd();showR(r);
+  } catch(e) {
+    hd();
+    tt('Gagal mengirim. Periksa koneksi internet!', 'er');
+    oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px;color:var(--er)"><i class="fas fa-wifi"></i></div><h3 style="margin-bottom:10px">Gagal Mengirim</h3><p style="color:var(--mt);font-size:.85rem;margin-bottom:16px">Jawaban gagal terkirim ke server. Periksa koneksi internet Anda. Jangan khawatir, jawaban Anda tersimpan aman di perangkat ini.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Kembali ke Ujian</button><button class="bt bt1 bts" onclick="cMo();finEx()">Coba Kirim Lagi</button></div></div>`);
+  }
 }
 
 function showR(r){
