@@ -222,7 +222,7 @@ service cloud.firestore {
     <div class="flex items-center gap-3"><div style="font-size:1.2rem">📚</div><div><h3 style="font-size:.88rem;line-height:1.2" id="sdN"></h3><p style="font-size:.65rem;color:var(--mt)" id="sdI"></p></div></div>
     <button class="bt bt3 btx" onclick="outS()"><i class="fas fa-sign-out-alt"></i></button>
   </header>
-  <div class="w-full max-w-3xl mx-auto px-4 py-6 flex-1 overflow-y:auto" id="sdL"></div>
+  <div class="w-full max-w-3xl mx-auto px-4 py-6 flex-1 overflow-y-auto" id="sdL"></div>
 </div>
 
 <!-- UJIAN -->
@@ -595,7 +595,7 @@ function renderDash(c){
     </div>`;
   if(D.isPusat&&D.allSchools.length>0){
     h+=`<h3 style="font-size:1rem;margin-bottom:10px"><i class="fas fa-school mr-2" style="color:var(--ac)"></i>Sekolah Terdaftar</h3><div class="grid gap-2" style="max-height:400px;overflow-y:auto">`;
-    D.allSchools.forEach(s=>{h+=`<div class="cd" style="padding:12px 16px;display:flex;align-items:center;gap:12px"><div style="width:36px;height:36px;border-radius:10px;background:rgba(255,107,53,.1);color:var(--ac);display:flex;align-items:center;justify-content:center"><i class="fas fa-school"></i></div><div style="flex:1"><p style="font-weight:800;font-size:.9rem">${s.nama}</p><p style="font-size:.72rem;color:var(--mt)">NPSN: ${s.npsn} · ${s.kota}</p></div><button class="bt bt2 btx" onclick="lihatSoalSekolah('${s.npsn}','${s.nama}')"><i class="fas fa-eye"></i> Lihat</button></div>`;});
+    D.allSchools.forEach(s=>{h+=`<div class="cd" style="padding:12px 16px;display:flex;align-items:center;gap:12px"><div style="width:36px;height:36px;border-radius:10px;background:rgba(255,107,53,.1);color:var(--ac);display:flex;align-items:center;justify-content:center"><i class="fas fa-school"></i></div><div style="flex:1"><p style="font-weight:800;font-size:.9rem">${s.nama}</p><p style="font-size:.72rem;color:var(--mt)">NPSN: ${s.npsn} · ${s.kota}</p></div><button class="bt bt2 btx" onclick="lihatSoalSekolah('${s.npsn}','${s.nama.replace(/'/g, "\\'")}')"><i class="fas fa-eye"></i> Lihat</button></div>`;});
     h+=`</div>`;
   }else if(D.ex.length>0){
     h+=`<h3 style="font-size:1rem;margin-bottom:10px"><i class="fas fa-list mr-2" style="color:var(--ac)"></i>Paket Ujian</h3><div class="grid gap-3">`;
@@ -612,10 +612,10 @@ async function lihatSoalSekolah(npsn,nama){
     <h2 style="font-size:1.3rem;margin-bottom:4px"><i class="fas fa-school mr-2" style="color:var(--ac)"></i>${nama}</h2><p style="color:var(--mt);font-size:.85rem;margin-bottom:20px">NPSN: ${npsn} — ${exs.length} paket</p>`;
   if(exs.length===0){h+=`<div class="cd" style="text-align:center;padding:30px"><p style="color:var(--mt)">Belum ada soal.</p></div>`;}
   else{h+=`<div class="grid gap-3">`;exs.forEach(ex=>{const m=gm(ex.mapel);const mo=maxOpts(ex.kelas);
-    h+=`<div class="cd" style="padding:14px 18px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt)">(${mo} opsi)</span>${ex.fromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Pusat</span>':''}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m</p></div></div><div class="flex gap-2"><button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}','${npsn}')"><i class="fas fa-file-pdf"></i> Cetak</button><button class="bt bt4 btx" onclick="doHapusSoalSch('${ex.id}','${npsn}','${nama}')"><i class="fas fa-trash"></i></button></div></div></div>`;});h+=`</div>`;}
+    h+=`<div class="cd" style="padding:14px 18px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt)">(${mo} opsi)</span>${ex.fromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Pusat</span>':''}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m</p></div></div><div class="flex gap-2"><button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}','${npsn}')"><i class="fas fa-file-pdf"></i> Cetak</button><button class="bt bt4 btx" onclick="doHapusSoalSch('${ex.id}','${npsn}','${nama.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button></div></div></div>`;});h+=`</div>`;}
   h+=`</div>`;c.innerHTML=h;
 }
-async function doHapusSoalSch(exId,npsn,nama){oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus soal dari ${nama}?</h3><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();ld('Menghapus...');eR('${npsn}').doc('${exId}').delete().then(()=>{hd();tt('Dihapus!');lihatSoalSekolah('${npsn}','${nama}')}).catch(e=>{hd();tt('Gagal: '+e.message,'er')})">Hapus</button></div></div>`)}
+async function doHapusSoalSch(exId,npsn,nama){oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus soal dari ${nama}?</h3><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();ld('Menghapus...');eR('${npsn}').doc('${exId}').delete().then(()=>{hd();tt('Dihapus!');lihatSoalSekolah('${npsn}','${nama.replace(/'/g, "\\'")}')}).catch(e=>{hd();tt('Gagal: '+e.message,'er')})">Hapus</button></div></div>`)}
 
 /* ================================================================
    KELOLA SOAL
@@ -1183,8 +1183,75 @@ function renderDaftarSekolah(c){
   let h=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px"><i class="fas fa-school mr-2" style="color:var(--ac)"></i>Daftar Sekolah</h2>`;
   if(D.allSchools.length===0){h+=`<div class="cd" style="text-align:center;padding:40px"><p style="color:var(--mt)">Belum ada sekolah.</p></div>`;}
   else{h+=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.85rem"><thead><tr style="background:var(--bg)"><th style="padding:10px;text-align:left;border-bottom:2px solid var(--bd)">NPSN</th><th style="padding:10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:10px;text-align:left;border-bottom:2px solid var(--bd)">Kota</th><th style="padding:10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`;
-    D.allSchools.forEach(s=>{h+=`<tr><td style="padding:8px 10px;border-bottom:1px solid var(--bd);font-weight:700">${s.npsn}</td><td style="padding:8px 10px;border-bottom:1px solid var(--bd);font-weight:600">${s.nama}</td><td style="padding:8px 10px;border-bottom:1px solid var(--bd)">${s.kota}</td><td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--bd)"><button class="bt bt2 btx" onclick="lihatSoalSekolah('${s.npsn}','${s.nama}')"><i class="fas fa-eye"></i> Lihat</button></td></tr>`;});
+    D.allSchools.forEach(s=>{
+      h+=`<tr>
+        <td style="padding:8px 10px;border-bottom:1px solid var(--bd);font-weight:700">${s.npsn}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid var(--bd);font-weight:600">${s.nama}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid var(--bd)">${s.kota}</td>
+        <td style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--bd)">
+          <div class="flex gap-2 justify-center">
+            <button class="bt bt2 btx" onclick="lihatSoalSekolah('${s.npsn}','${s.nama.replace(/'/g, "\\'")}')"><i class="fas fa-eye"></i> Lihat</button>
+            <button class="bt bt4 btx" onclick="konfirmasiHapusSekolah('${s.npsn}','${s.nama.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i> Hapus</button>
+          </div>
+        </td>
+      </tr>`;
+    });
     h+=`</tbody></table></div>`;}h+=`</div>`;c.innerHTML=h;
+}
+
+/* ===== KONFIRMASI & HAPUS SEKOLAH ===== */
+function konfirmasiHapusSekolah(npsn, nama){
+  oMo(`<div class="text-center">
+    <div style="font-size:2.6rem;margin-bottom:10px;color:var(--er)"><i class="fas fa-exclamation-triangle"></i></div>
+    <h3 style="margin-bottom:10px">Hapus Sekolah?</h3>
+    <p style="color:var(--mt);font-size:.85rem;margin-bottom:16px">
+      Anda akan menghapus <b>${nama}</b> (NPSN: ${npsn}).<br>
+      <span style="color:var(--er);font-weight:700">Semua data (soal, hasil ujian, & siswa) akan ikut terhapus permanen!</span>
+    </p>
+    <div class="flex gap-3 justify-center">
+      <button class="bt bt3 bts" onclick="cMo()">Batal</button>
+      <button class="bt bt4 bts" onclick="cMo();doHapusSekolah('${npsn}','${nama.replace(/'/g, "\\'")}')">Ya, Hapus Sekolah</button>
+    </div>
+  </div>`);
+}
+
+async function doHapusSekolah(npsn, nama){
+  ld('Menghapus data sekolah & turunannya...');
+  try {
+    const batch = db.batch();
+    
+    // 1. Kumpulkan & hapus Soal (exams)
+    const exSnap = await eR(npsn).get();
+    exSnap.forEach(doc => batch.delete(doc.ref));
+    
+    // 2. Kumpulkan & hapus Hasil Ujian (results)
+    const resSnap = await rR(npsn).get();
+    resSnap.forEach(doc => batch.delete(doc.ref));
+    
+    // 3. Kumpulkan & hapus Data Siswa (students)
+    const stuSnap = await wR(npsn).get();
+    stuSnap.forEach(doc => batch.delete(doc.ref));
+    
+    // Eksekusi batch delete sub-koleksi
+    await batch.commit();
+    
+    // 4. Hapus Dokumen Utama Sekolah
+    await sR(npsn).delete();
+    
+    // 5. Update state di frontend
+    D.allSchools = D.allSchools.filter(s => s.npsn !== npsn);
+    D.allResults = D.allResults.filter(r => r.schoolNpsn !== npsn);
+    
+    hd();
+    tt(`Sekolah ${nama} berhasil dihapus!`, 'ok');
+    
+    // Render ulang tabel
+    renderDaftarSekolah($('aC'));
+    
+  } catch(e) {
+    hd();
+    tt('Gagal menghapus sekolah: '+e.message, 'er');
+  }
 }
 
 /* ===== PENGATURAN ===== */
