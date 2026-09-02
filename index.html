@@ -70,24 +70,22 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .lo{position:fixed;inset:0;background:rgba(255,248,240,.92);z-index:10000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 .lo.on{display:flex}
 
-/* CSS UNTUK PDF SOAL UJIAN - LAYOUT FIX RAPI */
+/* CSS UNTUK PDF SOAL UJIAN - LAYOUT FIX RAPI & ANTI TERPOTONG */
 .pd{width:210mm;min-height:297mm;padding:14mm 16mm;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.2}
 .pd h2{font-family:'Times New Roman', serif;font-size:14pt;margin:0;font-weight:800}
 
-/* Blok Soal - Mencegah soal menggantung/terpotong di halaman berikutnya */
-.soal-block{page-break-inside:avoid;margin-bottom:14px;display:flex;gap:8px;align-items:flex-start;border-bottom:1px solid #eee;padding-bottom:10px}
+/* Blok Soal - Mutlak tidak boleh terpotong di antara dua halaman */
+.soal-block{page-break-inside:avoid !important; margin-bottom:14px; display:flex; gap:8px; align-items:flex-start; border-bottom:1px solid #eee; padding-bottom:10px}
 .soal-block:last-child{border-bottom:none}
-.soal-num{font-weight:bold;min-width:22px}
-.soal-content{flex:1;display:flex;flex-direction:column;gap:6px}
+.soal-num{font-weight:bold; min-width:22px}
+.soal-content{flex:1; display:flex; flex-direction:column; gap:6px}
 
 /* Teks Soal */
-.soal-text{font-weight:bold;text-align:justify}
+.soal-text{font-weight:bold; text-align:justify}
 
 /* Opsi & Gambar anti terpotong */
-.opsi-wrap{display:flex;flex-wrap:wrap;align-items:flex-start;margin-top:4px;gap:6px 0}
-
-/* Item Opsi Dasar */
-.opsi-item{display:flex;gap:6px;align-items:flex-start;box-sizing:border-box;padding-right:15px;margin-bottom:4px}
+.opsi-wrap{display:flex; flex-wrap:wrap; align-items:flex-start; margin-top:4px; gap:6px 0}
+.opsi-item{display:flex; gap:6px; align-items:flex-start; box-sizing:border-box; padding-right:15px; margin-bottom:4px}
 
 /* Kelas 3-6: Mutlak 2 Kolom Sama Rapi (A,B Kiri | C,D Kanan) */
 .opsi-item.kelas-besar{width:50%}
@@ -98,10 +96,10 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 /* Jika teks opsi memanjang dipaksa turun ke bawah */
 .opsi-item.kelas-kecil.w-100, .opsi-item.kelas-besar.w-100 { width: 100%; }
 
-.pd img{page-break-inside:avoid;max-width:100%}
-.pd table{width:100%;border-collapse:collapse;margin:10px 0}
-.pd th,.pd td{border:1px solid #333;padding:5px 10px;text-align:left;font-size:10pt}
-.pd th{background:#f0f0f0;font-weight:700}
+.pd img, .q-img-print { page-break-inside:avoid !important; max-width:100%; }
+.pd table{width:100%; border-collapse:collapse; margin:10px 0}
+.pd th,.pd td{border:1px solid #333; padding:5px 10px; text-align:left; font-size:10pt}
+.pd th{background:#f0f0f0; font-weight:700}
 .pd .essay-block { page-break-inside: avoid; margin-bottom: 12px; border: 1px solid #ddd; padding: 10px; border-radius: 6px; }
 .schb{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:10px;font-size:.78rem;font-weight:700}
 .step-box{background:var(--bg);border:2px dashed var(--bd);border-radius:16px;padding:20px;text-align:center}
@@ -466,7 +464,12 @@ function rQ(){
   const ex=D.cEx,i=D.cQ,q=ex.questions[i],t=ex.questions.length;
   $('eP').style.width=((i+1)/t*100)+'%';
   let h=`<div class="asu"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p><h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:4px">${q.text}</h3>`;
-  if(q.image)h+=`<img src="${q.image}" class="q-img" alt="Gambar" onerror="this.style.display='none'">`;
+  
+  // Gambar Soal utama dengan referrerPolicy agar tidak diblokir di HP
+  if(q.image){
+    h+=`<img src="${q.image}" referrerpolicy="no-referrer" class="q-img" alt="Gambar Soal" onerror="this.style.display='none'">`;
+  }
+  
   h+=`<div class="grid gap-3" style="margin-top:12px">`;
   if(q.type==='essay'){
     h+=`<textarea class="ip" id="ansEss" rows="5" placeholder="Tulis jawaban uraian..." oninput="D.an[${i}]=$('ansEss').value;autoSaveLocal()">${D.an[i]||''}</textarea>`;
@@ -474,7 +477,9 @@ function rQ(){
     q.options.forEach((o,j)=>{
       let optText='',optImg='';
       if(typeof o==='object'&&o!==null){optText=o.text||'';optImg=o.image||'';}else{optText=String(o);}
-      let inner='';if(optImg)inner+=`<img src="${optImg}" class="oc-img" alt="${OL_FULL[j]}" onerror="this.style.display='none'">`;
+      let inner='';
+      // Gambar Opsi dengan referrerPolicy
+      if(optImg)inner+=`<img src="${optImg}" referrerpolicy="no-referrer" class="oc-img" alt="${OL_FULL[j]}" onerror="this.style.display='none'">`;
       inner+=`<span class="lt">${OL_FULL[j]}</span><span style="flex:1">${optText}</span>`;
       h+=`<div class="oc ${D.an[i]===j?'sl':''}" onclick="pA(${j})">${inner}</div>`;
     });
@@ -661,7 +666,7 @@ async function cPDF(rid, npsn){
 }
 
  /* ================================================================
-   CETAK SOAL UJIAN (PDF LAYOUT ATURAN BARU)
+   CETAK SOAL UJIAN (PDF LAYOUT FIX & ANTI TERPOTONG)
    ================================================================ */
 async function cSoalPDF(exId, npsn){
   let ex;
@@ -692,11 +697,15 @@ async function cSoalPDF(exId, npsn){
         let optText = '', optImg = '';
         if (typeof o === 'object' && o !== null) { optText = o.text || ''; optImg = o.image || ''; } else { optText = String(o); }
         
-        return `<div class="opsi-item ${itemClass}">
+        // Cek panjang teks, jika terlalu panjang dipaksa 1 baris penuh (turun ke bawah)
+        let widthClass = '';
+        if(optText.length > 80) widthClass = 'w-100';
+        
+        return `<div class="opsi-item ${itemClass} ${widthClass}">
           <span style="font-weight:700;">${OL_FULL[j]}.</span>
           <div style="flex:1; display:flex; flex-direction:column;">
             <span style="text-align:justify;">${optText}</span>
-            ${optImg ? `<img src="${optImg}" style="max-width: 120px; max-height: 80px; margin-top:4px; border:1px solid #ddd;" onerror="this.style.display='none'"/>` : ''}
+            ${optImg ? `<img src="${optImg}" class="q-img-print" style="max-width: 120px; max-height: 80px; margin-top:4px; border:1px solid #ddd;" onerror="this.style.display='none'"/>` : ''}
           </div>
         </div>`;
       }).join('');
@@ -709,7 +718,7 @@ async function cSoalPDF(exId, npsn){
       <div class="soal-num">${i + 1}.</div>
       <div class="soal-content">
         <div class="soal-text">${q.text}</div>
-        ${q.image ? `<img src="${q.image}" style="max-width: 280px; max-height: 180px; margin-top:4px; border: 1px solid #ccc; display:block;" onerror="this.style.display='none'"/>` : ''}
+        ${q.image ? `<img src="${q.image}" class="q-img-print" style="max-width: 280px; max-height: 180px; margin-top:4px; border: 1px solid #ccc; display:block;" onerror="this.style.display='none'"/>` : ''}
         ${opsiHtml}
       </div>
     </div>`;
@@ -761,9 +770,9 @@ async function cSoalPDF(exId, npsn){
       margin: [12, 12, 12, 12], 
       filename: `Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } 
+      pagebreak: { mode: ['css', 'legacy'] } // Memaksa mematuhi aturan CSS page-break
     }).from($('pdSoal')).save();
     tt('PDF Soal berhasil dibuat!', 'ok');
   } catch (e) {
