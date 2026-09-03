@@ -71,39 +71,47 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .lo.on{display:flex}
 
 /* CSS UNTUK PDF SOAL UJIAN - LAYOUT RAPI SEPERTI CONTOH PDF */
-.pd{width:210mm;padding:0;margin:0;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.4;box-sizing:border-box}
+/* CSS UNTUK PDF SOAL UJIAN - BLOCK MURNI, ANTI TERPOTONG */
+.pd{width:100%;padding:0;margin:0;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.45;box-sizing:border-box}
+.pd *{box-sizing:border-box; max-width:100%}
 .pd h2{font-family:'Times New Roman', serif;font-size:14pt;margin:0;font-weight:800}
 
-/* Blok Soal - Rapat seperti contoh PDF */
-.soal-block{margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #eee; page-break-inside: avoid; break-inside: avoid;}
-.soal-block:last-child{border-bottom:none}
+/* Blok Soal - anti terpotong */
+.soal-block{margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #eee;page-break-inside:avoid !important;break-inside:avoid !important;display:block;width:100%}
 
-.soal-num{display:inline; font-weight:bold; vertical-align:baseline; margin-right:4px}
-.soal-content{display:inline}
+/* Tabel soal: kolom nomor & kolom isi -> SEMUA NOMOR SEJAJAR */
+.soal-tbl{width:100%;border-collapse:collapse;margin:0;padding:0;table-layout:fixed}
+.soal-tbl td{vertical-align:top;border:none !important;padding:0 !important;margin:0;font-size:12pt}
+.soal-tbl .sn{width:36px;font-weight:bold;text-align:left;padding-top:1px !important}
+.soal-tbl .sc2{padding-left:4px !important}
+.soal-text{font-weight:bold;display:block;word-wrap:break-word;overflow-wrap:break-word}
 
-/* Teks Soal Rata Kiri */
-.soal-text{font-weight:bold; text-align:left; margin-bottom:4px; display:inline}
+/* Gambar soal */
+.soal-img-wrap{text-align:center; margin:8px 0; display:block}
+.soal-img-wrap img{max-width:280px; max-height:200px; border:1px solid #ccc;}
 
-/* Opsi Horizontal - A B C D dalam baris yang sama seperti contoh PDF */
-.opsi-wrap{display:block; margin-top:6px}
-.opsi-item{display:inline-block; margin-right:18px; margin-bottom:2px; vertical-align:top; page-break-inside: avoid; break-inside: avoid;}
-.opsi-letter{font-weight:700; margin-right:2px}
-.opsi-text{display:inline}
+/* Opsi HORIZONTAL - kolom rata, huruf A/B/C/D SEJAJAR antar soal */
+.opsi-cols{display:table;width:100%;table-layout:fixed;border-collapse:collapse;margin-top:6px}
+.opsi-cols + .opsi-cols{margin-top:2px}
+.opsi-col{display:table-cell;vertical-align:top;padding:2px 12px 2px 0}
+.opsi-letter{font-weight:700;display:inline-block;width:20px;vertical-align:top}
+.opsi-text{display:inline;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word}
 
-/* Opsi dengan gambar tetap vertikal */
-.opsi-item.has-img{display:block; margin-right:0; margin-bottom:4px}
+/* Opsi VERTIKAL (ada gambar) */
+.opsi-item{display:block;margin:0 0 6px;word-wrap:break-word;overflow-wrap:break-word}
+.opsi-item .opsi-letter{width:22px}
+.opsi-item img{display:block;max-width:160px;max-height:120px;margin-top:4px;border:1px solid #ddd}
 
-.pd img, .q-img-print { max-width:100%; }
+/* Essay box */
+.essay-box{border:1px solid #000;height:80px;margin-top:8px;border-radius:4px;display:block}
+
 .pd table{width:100%; border-collapse:collapse; margin:10px 0}
 .pd th,.pd td{border:1px solid #333; padding:5px 10px; text-align:left; font-size:10pt}
 .pd th{background:#f0f0f0; font-weight:700}
-.pd .essay-block { margin-bottom: 12px; border: 1px solid #ddd; padding: 10px; border-radius: 6px; page-break-inside: avoid; break-inside: avoid; }
 
-/* Wrapper utama untuk batas area cetak */
-#pdSoal, #pdE, #pdRekap { padding: 15mm 15mm 15mm 20mm; box-sizing: border-box; }
-
-/* Pembatas Spasi Anti Putus (Dipaksa oleh JS) */
-.page-spacer { height: 0; overflow: hidden; page-break-after: always; }
+/* Wrapper cetak: Soal TANPA padding internal, margin seragam dari html2pdf */
+#pdSoal{padding:0; box-sizing:border-box}
+#pdE, #pdRekap{padding:15mm 15mm 15mm 20mm; box-sizing:border-box}
 .schb{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:10px;font-size:.78rem;font-weight:700}
 .step-box{background:var(--bg);border:2px dashed var(--bd);border-radius:16px;padding:20px;text-align:center}
 .step-box.active{border-color:var(--ac);border-style:solid;background:rgba(255,107,53,.04)}
@@ -119,6 +127,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 @media(max-width:768px){.sb{width:52px;padding:12px 5px}.sb a span,.sb .sl{display:none}.sb a{justify-content:center;padding:10px}.bt{padding:10px 18px;font-size:.88rem}.cd{padding:16px;border-radius:15px}.mc{padding:20px;border-radius:18px;max-width:95vw}.pd{width:100%;padding:10mm;font-size:9pt;min-height:auto}.q-img{max-height:180px}}
 </style>
+<base target="_blank">
 <base target="_blank">
 </head>
 <body>
@@ -433,6 +442,11 @@ async function startEx(id){
   }
 
   D.cEx=ex;D.cQ=0;D.tL=ex.timeLimit*60;go('pEX');
+  // PRELOAD SEMUA GAMBAR soal & opsi agar pasti muncul saat ujian (siswa)
+  try{ex.questions.forEach(q=>{
+    if(q.image){const im=new Image();im.referrerPolicy='no-referrer';im.src=q.image;}
+    (q.options||[]).forEach(o=>{if(o&&typeof o==='object'&&o.image){const im=new Image();im.referrerPolicy='no-referrer';im.src=o.image;}});
+  });}catch(e){}
   $('eT').textContent=ex.mapel;$('eI').textContent=`${D.sch.nama} · Kelas ${D.st.kelas} · ${D.st.nama} · ${ex.questions.length} soal`;
   
   // Cek apakah ada jawaban tersimpan sebelumnya (refresh/handphone mati)
@@ -687,56 +701,53 @@ async function cSoalPDF(exId, npsn){
 
   let soalHtml = '';
   const kelas = ex.kelas;
-  const isKelasKecil = kelas <= 2;
+  const mo = maxOpts(kelas);              // 3 opsi utk kelas 1-2, 4 opsi utk kelas 3-6
+  const isKelasKecil = kelas <= 2;        // true utk kelas 1-2
+  const LET = ['a','b','c','d','e','f'];  // huruf kecil sesuai permintaan
+
+  // Satu baris opsi (kolom rata, huruf sejajar)
+  const buildRow = (q, from, to) => `<div class="opsi-cols">` + q.options.slice(from, to).map((o, k) => {
+    const j = from + k;
+    let optText = '';
+    if (typeof o === 'object' && o !== null) { optText = o.text || ''; } else { optText = String(o); }
+    return `<div class="opsi-col"><span class="opsi-letter">${LET[j]}.</span><span class="opsi-text">${optText}</span></div>`;
+  }).join('') + `</div>`;
 
   ex.questions.forEach((q, i) => {
     let opsiHtml = '';
 
     if (q.type === 'essay') {
-      opsiHtml = `<div style="border:1px solid #000; height: 80px; margin-top:6px; border-radius:4px;"></div>`;
+      opsiHtml = `<div class="essay-box"></div>`;
     } else {
-      // Opsi horizontal seperti contoh PDF (A. xxx B. xxx C. xxx D. xxx)
       let hasAnyImg = q.options.some(o => typeof o === 'object' && o !== null && o.image);
 
       if (hasAnyImg) {
-        // Jika ada gambar, tampilkan vertikal tapi tetap rapi
-        let opsiItemsHtml = q.options.map((o, j) => {
+        /* Opsi vertikal jika ada gambar */
+        opsiHtml = `<div class="opsi-list">` + q.options.map((o, j) => {
           let optText = '', optImg = '';
           if (typeof o === 'object' && o !== null) { optText = o.text || ''; optImg = o.image || ''; } else { optText = String(o); }
-
-          return `<div class="opsi-item has-img">
-            <span class="opsi-letter">${OL_FULL[j]}.</span>
-            <span class="opsi-text">${optText}</span>
-            ${optImg ? `<img src="${optImg}" class="q-img-print" style="max-width: 160px; max-height: 120px; margin-top:4px; border:1px solid #ddd; display:block;" onerror="this.style.display='none'"/>` : ''}
-          </div>`;
-        }).join('');
-        opsiHtml = `<div class="opsi-wrap">${opsiItemsHtml}</div>`;
+          return `<div class="opsi-item"><span class="opsi-letter">${LET[j]}.</span><span class="opsi-text">${optText}</span>${optImg ? `<img src="${optImg}" onerror="this.style.display='none'"/>` : ''}</div>`;
+        }).join('') + `</div>`;
+      } else if (mo <= 3) {
+        /* KELAS 1-2: a, b, c dalam SATU baris */
+        opsiHtml = buildRow(q, 0, q.options.length);
       } else {
-        // Tanpa gambar: horizontal inline seperti contoh PDF
-        let opsiItemsHtml = q.options.map((o, j) => {
-          let optText = '';
-          if (typeof o === 'object' && o !== null) { optText = o.text || ''; } else { optText = String(o); }
-          return `<span class="opsi-item"><span class="opsi-letter">${OL_FULL[j]}.</span><span class="opsi-text">${optText}</span></span>`;
-        }).join('');
-        opsiHtml = `<div class="opsi-wrap">${opsiItemsHtml}</div>`;
+        /* KELAS 3-6: grid 2x2 -> baris atas: a, b | baris bawah: c, d */
+        opsiHtml = buildRow(q, 0, 2) + buildRow(q, 2, q.options.length);
       }
     }
 
-    // Gambar Soal utama
     let imageHtml = '';
     if(q.image) {
-      imageHtml = `<div style="text-align: center; margin: 8px 0;">
-        <img src="${q.image}" class="q-img-print" style="max-width: 280px; max-height: 200px; border: 1px solid #ccc; display:inline-block;" onerror="this.style.display='none'"/>
-      </div>`;
+      imageHtml = `<div class="soal-img-wrap"><img src="${q.image}" onerror="this.style.display='none'"/></div>`;
     }
 
+    /* Nomor di kolom kiri fixed (36px), isi soal di kolom kanan -> sejajar antar nomor */
     soalHtml += `<div class="soal-block" id="soal-${i}">
-      <span class="soal-num">${i + 1}.</span>
-      <span class="soal-content">
-        <span class="soal-text">${q.text}</span>
-        ${imageHtml}
-        ${opsiHtml}
-      </span>
+      <table class="soal-tbl"><tr>
+        <td class="sn">${i + 1}.</td>
+        <td class="sc2"><span class="soal-text">${q.text}</span>${imageHtml}${opsiHtml}</td>
+      </tr></table>
     </div>`;
   });
 
@@ -767,7 +778,7 @@ async function cSoalPDF(exId, npsn){
             <td style="border:none; padding:1px 0; text-align:right;">Nilai</td><td style="border:none; padding:1px 0;">:</td><td style="border:none; padding:1px 0; border-bottom:1px solid #000;">&nbsp;</td></tr>
       </table>
 
-      <p style="text-align: left; font-weight: 700; margin-bottom: 10px; font-size: 11pt;">A. Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf A, B, C, ${isKelasKecil ? '' : 'atau D'}!</p>
+      <p style="text-align: left; font-weight: 700; margin-bottom: 10px; font-size: 11pt;">A. Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf ${isKelasKecil ? 'a, b, atau c' : 'a, b, c, atau d'}!</p>
 
       <!-- SOAL -->
       <div id="soalContainer">
@@ -782,37 +793,24 @@ async function cSoalPDF(exId, npsn){
 
   tt('Menyesuaikan layout PDF...', 'in');
 
-  // SISTEM PENCEGAH TERPOTONG OTOMATIS
-  await new Promise(r => setTimeout(r, 600)); 
-
-  const pageHeight = 265; 
-  const container = document.getElementById('soalContainer');
-  let currentY = container.offsetTop;
-
-  ex.questions.forEach((q, i) => {
-    const soalEl = document.getElementById(`soal-${i}`);
-    if(!soalEl) return;
-
-    const soalHeight = soalEl.offsetHeight;
-    const posBottomSoal = currentY + soalHeight;
-
-    if (Math.floor(currentY / pageHeight) !== Math.floor(posBottomSoal / pageHeight)) {
-      const spacer = document.createElement('div');
-      spacer.className = 'page-spacer';
-      soalEl.parentNode.insertBefore(spacer, soalEl);
-      currentY = Math.ceil(currentY / pageHeight) * pageHeight;
-    }
-    currentY += soalHeight;
-  });
+  // TUNGGU RENDER AWAL
+  await new Promise(r => setTimeout(r, 300));
+  // TUNGGU SEMUA GAMBAR (soal & opsi) BENAR-BENAR TERMUAT -> gambar ikut tercetak
+  try {
+    await Promise.race([
+      Promise.all([...box.querySelectorAll('img')].map(img => img.complete ? 1 : new Promise(res => { img.onload = res; img.onerror = res; }))),
+      new Promise(r => setTimeout(r, 10000)) // batas tunggu 10 detik
+    ]);
+  } catch(e) {}
 
   try {
     await html2pdf().set({
-      margin: [15, 15, 15, 20],
+      margin: [12, 12, 12, 12],
       filename: `Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollY: 0 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] }
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     }).from($('pdSoal')).save();
     tt('PDF Soal berhasil dibuat!', 'ok');
   } catch (e) {
