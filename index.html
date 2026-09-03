@@ -537,13 +537,18 @@ async function finEx(){
   
   ld('Menghubungkan ke server & Mengirim...');
   
+  let pgList=[];
   ex.questions.forEach((q,i)=>{
     if(q.type==='essay'){essays.push({id:q.id,text:q.text,image:q.image||'',key:q.key||'',answer:D.an[i]||'',score:0,graded:false});}
-    else{if(D.an[i]===q.answer)cor++;}
+    else{
+      if(D.an[i]===q.answer)cor++;
+      const optT=o=>typeof o==='object'&&o!==null?(o.text||''):String(o);
+      pgList.push({id:q.id,text:q.text,image:q.image||'',options:(q.options||[]).map(optT),studentAns:(D.an[i]!==undefined&&D.an[i]!==null)?D.an[i]:null,correctAns:q.answer});
+    }
   });
   
   const hasEssay=essays.length>0;const autoScore=Math.round(cor/ex.questions.length*100);const finalScore=hasEssay?0:autoScore;const tu=ex.timeLimit*60-D.tL;
-  const r={id:uid(),examId:ex.id,kelas:s.kelas,mapel:ex.mapel,nama:s.nama,nis:s.nis,score:finalScore,autoScore,correct:cor,total:ex.questions.length,essays,timeUsed:tu,timestamp:Date.now()};
+  const r={id:uid(),examId:ex.id,kelas:s.kelas,mapel:ex.mapel,nama:s.nama,nis:s.nis,score:finalScore,autoScore,correct:cor,total:ex.questions.length,essays,pg:pgList,timeUsed:tu,timestamp:Date.now()};
   
   try {
     // ONLINE SAAT KIRIM JAWABAN
@@ -1229,7 +1234,7 @@ function renderHasil(c){
         }
       } else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}
       
-      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.correct}/${r.total}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${r.essays&&r.essays.length>0?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cPDF('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;});
+      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.correct}/${r.total}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${(r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0)?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cPDF('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;});
     h+=`</tbody></table></div></div>`;});
   h+=`</div></div>`;c.innerHTML=h;
 }
@@ -1349,32 +1354,80 @@ function koreksiEssay(rid, npsn){
   let r;
   if(D.isPusat){
     r = D.allResults.find(x=>x.id===rid && x.schoolNpsn===npsn);
-    if(r){
-      tt('Admin Pusat tidak bisa mengoreksi uraian!','er');
-      return;
-    }
+    if(r){ tt('Admin Pusat tidak bisa mengoreksi!','er'); return; }
   } else {
     r = D.rs.find(x=>x.id===rid);
   }
-  if(!r||!r.essays)return;
-  let h=`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-pen mr-2" style="color:var(--pr)"></i>Koreksi — ${r.nama}</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>`;
-  r.essays.forEach((e,i)=>{h+=`<div class="cd mb-3" style="padding:16px"><p style="font-weight:800;margin-bottom:6px">Soal ${i+1}:</p><p style="margin-bottom:8px">${e.text}</p>${e.image?`<img src="${e.image}" class="q-img" style="max-height:140px" onerror="this.style.display='none'">`:''}
-    <div style="background:var(--bg);padding:10px;border-radius:10px;margin-bottom:8px"><p style="font-size:.78rem;color:var(--mt)"><b>Kunci:</b> ${e.key||'-'}</p></div>
-    <div style="background:#EFF6FF;padding:10px;border-radius:10px;margin-bottom:10px"><p style="font-size:.78rem;color:var(--inf)"><b>Jawaban:</b> ${e.answer||'-'}</p></div>
-    <label class="block mb-1 font-bold" style="font-size:.82rem">Nilai (0-100)</label><input class="ip" type="number" id="esScore${i}" value="${e.score||0}" min="0" max="100" style="max-width:120px"></div>`;});
-  h+=`<button class="bt bt1 w-full justify-center" onclick="simpanKoreksi('${rid}','${npsn}')"><i class="fas fa-save"></i> Simpan</button></div>`;oMo(h);
-}
-async function simpanKoreksi(rid, npsn){
-  let r;
-  if(D.isPusat){
-    return tt('Admin Pusat tidak bisa menyimpan koreksi!', 'er');
+  if(!r) return;
+  const pgArr = r.pg || [];
+  const esArr = r.essays || [];
+  let h=`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-pen mr-2" style="color:var(--pr)"></i>Koreksi — ${r.nama} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(${r.mapel} · Kelas ${r.kelas})</span></h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>`;
+
+  /* ===== BAGIAN PILIHAN GANDA — jawaban siswa BISA DIEDIT ===== */
+  if(pgArr.length){
+    h+=`<h4 style="font-size:.9rem;margin-bottom:8px;color:var(--ac)"><i class="fas fa-list mr-1"></i> Pilihan Ganda (${pgArr.length}) — ubah jawaban jika perlu</h4><div style="max-height:280px;overflow-y:auto;margin-bottom:14px;padding-right:4px">`;
+    pgArr.forEach((g,i)=>{
+      const isRight = g.studentAns===g.correctAns;
+      let opts = (g.options||[]).map((t,j)=>`<option value="${j}" ${g.studentAns===j?'selected':''}>${OL_FULL[j]}. ${t}</option>`).join('');
+      opts += `<option value="" ${g.studentAns===null||g.studentAns===undefined?'selected':''}>-- Kosong --</option>`;
+      h+=`<div class="cd mb-2" style="padding:10px 12px"><p style="font-size:.82rem;font-weight:700;margin-bottom:6px">${i+1}. ${g.text}</p>
+        <div class="flex items-center gap-2 flex-wrap">
+          <select id="pgAns${i}" class="ip" style="max-width:230px;padding:6px 10px;font-size:.8rem">${opts}</select>
+          <span id="pgSt${i}" style="font-size:.72rem;font-weight:700;color:${isRight?'var(--ok)':'var(--er)'}">${isRight?'✓ Benar':'✗ Salah · Kunci: '+OL_FULL[g.correctAns]}</span>
+        </div></div>`;
+    });
+    h+=`</div>`;
   }
-  r = D.rs.find(x=>x.id===rid);
-  if(!r)return;let totalEssay=0;
-  r.essays.forEach((e,i)=>{const sc=parseInt(document.getElementById('esScore'+i).value)||0;e.score=Math.min(100,Math.max(0,sc));e.graded=true;totalEssay+=e.score;});
-  const pgCount=r.total-r.essays.length;const pgScore=pgCount>0?r.autoScore:0;const essayAvg=r.essays.length>0?Math.round(totalEssay/r.essays.length):0;
-  let finalScore;if(pgCount>0&&r.essays.length>0)finalScore=Math.round(pgScore*0.6+essayAvg*0.4);else if(r.essays.length>0)finalScore=essayAvg;else finalScore=pgScore;
-  r.score=finalScore;ld('Menyimpan...');await rR(npsn).doc(rid).update({essays:r.essays,score:finalScore});hd();cMo();renderHasil($('aC'));tt('Nilai disimpan: '+finalScore);
+
+  /* ===== BAGIAN URAIAN — nilai tiap jawaban ===== */
+  if(esArr.length){
+    h+=`<h4 style="font-size:.9rem;margin-bottom:8px;color:var(--pr)"><i class="fas fa-align-left mr-1"></i> Uraian (${esArr.length})</h4><div style="max-height:280px;overflow-y:auto;margin-bottom:14px;padding-right:4px">`;
+    esArr.forEach((e,i)=>{h+=`<div class="cd mb-2" style="padding:12px 14px"><p style="font-weight:800;margin-bottom:6px;font-size:.85rem">Soal ${pgArr.length+i+1}:</p><p style="margin-bottom:8px;font-size:.85rem">${e.text}</p>${e.image?`<img src="${e.image}" class="q-img" style="max-height:130px" onerror="this.style.display='none'">`:''}
+      <div style="background:var(--bg);padding:8px 10px;border-radius:10px;margin-bottom:8px"><p style="font-size:.76rem;color:var(--mt)"><b>Kunci:</b> ${e.key||'-'}</p></div>
+      <div style="background:#EFF6FF;padding:8px 10px;border-radius:10px;margin-bottom:10px"><p style="font-size:.76rem;color:var(--inf)"><b>Jawaban:</b> ${e.answer||'-'}</p></div>
+      <label class="block mb-1 font-bold" style="font-size:.8rem">Nilai (0-100)</label><input class="ip" type="number" id="esScore${i}" value="${e.score||0}" min="0" max="100" style="max-width:120px;padding:6px 10px"></div>`;});
+    h+=`</div>`;
+  }
+
+  if(!pgArr.length && !esArr.length){ h+=`<p style="color:var(--mt);text-align:center;padding:12px">Tidak ada jawaban untuk dikoreksi.</p>`; }
+  h+=`<button class="bt bt1 w-full justify-center" onclick="simpanKoreksi('${rid}','${npsn}')"><i class="fas fa-save"></i> Simpan Koreksi</button></div>`;
+  oMo(h);
+}
+
+async function simpanKoreksi(rid, npsn){
+  if(D.isPusat){ return tt('Admin Pusat tidak bisa menyimpan koreksi!', 'er'); }
+  let r = D.rs.find(x=>x.id===rid);
+  if(!r)return;
+  let totalEssay=0;
+  /* 1. Ambil jawaban PG hasil edit & hitung ulang benar */
+  let cor=0;
+  if(r.pg && r.pg.length){
+    r.pg.forEach((g,i)=>{
+      const el=document.getElementById('pgAns'+i);
+      if(!el)return;
+      const v=el.value;
+      g.studentAns = v==='' ? null : parseInt(v);
+      if(g.studentAns===g.correctAns)cor++;
+    });
+  }
+  /* 2. Nilai uraian */
+  if(r.essays && r.essays.length){
+    r.essays.forEach((e,i)=>{const el=document.getElementById('esScore'+i);const sc=el?(parseInt(el.value)||0):0;e.score=Math.min(100,Math.max(0,sc));e.graded=true;totalEssay+=e.score;});
+  }
+  /* 3. Hitung ulang nilai akhir (rumus sama seperti saat ujian) */
+  r.correct = cor;
+  r.autoScore = r.total>0 ? Math.round(cor/r.total*100) : 0;
+  const pgCount = r.pg ? r.pg.length : (r.total - (r.essays?r.essays.length:0));
+  const pgScore = pgCount>0 ? r.autoScore : 0;
+  const essayAvg = (r.essays && r.essays.length>0) ? Math.round(totalEssay/r.essays.length) : 0;
+  let finalScore;
+  if(pgCount>0 && r.essays && r.essays.length>0) finalScore=Math.round(pgScore*0.6+essayAvg*0.4);
+  else if(r.essays && r.essays.length>0) finalScore=essayAvg;
+  else finalScore=pgScore;
+  r.score=finalScore;
+  ld('Menyimpan...');
+  await rR(npsn).doc(rid).update({pg:r.pg||[],essays:r.essays||[],correct:r.correct,autoScore:r.autoScore,score:finalScore});
+  hd();cMo();renderHasil($('aC'));tt('Koreksi disimpan! Nilai akhir: '+finalScore);
 }
 
 /* ===== DATA SISWA ===== */
