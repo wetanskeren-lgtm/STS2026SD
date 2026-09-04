@@ -631,11 +631,14 @@ async function cPDF(rid, npsn){
   const bdr = 'border:1px solid #000 !important;';
   
   box.innerHTML=`<div class="pd" id="pdE" style="font-family: 'Nunito', sans-serif;">
-    <div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px">
-      <p style="font-size:9pt;color:#555">NPSN: ${sch.npsn}</p>
-      <h2 style="font-size:14pt;margin:2px 0">${sch.nama.toUpperCase()}</h2>
-      <p style="font-size:9pt;color:#555">${sch.kota}, ${sch.prov}</p>
-      <p style="font-size:12pt;margin:8px 0 0;font-weight:700">LAPORAN HASIL PTS</p>
+    <div style="display:flex;align-items:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px">
+      <img src="https://cdn.phototourl.com/free/2026-09-04-c120a4ad-9e1f-4661-8b99-f392fe7dd1b8.png" style="width:70px;height:70px;object-fit:contain;margin-right:14px;flex-shrink:0" onerror="this.style.display='none'"/>
+      <div style="flex:1;text-align:center">
+        <p style="font-size:9pt;color:#555">NPSN: ${sch.npsn}</p>
+        <h2 style="font-size:14pt;margin:2px 0">${sch.nama.toUpperCase()}</h2>
+        <p style="font-size:9pt;color:#555">${sch.kota}, ${sch.prov}</p>
+        <p style="font-size:12pt;margin:8px 0 0;font-weight:700">LAPORAN HASIL PTS</p>
+      </div>
     </div>
     
     <table style="width:100%; border-collapse:collapse; margin-bottom:14px;">
@@ -719,7 +722,15 @@ async function cSoalPDF(exId, npsn){
     return `<div class="opsi-col"><span class="opsi-letter">${LET[j]}.</span><span class="opsi-text">${optText}</span></div>`;
   }).join('') + `</div>`;
 
+  const _hasPG = ex.questions.some(q => q.type !== 'essay');
+  let _essayHdr = false;
+
   ex.questions.forEach((q, i) => {
+    // Keterangan "B." muncul otomatis sebelum soal uraian pertama
+    if(q.type === 'essay' && _hasPG && !_essayHdr){
+      _essayHdr = true;
+      soalHtml += `<p style="text-align: left; font-weight: 700; margin: 16px 0 10px; font-size: 11pt;">B. Jawablah soal-soal uraian di bawah ini dengan benar!</p>`;
+    }
     let opsiHtml = '';
 
     if (q.type === 'essay') {
@@ -760,12 +771,15 @@ async function cSoalPDF(exId, npsn){
   const html = `
     <div class="pd" id="pdSoal">
       <!-- KOP SURAT -->
-      <div style="text-align: center; border-bottom: 3px double #000; padding-bottom: 8px; margin-bottom: 12px;">
-        <p style="font-size: 11pt; font-weight: 700; text-transform: uppercase; margin: 0; line-height: 1.3;">PEMERINTAH KABUPATEN ${D.sch.kota ? D.sch.kota.toUpperCase() : 'MAJALENGKA'}</p>
-        <p style="font-size: 11pt; font-weight: 700; text-transform: uppercase; margin: 0; line-height: 1.3;">DINAS PENDIDIKAN</p>
-        <p style="font-size: 11pt; font-weight: 700; text-transform: uppercase; margin: 0; line-height: 1.3;">KECAMATAN MAJALENGKA</p>
-        <h2 style="font-size: 14pt; font-weight: 800; text-transform: uppercase; margin: 4px 0 0 0; line-height: 1.3;">${D.sch.nama ? D.sch.nama.toUpperCase() : 'SEKOLAH'}</h2>
-        <p style="font-size: 9pt; margin: 2px 0 0 0; font-style: italic;">NPSN: ${D.sch.npsn || '-'} ${D.sch.kota ? '· '+D.sch.kota : ''}</p>
+      <div style="display: flex; align-items: center; border-bottom: 3px double #000; padding-bottom: 8px; margin-bottom: 12px;">
+        <img src="https://cdn.phototourl.com/free/2026-09-04-c120a4ad-9e1f-4661-8b99-f392fe7dd1b8.png" style="width: 72px; height: 72px; object-fit: contain; margin-right: 14px; flex-shrink: 0;" onerror="this.style.display='none'"/>
+        <div style="flex: 1; text-align: center;">
+          <p style="font-size: 11pt; font-weight: 700; text-transform: uppercase; margin: 0; line-height: 1.3;">PEMERINTAH KABUPATEN ${D.sch.kota ? D.sch.kota.toUpperCase() : 'MAJALENGKA'}</p>
+          <p style="font-size: 11pt; font-weight: 700; text-transform: uppercase; margin: 0; line-height: 1.3;">DINAS PENDIDIKAN</p>
+          <p style="font-size: 11pt; font-weight: 700; text-transform: uppercase; margin: 0; line-height: 1.3;">KECAMATAN MAJALENGKA</p>
+          <h2 style="font-size: 14pt; font-weight: 800; text-transform: uppercase; margin: 4px 0 0 0; line-height: 1.3;">${D.sch.nama ? D.sch.nama.toUpperCase() : 'SEKOLAH'}</h2>
+          <p style="font-size: 9pt; margin: 2px 0 0 0; font-style: italic;">NPSN: ${D.sch.npsn || '-'} ${D.sch.kota ? '· '+D.sch.kota : ''}</p>
+        </div>
       </div>
 
       <!-- JUDUL UJIAN -->
@@ -784,7 +798,7 @@ async function cSoalPDF(exId, npsn){
             <td style="border:none; padding:1px 0; text-align:right;">Nilai</td><td style="border:none; padding:1px 0;">:</td><td style="border:none; padding:1px 0; border-bottom:1px solid #000;">&nbsp;</td></tr>
       </table>
 
-      <p style="text-align: left; font-weight: 700; margin-bottom: 10px; font-size: 11pt;">A. Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf ${isKelasKecil ? 'a, b, atau c' : 'a, b, c, atau d'}!</p>
+      ${_hasPG ? `<p style="text-align: left; font-weight: 700; margin-bottom: 10px; font-size: 11pt;">A. Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf ${isKelasKecil ? 'a, b, atau c' : 'a, b, c, atau d'}!</p>` : ''}
 
       <!-- SOAL -->
       <div id="soalContainer">
@@ -1267,7 +1281,7 @@ async function cRekapPDF(filterKelas, filterMapel){
     grouped[k].items[r.mapel].push(r);
   });
 
-  let html = `<div class="pd" id="pdRekap" style="font-family: 'Nunito', sans-serif;"><div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><h2 style="font-size:14pt;margin:2px 0">${D.sch.nama.toUpperCase()}</h2><p style="font-size:9pt;color:#555">${D.sch.kota}, ${D.sch.prov}</p><p style="font-size:12pt;margin:8px 0 0;font-weight:700">REKAPITULASI NILAI PTS</p>${filterKelas?`<p style="font-size:10pt">Kelas ${filterKelas}</p>`:''}${filterMapel?`<p style="font-size:10pt">Mapel ${filterMapel}</p>`:''}</div>`;
+  let html = `<div class="pd" id="pdRekap" style="font-family: 'Nunito', sans-serif;"><div style="display:flex;align-items:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px"><img src="https://cdn.phototourl.com/free/2026-09-04-c120a4ad-9e1f-4661-8b99-f392fe7dd1b8.png" style="width:70px;height:70px;object-fit:contain;margin-right:14px;flex-shrink:0" onerror="this.style.display='none'"/><div style="flex:1;text-align:center"><h2 style="font-size:14pt;margin:2px 0">${D.sch.nama.toUpperCase()}</h2><p style="font-size:9pt;color:#555">${D.sch.kota}, ${D.sch.prov}</p><p style="font-size:12pt;margin:8px 0 0;font-weight:700">REKAPITULASI NILAI PTS</p>${filterKelas?`<p style="font-size:10pt">Kelas ${filterKelas}</p>`:''}${filterMapel?`<p style="font-size:10pt">Mapel ${filterMapel}</p>`:''}</div></div>`;
   
   Object.keys(grouped).sort((a,b)=>a-b).forEach(k=>{
     const kelasData = grouped[k];
