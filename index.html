@@ -695,12 +695,20 @@ async function cPDF(rid, npsn){
 
 /* ===== Konversi gambar PDF jadi dataURL (base64) agar pasti tercetak walau server tanpa CORS ===== */
 async function imgToDataURL(url){
-  try{
-    const res = await fetch(url, {mode:'cors'});
-    if(!res.ok) return null;
-    const blob = await res.blob();
-    return await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob);});
-  }catch(e){ return null; }
+  if(!/^https?:/i.test(url)) return null;
+  // Coba langsung dulu; kalau server tanpa CORS (blocked), lewat proxy weserv (CORS-friendly)
+  const cands = [url, 'https://images.weserv.nl/?url=' + encodeURIComponent(url.replace(/^https?:\/\//i,''))];
+  for(const u of cands){
+    try{
+      const res = await fetch(u, {mode:'cors'});
+      if(!res.ok) continue;
+      const blob = await res.blob();
+      if(!blob.type || !blob.type.startsWith('image')) continue;
+      const du = await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob);});
+      if(du && du.length > 100) return du;
+    }catch(e){}
+  }
+  return null;
 }
 async function preparePDFImages(container){
   const imgs = [...container.querySelectorAll('img')];
@@ -709,6 +717,28 @@ async function preparePDFImages(container){
     const du = await imgToDataURL(img.src);
     if(du){ await new Promise(res=>{img.onload=res;img.onerror=res;img.src=du;}); }
   }));
+}
+
+/* ===== Paginasi manual PDF: ukur tiap blok, sisipkan page-break agar blok tak terpotong ===== */
+function paginatePDF(container, availPx){
+  const flow = [];
+  [...container.children].forEach(ch=>{
+    if(ch.id === 'soalContainer'){ [...ch.children].forEach(c=>flow.push(c)); }
+    else if(ch.tagName !== 'STYLE'){ flow.push(ch); }
+  });
+  let acc = 0;
+  flow.forEach(el=>{
+    if(el.style && el.style.pageBreakAfter === 'always') return;
+    const h = el.offsetHeight + 8;
+    // Jika blok sendiri lebih tinggi dari halaman, biarkan (jarang); lainnya paksa break sebelumnya
+    if(acc > 0 && acc + h > availPx){
+      const br = document.createElement('div');
+      br.style.cssText = 'height:0;line-height:0;page-break-after:always;break-after:page;';
+      el.parentNode.insertBefore(br, el);
+      acc = 0;
+    }
+    acc += h;
+  });
 }
 
 /* ================================================================
@@ -795,6 +825,9 @@ async function cSoalPDF(exId, npsn){
       #pdSoal .soal-text{font-size:${fsp}pt !important}
       #pdSoal .opsi-letter,#pdSoal .opsi-text,#pdSoal .opsi-item,#pdSoal .opsi-col{font-size:${fsp}pt !important}
       #pdSoal .essay-box{height:${kelas<=2?110:80}px}
+      #pdSoal .soal-block{page-break-inside:avoid !important;break-inside:avoid !important}
+      #pdSoal .soal-tbl,#pdSoal .soal-tbl tr,#pdSoal .soal-tbl td{page-break-inside:avoid !important;break-inside:avoid !important}
+      #pdSoal img{page-break-inside:avoid !important}
     </style>
     <div class="pd" id="pdSoal" style="font-size:${fsp}pt">
       <!-- KOP SURAT -->
@@ -852,6 +885,10 @@ async function cSoalPDF(exId, npsn){
 
   // Konversi semua gambar (termasuk logo kop surat) ke base64 -> pasti tercetak
   await preparePDFImages($('pdSoal'));
+  await new Promise(r => setTimeout(r, 100));
+
+  // Paginasi manual: A4 (297mm) - margin 12mm*2 = 273mm ~ 1032px, beri buffer -> 990px
+  paginatePDF($('pdSoal'), 990);
 
   try {
     await html2pdf().set({
@@ -860,7 +897,7 @@ async function cSoalPDF(exId, npsn){
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollY: 0 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      pagebreak: { mode: ['css', 'legacy'] }
     }).from($('pdSoal')).save();
     tt('PDF Soal berhasil dibuat!', 'ok');
   } catch (e) {
@@ -1385,6 +1422,7 @@ async function cRekapPDF(filterKelas, filterMapel){
   box.innerHTML = html;
   tt('Membuat PDF Rekap...','in');
   await preparePDFImages($('pdRekap'));
+  paginatePDF($('pdRekap'), 990);
   try {
     await html2pdf().set({margin:10,filename:`Rekap_Nilai_${D.sch.nama}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdRekap')).save();
     tt('Rekap PDF berhasil!');
