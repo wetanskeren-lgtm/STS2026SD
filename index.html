@@ -676,6 +676,7 @@ async function cPDF(rid, npsn){
   </div>`;
   
   tt('Membuat PDF...','in');
+  await preparePDFImages($('pdE'));
   try{
     await html2pdf().set({
       margin:10,
@@ -690,6 +691,24 @@ async function cPDF(rid, npsn){
   }
   box.style.left='-9999px';
   box.style.zIndex='-1';
+}
+
+/* ===== Konversi gambar PDF jadi dataURL (base64) agar pasti tercetak walau server tanpa CORS ===== */
+async function imgToDataURL(url){
+  try{
+    const res = await fetch(url, {mode:'cors'});
+    if(!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob);});
+  }catch(e){ return null; }
+}
+async function preparePDFImages(container){
+  const imgs = [...container.querySelectorAll('img')];
+  await Promise.all(imgs.map(async img=>{
+    if(!img.src || img.src.startsWith('data:') || img.style.display==='none') return;
+    const du = await imgToDataURL(img.src);
+    if(du){ await new Promise(res=>{img.onload=res;img.onerror=res;img.src=du;}); }
+  }));
 }
 
 /* ================================================================
@@ -768,8 +787,16 @@ async function cSoalPDF(exId, npsn){
     </div>`;
   });
 
+  const fsp = kelas <= 2 ? 14 : 12;   // kelas 1-2 -> 14pt, kelas 3-6 -> 12pt
   const html = `
-    <div class="pd" id="pdSoal">
+    <style>
+      #pdSoal{font-size:${fsp}pt !important;line-height:1.5}
+      #pdSoal .soal-tbl td{font-size:${fsp}pt !important}
+      #pdSoal .soal-text{font-size:${fsp}pt !important}
+      #pdSoal .opsi-letter,#pdSoal .opsi-text,#pdSoal .opsi-item,#pdSoal .opsi-col{font-size:${fsp}pt !important}
+      #pdSoal .essay-box{height:${kelas<=2?110:80}px}
+    </style>
+    <div class="pd" id="pdSoal" style="font-size:${fsp}pt">
       <!-- KOP SURAT -->
       <div style="display: flex; align-items: center; border-bottom: 3px double #000; padding-bottom: 8px; margin-bottom: 12px;">
         <img src="https://cdn.phototourl.com/free/2026-09-04-c120a4ad-9e1f-4661-8b99-f392fe7dd1b8.png" style="width: 72px; height: 72px; object-fit: contain; margin-right: 14px; flex-shrink: 0;" onerror="this.style.display='none'"/>
@@ -822,6 +849,9 @@ async function cSoalPDF(exId, npsn){
       new Promise(r => setTimeout(r, 10000)) // batas tunggu 10 detik
     ]);
   } catch(e) {}
+
+  // Konversi semua gambar (termasuk logo kop surat) ke base64 -> pasti tercetak
+  await preparePDFImages($('pdSoal'));
 
   try {
     await html2pdf().set({
@@ -1354,6 +1384,7 @@ async function cRekapPDF(filterKelas, filterMapel){
   const box=$('pB');box.style.left='0';box.style.top='0';box.style.zIndex='9999';
   box.innerHTML = html;
   tt('Membuat PDF Rekap...','in');
+  await preparePDFImages($('pdRekap'));
   try {
     await html2pdf().set({margin:10,filename:`Rekap_Nilai_${D.sch.nama}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdRekap')).save();
     tt('Rekap PDF berhasil!');
