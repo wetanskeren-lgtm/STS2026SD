@@ -677,14 +677,9 @@ async function cPDF(rid, npsn){
   
   tt('Membuat PDF...','in');
   await preparePDFImages($('pdE'));
+  const _brkE = computePageBreaks($('pdE'), 990);
   try{
-    await html2pdf().set({
-      margin:10,
-      filename:`UTS_${r.nama}_${r.mapel}.pdf`,
-      image:{type:'jpeg',quality:.98},
-      html2canvas:{scale:2, useCORS:true, backgroundColor:'#ffffff'},
-      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
-    }).from($('pdE')).save();
+    await renderPDFCustom($('pdE'), `UTS_${r.nama}_${r.mapel}.pdf`, _brkE);
     tt('PDF berhasil!');
   }catch(e){
     tt('Gagal: '+e.message,'er');
@@ -719,26 +714,61 @@ async function preparePDFImages(container){
   }));
 }
 
-/* ===== Paginasi manual PDF: ukur tiap blok, sisipkan page-break agar blok tak terpotong ===== */
-function paginatePDF(container, availPx){
+/* ===== Renderer PDF manual: potong kanvas tepat di batas blok soal (tanpa html2pdf pagebreak) ===== */
+function computePageBreaks(container, availPx){
   const flow = [];
   [...container.children].forEach(ch=>{
     if(ch.id === 'soalContainer'){ [...ch.children].forEach(c=>flow.push(c)); }
     else if(ch.tagName !== 'STYLE'){ flow.push(ch); }
   });
+  const contTop = container.getBoundingClientRect().top;
+  const breaks = [];
   let acc = 0;
   flow.forEach(el=>{
-    if(el.style && el.style.pageBreakAfter === 'always') return;
-    const h = el.offsetHeight + 8;
-    // Jika blok sendiri lebih tinggi dari halaman, biarkan (jarang); lainnya paksa break sebelumnya
+    const h = el.getBoundingClientRect().height + 8;
     if(acc > 0 && acc + h > availPx){
-      const br = document.createElement('div');
-      br.style.cssText = 'height:0;line-height:0;page-break-after:always;break-after:page;';
-      el.parentNode.insertBefore(br, el);
+      breaks.push(Math.round(el.getBoundingClientRect().top - contTop));
       acc = 0;
     }
     acc += h;
   });
+  return breaks;
+}
+
+async function renderPDFCustom(el, filename, breakCssYs){
+  const cssW = el.getBoundingClientRect().width || 1;
+  const canvas = await html2canvas(el, {scale:2, useCORS:true, backgroundColor:'#ffffff', scrollY:0});
+  const scaleFactor = canvas.width / cssW;
+  const JsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  const pdf = new JsPDF('p', 'mm', 'a4');
+  const margin = 12, contentWmm = 210 - margin*2, contentHmm = 297 - margin*2;
+  const pxPerMm = canvas.width / contentWmm;
+  const pagePx = contentHmm * pxPerMm;
+  const H = canvas.height;
+  const cuts = [...breakCssYs].map(y => Math.min(Math.round(y*scaleFactor), H))
+                .filter(y => y > 0 && y < H).sort((a,b)=>a-b);
+  // Bangun segmen halaman; segmen jumbo (blok > 1 halaman, jarang) dipotong paksa agar tak ada konten hilang
+  const pages = [];
+  let st = 0;
+  const pushSeg = (a,b)=>{ if(b - a > 0) pages.push([a,b]); };
+  cuts.forEach(c => {
+    while(c - st > pagePx){ pushSeg(st, Math.round(st+pagePx)); st = Math.round(st+pagePx); }
+    pushSeg(st, c); st = c;
+  });
+  while(H - st > pagePx){ pushSeg(st, Math.round(st+pagePx)); st = Math.round(st+pagePx); }
+  pushSeg(st, H);
+
+  pages.forEach((pg, i) => {
+    const [y0, y1] = pg;
+    const h = y1 - y0;
+    const slice = document.createElement('canvas');
+    slice.width = canvas.width; slice.height = h;
+    slice.getContext('2d').drawImage(canvas, 0, y0, canvas.width, h, 0, 0, canvas.width, h);
+    const img = slice.toDataURL('image/jpeg', 0.95);
+    if(i > 0) pdf.addPage();
+    pdf.addImage(img, 'JPEG', margin, margin, contentWmm, h / pxPerMm);
+  });
+  pdf.save(filename);
 }
 
 /* ================================================================
@@ -887,18 +917,10 @@ async function cSoalPDF(exId, npsn){
   await preparePDFImages($('pdSoal'));
   await new Promise(r => setTimeout(r, 100));
 
-  // Paginasi manual: A4 (297mm) - margin 12mm*2 = 273mm ~ 1032px, beri buffer -> 990px
-  paginatePDF($('pdSoal'), 990);
-
+  // Hitung batas halaman (A4 konten ~1032px, buffer 990px) lalu potong kanvas tepat di antar blok
+  const _brkSoal = computePageBreaks($('pdSoal'), 990);
   try {
-    await html2pdf().set({
-      margin: [12, 12, 12, 12],
-      filename: `Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollY: 0 },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css'] }
-    }).from($('pdSoal')).save();
+    await renderPDFCustom($('pdSoal'), `Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`, _brkSoal);
     tt('PDF Soal berhasil dibuat!', 'ok');
   } catch (e) {
     tt('Gagal membuat PDF Soal: ' + e.message, 'er');
@@ -1422,9 +1444,9 @@ async function cRekapPDF(filterKelas, filterMapel){
   box.innerHTML = html;
   tt('Membuat PDF Rekap...','in');
   await preparePDFImages($('pdRekap'));
-  paginatePDF($('pdRekap'), 990);
+  const _brkR = computePageBreaks($('pdRekap'), 990);
   try {
-    await html2pdf().set({margin:10,filename:`Rekap_Nilai_${D.sch.nama}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdRekap')).save();
+    await renderPDFCustom($('pdRekap'), `Rekap_Nilai_${D.sch.nama}.pdf`, _brkR);
     tt('Rekap PDF berhasil!');
   } catch(e) {
     tt('Gagal: '+e.message,'er');
