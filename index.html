@@ -1317,6 +1317,7 @@ function renderHasil(c){
 function cetakFilterRekap(){
   const fMapel = $('fMapel').value;
   const fKelas = $('fKelas').value;
+  const fRombel = $('fRombel').value;
   if(!fMapel || !fKelas) return tt('Pilih Kelas dan Mapel dulu!', 'er');
   ld('Menyiapkan Rekap...');
   setTimeout(() => { cRekapPDF(fKelas, fMapel, fRombel); }, 100);
@@ -1325,9 +1326,9 @@ function cetakFilterRekap(){
 async function cRekapPDF(filterKelas, filterMapel, filterRombel){
   const list = D.rs.filter(r => {
     let pass = true;
-    if(filterKelas && r.kelas !== parseInt(filterKelas)) pass = false;
-    if(filterMapel && r.mapel !== filterMapel) pass = false;
-    if(filterRombel && (r.rombel||'-') !== filterRombel) pass = false;
+    if(filterKelas && String(r.kelas) !== String(filterKelas)) pass = false;
+    if(filterMapel && String(r.mapel).trim() !== String(filterMapel).trim()) pass = false;
+    if(filterRombel && String(r.rombel||'-') !== String(filterRombel)) pass = false;
     return pass;
   });
 
@@ -1335,7 +1336,7 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
   
   const grouped = {};
   list.forEach(r=>{
-    const k = r.kelas + '|' + (r.rombel||'-');
+    const k = String(r.kelas) + '|' + (r.rombel||'-');
     if(!grouped[k]) grouped[k] = { kelas: r.kelas, rombel: r.rombel||'-', items: {} };
     if(!grouped[k].items[r.mapel]) grouped[k].items[r.mapel] = [];
     grouped[k].items[r.mapel].push(r);
