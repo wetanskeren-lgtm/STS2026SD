@@ -623,8 +623,8 @@ function showR(r){
   ${scoreBox}
   <p style="font-size:.95rem;font-weight:700;margin-bottom:16px;color:${c}">${msg}</p>
   <div class="grid grid-cols-3 gap-3 mb-6">
-    <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Benar PG</p><p style="font-size:1.15rem;font-weight:800;color:#22C55E">${r.correct}</p></div>
-    <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Salah</p><p style="font-size:1.15rem;font-weight:800;color:var(--er)">${r.total-r.correct}</p></div>
+    <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Nilai PG</p><p style="font-size:1.15rem;font-weight:800;color:#00B4D8">${r.autoScore||0}</p></div>
+    <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Nilai Uraian</p><p style="font-size:1.15rem;font-weight:800;color:#A855F7">${r.essayScore!==undefined?r.essayScore:(r.essays&&r.essays.length>0?'?':'-')}</p></div>
     <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Waktu</p><p style="font-size:.9rem;font-weight:800">${tm}:${String(ts).padStart(2,'0')}</p></div>
   </div>
   <div class="flex gap-3 justify-center flex-wrap">
@@ -697,12 +697,12 @@ async function cPDF(rid, npsn){
     <table style="width:100%;border-collapse:collapse;border:1.5px solid #000;margin-bottom:4px;font-size:8pt">
       <thead>
         <tr style="background:#f0f0f0;">
-          <th style="${bdr}padding:3px;">No</th><th style="${bdr}padding:3px;">Mapel</th><th style="${bdr}padding:3px;">Soal</th><th style="${bdr}padding:3px;">Benar</th><th style="${bdr}padding:3px;">Salah</th><th style="${bdr}padding:3px;">PG</th><th style="${bdr}padding:3px;">Uraian</th><th style="${bdr}padding:3px;">Akhir</th><th style="${bdr}padding:3px;">Grade</th><th style="${bdr}padding:3px;">Ket</th>
+          <th style="${bdr}padding:3px;">No</th><th style="${bdr}padding:3px;">Mapel</th><th style="${bdr}padding:3px;">Soal</th><th style="${bdr}padding:3px;">PG</th><th style="${bdr}padding:3px;">Uraian</th><th style="${bdr}padding:3px;">Akhir</th><th style="${bdr}padding:3px;">Grade</th><th style="${bdr}padding:3px;">Ket</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td style="${bdr}padding:3px;text-align:center;">1</td><td style="${bdr}padding:3px;">${r.mapel}</td><td style="${bdr}padding:3px;text-align:center;">${r.total}</td><td style="${bdr}padding:3px;text-align:center;">${r.correct}</td><td style="${bdr}padding:3px;text-align:center;">${r.total-r.correct}</td><td style="${bdr}padding:3px;text-align:center;font-weight:800;">${r.autoScore||0}</td><td style="${bdr}padding:3px;text-align:center;font-weight:800;">${r.essayScore!==undefined?r.essayScore:(r.essays&&r.essays.length>0?'?':'-')}</td><td style="${bdr}padding:3px;text-align:center;font-weight:800;">${r.score}</td><td style="${bdr}padding:3px;text-align:center;">${grade}</td><td style="${bdr}padding:3px;text-align:center;">${label}</td>
+          <td style="${bdr}padding:3px;text-align:center;">1</td><td style="${bdr}padding:3px;">${r.mapel}</td><td style="${bdr}padding:3px;text-align:center;">${r.total}</td><td style="${bdr}padding:3px;text-align:center;font-weight:800;">${r.autoScore||0}</td><td style="${bdr}padding:3px;text-align:center;font-weight:800;">${r.essayScore!==undefined?r.essayScore:(r.essays&&r.essays.length>0?'?':'-')}</td><td style="${bdr}padding:3px;text-align:center;font-weight:800;">${r.score}</td><td style="${bdr}padding:3px;text-align:center;">${grade}</td><td style="${bdr}padding:3px;text-align:center;">${label}</td>
         </tr>
       </tbody>
     </table>
@@ -1270,7 +1270,7 @@ function renderHasil(c){
     
   Object.values(grouped).forEach(g=>{const m=gm(g.mapel);const avg=Math.round(g.items.reduce((a,r)=>a+(r.score||0),0)/g.items.length);
     h+=`<div class="cd hasil-card" data-mapel="${g.mapel}" data-kelas="${g.kelas}" style="padding:18px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${g.mapel} — Kelas ${g.kelas}</p><p style="font-size:.75rem;color:var(--mt)">${g.schoolName} · ${g.items.length} siswa · Rata-rata: ${avg}</p></div></div></div>
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Benar</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">PG</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Uraian</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Akhir</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`;
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">PG</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Uraian</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Akhir</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`;
     g.items.sort((a,b)=>(b.score||0)-(a.score||0)).forEach((r,i)=>{
       const sc=r.score||0;
       let stC, stL;
@@ -1284,7 +1284,7 @@ function renderHasil(c){
         }
       } else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}
       
-      const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-';h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.correct}/${r.total}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${(r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0)?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cPDF('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;});
+      const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-';h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${(r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0)?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cPDF('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;});
     h+=`</tbody></table></div></div>`;});
   h+=`</div></div>`;c.innerHTML=h;
 }
@@ -1335,7 +1335,6 @@ async function cRekapPDF(filterKelas, filterMapel){
           <tr style="background:#f0f0f0">
             <th style="border:1px solid #000; padding:6px;">No</th>
             <th style="border:1px solid #000; padding:6px; text-align:left;">Nama</th>
-            <th style="border:1px solid #000; padding:6px;">Benar</th>
             <th style="border:1px solid #000; padding:6px;">Total</th>
             <th style="border:1px solid #000; padding:6px;">PG</th>
             <th style="border:1px solid #000; padding:6px;">Uraian</th>
@@ -1362,7 +1361,6 @@ async function cRekapPDF(filterKelas, filterMapel){
         const pgSc2=r.autoScore||0;const esSc2=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-';html += `<tr>
           <td style="border:1px solid #000; padding:6px; text-align:center;">${i+1}</td>
           <td style="border:1px solid #000; padding:6px;">${r.nama}</td>
-          <td style="border:1px solid #000; padding:6px; text-align:center;">${r.correct}</td>
           <td style="border:1px solid #000; padding:6px; text-align:center;">${r.total}</td>
           <td style="border:1px solid #000; padding:6px; text-align:center; font-weight:700;">${pgSc2}</td>
           <td style="border:1px solid #000; padding:6px; text-align:center; font-weight:700;">${esSc2}</td>
