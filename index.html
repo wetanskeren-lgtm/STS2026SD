@@ -133,6 +133,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div id="tt" class="tt"></div>
@@ -232,8 +233,9 @@ service cloud.firestore {
       <div class="flex gap-2"><input id="sN" class="ip" placeholder="8 digit NPSN" maxlength="8" oninput="this.value=this.value.replace(/[^0-9]/g,'')" onkeydown="if(event.key==='Enter')loadSiswaInit()"><button class="bt bt2 bts" style="padding:8px 14px" onclick="loadSiswaInit()"><i class="fas fa-search"></i></button></div>
     </div>
     <div id="sLKA" style="display:none">
-      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Pilih Kelas</label><select id="sK" class="ip" onchange="updNamaList()"><option value="">-- Pilih Kelas --</option></select></div>
-      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Nama Siswa</label><select id="sI" class="ip" onchange="updMapelList()"><option value="">-- Pilih Nama --</option></select></div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Pilih Kelas</label><select id="sK" class="ip" onchange="updRombelList()"><option value="">-- Pilih Kelas --</option></select></div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Pilih Rombel</label><select id="sR" class="ip" disabled onchange="updNamaList()"><option value="">-- Pilih Kelas Dulu --</option></select></div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Nama Siswa</label><select id="sI" class="ip" disabled onchange="updMapelList()"><option value="">-- Pilih Rombel Dulu --</option></select></div>
       <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Mata Pelajaran</label><select id="sM" class="ip" disabled><option value="">-- Pilih Nama Dulu --</option></select></div>
       <div class="mb-5"><label class="block mb-1 font-bold" style="font-size:.82rem">Password</label><input id="sW" class="ip" type="password" placeholder="Password dari admin" onkeydown="if(event.key==='Enter')logS()"></div>
       <button class="bt bt2 w-full justify-center" onclick="logS()"><i class="fas fa-sign-in-alt"></i> Masuk & Mulai</button>
@@ -403,14 +405,35 @@ async function loadSiswaInit(){
     if(D.ss.length===0){hd();$('sLKA').style.display='none';$('sLError').style.display='block';$('sLError').textContent='Belum ada data siswa.';return;}
     const kelasUnik=[...new Set(D.ss.map(s=>s.kelas))].sort((a,b)=>a-b);
     $('sK').innerHTML='<option value="">-- Pilih Kelas --</option>'+kelasUnik.map(k=>`<option value="${k}">Kelas ${k}</option>`).join('');
-    $('sI').innerHTML='<option value="">-- Pilih Nama --</option>';$('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;
+    $('sR').innerHTML='<option value="">-- Pilih Kelas Dulu --</option>';$('sR').disabled=true;
+    $('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;
+    $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;
     $('sLKA').style.display='block';$('sLError').style.display='none';hd();tt('Data '+D.sch.nama+' dimuat!');
   }catch(e){hd();$('sLKA').style.display='none';$('sLError').style.display='block';$('sLError').textContent='Error: '+e.message;}
 }
+function updRombelList(){
+  const k=parseInt($('sK').value);
+  if(!k){
+    $('sR').innerHTML='<option value="">-- Pilih Kelas Dulu --</option>';$('sR').disabled=true;
+    $('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;
+    $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;return;
+  }
+  const rombelUnik=[...new Set(D.ss.filter(s=>s.kelas===k).map(s=>s.rombel||'-'))].sort();
+  $('sR').innerHTML='<option value="">-- Pilih Rombel --</option>'+rombelUnik.map(r=>`<option value="${r}">Rombel ${r}</option>`).join('');
+  $('sR').disabled=false;
+  $('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;
+  $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;
+}
 function updNamaList(){
-  const k=parseInt($('sK').value);if(!k){$('sI').innerHTML='<option value="">-- Pilih Nama --</option>';$('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;return;}
-  const list=D.ss.filter(s=>s.kelas===k).sort((a,b)=>a.nama.localeCompare(b.nama));
-  $('sI').innerHTML='<option value="">-- Pilih Nama --</option>'+list.map(s=>`<option value="${s.nis}">${s.nama} (Rombel ${s.rombel||'-'})</option>`).join('');
+  const k=parseInt($('sK').value),r=$('sR').value;
+  if(!k||!r){$('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;$('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;return;}
+  const list=D.ss.filter(s=>s.kelas===k&&(s.rombel||'-')===r).sort((a,b)=>a.nama.localeCompare(b.nama));
+  if(list.length===0){
+    $('sI').innerHTML='<option value="">-- Tidak ada siswa --</option>';$('sI').disabled=true;
+    $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;return;
+  }
+  $('sI').innerHTML='<option value="">-- Pilih Nama --</option>'+list.map(s=>`<option value="${s.nis}">${s.nama}</option>`).join('');
+  $('sI').disabled=false;
   $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;
 }
 function updMapelList(){
@@ -425,7 +448,7 @@ async function logS(){
   const stu=D.ss.find(s=>s.nis===nis);if(!stu)return tt('Tidak valid!','er');if(stu.password!==pass)return tt('Password salah!','er');
   D.st=stu;startEx(exId);
 }
-function outS(){D.st=null;D.sch=null;['sN','sK','sI','sM','sW'].forEach(i=>$(i).value='');$('sLKA').style.display='none';go('pH')}
+function outS(){D.st=null;D.sch=null;['sN','sK','sR','sI','sM','sW'].forEach(i=>$(i).value='');$('sLKA').style.display='none';go('pH')}
 
 /* ===== UJIAN MODE OFFLINE HYBRID ===== */
 async function startEx(id){
