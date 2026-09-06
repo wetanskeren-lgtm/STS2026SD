@@ -132,6 +132,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div id="tt" class="tt"></div>
@@ -551,7 +552,7 @@ async function finEx(){
   });
   
   const hasEssay=essays.length>0;const pgOnly=ex.questions.length-essays.length;const autoScore=pgOnly>0?Math.round(cor/pgOnly*100):0;const finalScore=hasEssay?0:autoScore;const tu=ex.timeLimit*60-D.tL;
-  const r={id:uid(),examId:ex.id,kelas:s.kelas,mapel:ex.mapel,nama:s.nama,nis:s.nis,score:finalScore,autoScore,correct:cor,total:ex.questions.length,essays,pg:pgList,timeUsed:tu,timestamp:Date.now()};
+  const r={id:uid(),examId:ex.id,kelas:s.kelas,mapel:ex.mapel,nama:s.nama,nis:s.nis,score:finalScore,autoScore,essayScore:hasEssay?0:undefined,correct:cor,total:ex.questions.length,essays,pg:pgList,timeUsed:tu,timestamp:Date.now()};
   
   try {
     // ONLINE SAAT KIRIM JAWABAN
@@ -599,17 +600,31 @@ function kirimNotifWA(r){
   if(!w)tt('Popup diblokir browser — gunakan tombol "Kirim ke WA Guru" di halaman hasil.','in');
 }
 function showR(r){
-  go('pRE');let g,c,em,msg;const sc=r.score||0;
-  if(r.essays&&r.essays.length>0){em='⏳';c='#3B82F6';msg='Uraian akan dikoreksi Admin.';g='?';}
+  go('pRE');let g,c,em,msg;const sc=r.score||0;const hasEs=r.essays&&r.essays.length>0;const pgSc=r.autoScore||0;const esSc=r.essayScore;
+  if(hasEs){em='⏳';c='#3B82F6';msg='Uraian akan dikoreksi Admin.';g='?';}
   else if(sc>=90){g='A';c='#22C55E';em='🎉';msg='Luar Biasa!';}else if(sc>=80){g='B';c='#00B4D8';em='😊';msg='Bagus!';}else if(sc>=70){g='C';c='#EAB308';em='👍';msg='Cukup Baik!';}else if(sc>=60){g='D';c='#FF6B35';em='💪';msg='Jangan Menyerah!';}else{g='E';c='#EF4444';em='📚';msg='Ayo Belajar Lebih Giat!';}
   const tm=Math.floor(r.timeUsed/60),ts=r.timeUsed%60;if(sc>=80&&!r.essays)cft();
+
+  let scoreBox='';
+  if(hasEs){
+    const esLabel=(esSc===undefined||esSc===null)?'Menunggu':esSc;
+    const finalLabel=(esSc===undefined||esSc===null)?'?':sc;
+    scoreBox=`<div style="display:flex;justify-content:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <div style="background:var(--bg);padding:10px 14px;border-radius:14px;text-align:center;min-width:90px"><p style="font-size:.62rem;color:var(--mt)">Pilihan Ganda</p><p style="font-size:1.1rem;font-weight:800;color:#00B4D8">${pgSc}</p></div>
+      <div style="background:var(--bg);padding:10px 14px;border-radius:14px;text-align:center;min-width:90px"><p style="font-size:.62rem;color:var(--mt)">Uraian</p><p style="font-size:1.1rem;font-weight:800;color:#A855F7">${esLabel}</p></div>
+      <div style="background:var(--bg);padding:10px 14px;border-radius:14px;text-align:center;min-width:90px;border:2px solid ${c}"><p style="font-size:.62rem;color:var(--mt)">Nilai Akhir</p><p style="font-size:1.3rem;font-weight:800;color:${c}">${finalLabel}</p></div>
+    </div>`;
+  }else{
+    scoreBox=`<div class="flex justify-center mb-5"><div class="rc" style="border-color:${c}"><span class="sc" style="color:${c}">${sc}</span><span class="rl" style="color:${c}">Grade ${g}</span></div></div>`;
+  }
+
   $('rC').innerHTML=`<div class="schb mb-4" style="background:rgba(255,107,53,.08);color:var(--ac)"><i class="fas fa-school"></i> ${D.sch.nama}</div>
   <div style="font-size:3rem;margin-bottom:6px">${em}</div><h2 style="font-size:1.25rem;margin-bottom:4px">Hasil Ujian</h2>
-  <p style="color:var(--mt);font-size:.82rem;margin-bottom:18px">${r.mapel} — Kelas ${r.kelas}</p>
-  <div class="flex justify-center mb-5"><div class="rc" style="border-color:${c}"><span class="sc" style="color:${c}">${r.essays&&r.essays.length>0?'?':r.score}</span><span class="rl" style="color:${c}">Grade ${g}</span></div></div>
-  <p style="font-size:.95rem;font-weight:700;margin-bottom:18px;color:${c}">${msg}</p>
+  <p style="color:var(--mt);font-size:.82rem;margin-bottom:14px">${r.mapel} — Kelas ${r.kelas}</p>
+  ${scoreBox}
+  <p style="font-size:.95rem;font-weight:700;margin-bottom:16px;color:${c}">${msg}</p>
   <div class="grid grid-cols-3 gap-3 mb-6">
-    <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Benar</p><p style="font-size:1.15rem;font-weight:800;color:#22C55E">${r.correct}</p></div>
+    <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Benar PG</p><p style="font-size:1.15rem;font-weight:800;color:#22C55E">${r.correct}</p></div>
     <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Salah</p><p style="font-size:1.15rem;font-weight:800;color:var(--er)">${r.total-r.correct}</p></div>
     <div style="background:var(--bg);padding:10px;border-radius:14px"><p style="font-size:.62rem;color:var(--mt)">Waktu</p><p style="font-size:.9rem;font-weight:800">${tm}:${String(ts).padStart(2,'0')}</p></div>
   </div>
@@ -691,7 +706,7 @@ async function cPDF(rid, npsn){
         </tr>
       </tbody>
     </table>
-    ${(r.essays&&r.essays.length>0)?`<p style="font-size:9pt;margin-top:6px"><b>Catatan komposisi soal:</b> Pilihan Ganda No. 1&ndash;${pgC} (benar ${r.correct}/${pgC}) &middot; Uraian No. ${pgC+1}&ndash;${r.total} (${r.essays.length} soal, dinilai manual).</p>`:`<p style="font-size:9pt;margin-top:6px"><b>Catatan:</b> Seluruh ${r.total} soal adalah Pilihan Ganda (No. 1&ndash;${r.total}).</p>`}
+    ${(r.essays&&r.essays.length>0)?`<p style="font-size:9pt;margin-top:6px"><b>Nilai Pilihan Ganda:</b> ${r.autoScore||0} &nbsp;|&nbsp; <b>Nilai Uraian:</b> ${r.essayScore!==undefined?r.essayScore:'Menunggu'} &nbsp;|&nbsp; <b>Nilai Akhir:</b> ${r.score}</p><p style="font-size:9pt;margin-top:4px"><b>Catatan:</b> Pilihan Ganda No. 1&ndash;${pgC} (benar ${r.correct}/${pgC}) &middot; Uraian No. ${pgC+1}&ndash;${r.total} (${r.essays.length} soal, dinilai manual).</p>`:`<p style="font-size:9pt;margin-top:6px"><b>Nilai Pilihan Ganda:</b> ${r.autoScore||0} &nbsp;|&nbsp; <b>Nilai Akhir:</b> ${r.score}</p><p style="font-size:9pt;margin-top:4px"><b>Catatan:</b> Seluruh ${r.total} soal adalah Pilihan Ganda (No. 1&ndash;${r.total}).</p>`}
 
     <table style="width:100%; border-collapse:collapse; margin-top:12px; margin-bottom:20px;">
       <tr><td style="border:none; padding:2px 8px; width:140px; font-weight:700">Waktu</td><td style="border:none; padding:2px 8px;">: ${tm}m ${ts}s</td></tr>
@@ -1264,7 +1279,7 @@ function renderHasil(c){
     
   Object.values(grouped).forEach(g=>{const m=gm(g.mapel);const avg=Math.round(g.items.reduce((a,r)=>a+(r.score||0),0)/g.items.length);
     h+=`<div class="cd hasil-card" data-mapel="${g.mapel}" data-kelas="${g.kelas}" style="padding:18px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${g.mapel} — Kelas ${g.kelas}</p><p style="font-size:.75rem;color:var(--mt)">${g.schoolName} · ${g.items.length} siswa · Rata-rata: ${avg}</p></div></div></div>
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Benar</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Nilai</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`;
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Benar</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">PG</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Uraian</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Akhir</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`;
     g.items.sort((a,b)=>(b.score||0)-(a.score||0)).forEach((r,i)=>{
       const sc=r.score||0;
       let stC, stL;
@@ -1278,7 +1293,7 @@ function renderHasil(c){
         }
       } else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}
       
-      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.correct}/${r.total}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${(r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0)?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cPDF('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;});
+      const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-';h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.correct}/${r.total}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${(r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0)?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cPDF('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;});
     h+=`</tbody></table></div></div>`;});
   h+=`</div></div>`;c.innerHTML=h;
 }
@@ -1330,8 +1345,10 @@ async function cRekapPDF(filterKelas, filterMapel){
             <th style="border:1px solid #000; padding:6px;">No</th>
             <th style="border:1px solid #000; padding:6px; text-align:left;">Nama</th>
             <th style="border:1px solid #000; padding:6px;">Benar</th>
-            <th style="border:1px solid #000; padding:6px;">Total Soal</th>
-            <th style="border:1px solid #000; padding:6px;">Nilai</th>
+            <th style="border:1px solid #000; padding:6px;">Total</th>
+            <th style="border:1px solid #000; padding:6px;">PG</th>
+            <th style="border:1px solid #000; padding:6px;">Uraian</th>
+            <th style="border:1px solid #000; padding:6px;">Akhir</th>
             <th style="border:1px solid #000; padding:6px;">Status</th>
           </tr>
         </thead>
@@ -1351,11 +1368,13 @@ async function cRekapPDF(filterKelas, filterMapel){
           st = (r.score||0) >= 70 ? 'Tuntas' : 'Belum Tuntas';
         }
         
-        html += `<tr>
+        const pgSc2=r.autoScore||0;const esSc2=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-';html += `<tr>
           <td style="border:1px solid #000; padding:6px; text-align:center;">${i+1}</td>
           <td style="border:1px solid #000; padding:6px;">${r.nama}</td>
           <td style="border:1px solid #000; padding:6px; text-align:center;">${r.correct}</td>
           <td style="border:1px solid #000; padding:6px; text-align:center;">${r.total}</td>
+          <td style="border:1px solid #000; padding:6px; text-align:center; font-weight:700;">${pgSc2}</td>
+          <td style="border:1px solid #000; padding:6px; text-align:center; font-weight:700;">${esSc2}</td>
           <td style="border:1px solid #000; padding:6px; text-align:center; font-weight:700;">${r.score||0}</td>
           <td style="border:1px solid #000; padding:6px; text-align:center;">${st}</td>
         </tr>`;
@@ -1460,17 +1479,18 @@ async function simpanKoreksi(rid, npsn){
   }
   /* 3. Hitung ulang nilai akhir (rumus sama seperti saat ujian) */
   r.correct = cor;
-  r.autoScore = r.total>0 ? Math.round(cor/r.total*100) : 0;
   const pgCount = r.pg ? r.pg.length : (r.total - (r.essays?r.essays.length:0));
-  const pgScore = pgCount>0 ? r.autoScore : 0;
+  r.autoScore = pgCount>0 ? Math.round(cor/pgCount*100) : 0;
+  const pgScore = r.autoScore;
   const essayAvg = (r.essays && r.essays.length>0) ? Math.round(totalEssay/r.essays.length) : 0;
   let finalScore;
   if(pgCount>0 && r.essays && r.essays.length>0) finalScore=Math.round(pgScore*0.6+essayAvg*0.4);
   else if(r.essays && r.essays.length>0) finalScore=essayAvg;
   else finalScore=pgScore;
   r.score=finalScore;
+  r.essayScore=essayAvg;
   ld('Menyimpan...');
-  await rR(npsn).doc(rid).update({pg:r.pg||[],essays:r.essays||[],correct:r.correct,autoScore:r.autoScore,score:finalScore});
+  await rR(npsn).doc(rid).update({pg:r.pg||[],essays:r.essays||[],correct:r.correct,autoScore:r.autoScore,essayScore:r.essayScore,score:finalScore});
   hd();cMo();renderHasil($('aC'));tt('Koreksi disimpan! Nilai akhir: '+finalScore);
 }
 
