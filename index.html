@@ -71,48 +71,47 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .lo{position:fixed;inset:0;background:rgba(255,248,240,.92);z-index:10000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 .lo.on{display:flex}
 
-/* CSS UNTUK PDF SOAL UJIAN - LAYOUT RAPI SEPERTI CONTOH PDF */
-/* CSS UNTUK PDF SOAL UJIAN - BLOCK MURNI, ANTI TERPOTONG */
-.pd{width:100%;padding:0;margin:0;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:12pt;line-height:1.45;box-sizing:border-box}
+/* CSS UNTUK PDF - KOMPAK 1 HALAMAN ANTI TERPOTONG */
+.pd{width:100%;padding:0;margin:0;font-family:'Times New Roman', serif;color:#000;background:#fff;font-size:9pt;line-height:1.25;box-sizing:border-box}
 .pd *{box-sizing:border-box; max-width:100%}
-.pd h2{font-family:'Times New Roman', serif;font-size:14pt;margin:0;font-weight:800}
+.pd h2{font-family:'Times New Roman', serif;font-size:11pt;margin:0;font-weight:800}
 
 /* Blok Soal - anti terpotong */
-.soal-block{margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #eee;page-break-inside:avoid !important;break-inside:avoid !important;display:block;width:100%}
+.soal-block{margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #eee;page-break-inside:avoid !important;break-inside:avoid !important;display:block;width:100%}
 
-/* Tabel soal: kolom nomor & kolom isi -> SEMUA NOMOR SEJAJAR */
+/* Tabel soal */
 .soal-tbl{width:100%;border-collapse:collapse;margin:0;padding:0;table-layout:fixed}
-.soal-tbl td{vertical-align:top;border:none !important;padding:0 !important;margin:0;font-size:12pt}
-.soal-tbl .sn{width:36px;font-weight:bold;text-align:left;padding-top:1px !important}
-.soal-tbl .sc2{padding-left:4px !important}
+.soal-tbl td{vertical-align:top;border:none !important;padding:0 !important;margin:0;font-size:9pt}
+.soal-tbl .sn{width:24px;font-weight:bold;text-align:left;padding-top:0 !important}
+.soal-tbl .sc2{padding-left:2px !important}
 .soal-text{font-weight:bold;display:block;word-wrap:break-word;overflow-wrap:break-word}
 
 /* Gambar soal */
-.soal-img-wrap{text-align:center; margin:8px 0; display:block}
-.soal-img-wrap img{max-width:280px; max-height:200px; border:1px solid #ccc;}
+.soal-img-wrap{text-align:center; margin:3px 0; display:block}
+.soal-img-wrap img{max-width:120px; max-height:90px; border:1px solid #ccc;}
 
-/* Opsi HORIZONTAL - kolom rata, huruf A/B/C/D SEJAJAR antar soal */
-.opsi-cols{display:table;width:100%;table-layout:fixed;border-collapse:collapse;margin-top:6px}
-.opsi-cols + .opsi-cols{margin-top:2px}
-.opsi-col{display:table-cell;vertical-align:top;padding:2px 12px 2px 0}
-.opsi-letter{font-weight:700;display:inline-block;width:20px;vertical-align:top}
+/* Opsi HORIZONTAL */
+.opsi-cols{display:table;width:100%;table-layout:fixed;border-collapse:collapse;margin-top:2px}
+.opsi-cols + .opsi-cols{margin-top:1px}
+.opsi-col{display:table-cell;vertical-align:top;padding:1px 6px 1px 0}
+.opsi-letter{font-weight:700;display:inline-block;width:16px;vertical-align:top}
 .opsi-text{display:inline;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word}
 
 /* Opsi VERTIKAL (ada gambar) */
-.opsi-item{display:block;margin:0 0 6px;word-wrap:break-word;overflow-wrap:break-word}
-.opsi-item .opsi-letter{width:22px}
-.opsi-item img{display:block;max-width:160px;max-height:120px;margin-top:4px;border:1px solid #ddd}
+.opsi-item{display:block;margin:0 0 2px;word-wrap:break-word;overflow-wrap:break-word}
+.opsi-item .opsi-letter{width:18px}
+.opsi-item img{display:block;max-width:80px;max-height:60px;margin-top:2px;border:1px solid #ddd}
 
 /* Essay box */
-.essay-box{border:1px solid #000;height:80px;margin-top:8px;border-radius:4px;display:block}
+.essay-box{border:1px solid #000;height:40px;margin-top:3px;border-radius:2px;display:block}
 
-.pd table{width:100%; border-collapse:collapse; margin:10px 0}
-.pd th,.pd td{border:1px solid #333; padding:5px 10px; text-align:left; font-size:10pt}
+.pd table{width:100%; border-collapse:collapse; margin:4px 0}
+.pd th,.pd td{border:1px solid #333; padding:2px 4px; text-align:left; font-size:8pt}
 .pd th{background:#f0f0f0; font-weight:700}
 
-/* Wrapper cetak: Soal TANPA padding internal, margin seragam dari html2pdf */
+/* Wrapper cetak */
 #pdSoal{padding:0; box-sizing:border-box}
-#pdE, #pdRekap{padding:15mm 15mm 15mm 20mm; box-sizing:border-box}
+#pdE, #pdRekap{padding:8mm 8mm 8mm 10mm; box-sizing:border-box}
 .schb{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:10px;font-size:.78rem;font-weight:700}
 .step-box{background:var(--bg);border:2px dashed var(--bd);border-radius:16px;padding:20px;text-align:center}
 .step-box.active{border-color:var(--ac);border-style:solid;background:rgba(255,107,53,.04)}
@@ -668,10 +667,12 @@ async function cPDF(rid, npsn){
   
   let essayHtml='';
   if(r.essays&&r.essays.length>0){
+    essayHtml+=`<table style="width:100%;border-collapse:collapse;border:1px solid #000;margin:4px 0;font-size:7pt"><thead><tr style="background:#f0f0f0"><th style="border:1px solid #000;padding:2px">No</th><th style="border:1px solid #000;padding:2px">Soal Uraian</th><th style="border:1px solid #000;padding:2px">Jawaban</th><th style="border:1px solid #000;padding:2px">Nilai</th></tr></thead><tbody>`;
     r.essays.forEach((e,i)=>{
-      const status = e.graded ? `<b>Nilai:</b> ${e.score}/100` : `<b style="color:#dc2626">Menunggu Koreksi</b>`;
-      essayHtml+=`<div class="essay-block" style="border:1px solid #000; padding:10px; margin-bottom:10px;"><p style="font-weight:bold">Soal No. ${pgC+i+1} (Uraian ke-${i+1}) &mdash; ${e.text}</p><p><b>Kunci:</b> ${e.key||'-'}</p><p><b>Jawaban:</b> ${e.answer||'-'}</p><p>${status}</p></div>`;
+      const status = e.graded ? `${e.score}/100` : `<span style="color:#dc2626">Menunggu</span>`;
+      essayHtml+=`<tr><td style="border:1px solid #000;padding:2px;text-align:center">${pgC+i+1}</td><td style="border:1px solid #000;padding:2px">${e.text}</td><td style="border:1px solid #000;padding:2px">${e.answer||'-'}</td><td style="border:1px solid #000;padding:2px;text-align:center">${status}</td></tr>`;
     });
+    essayHtml+=`</tbody></table>`;
   }
   
   const box=$('pB');
@@ -680,52 +681,50 @@ async function cPDF(rid, npsn){
   const bdr = 'border:1px solid #000 !important;';
   
   box.innerHTML=`<div class="pd" id="pdE" style="font-family: 'Nunito', sans-serif;">
-    <div style="text-align:center;border-bottom:3px double #333;padding-bottom:10px;margin-bottom:14px">
-      <p style="font-size:9pt;color:#555">NPSN: ${sch.npsn}</p>
-      <h2 style="font-size:14pt;margin:2px 0">${sch.nama.toUpperCase()}</h2>
-      <p style="font-size:9pt;color:#555">${sch.kota}, ${sch.prov}</p>
-      <p style="font-size:12pt;margin:8px 0 0;font-weight:700">LAPORAN HASIL PTS</p>
+    <div style="text-align:center;border-bottom:2px solid #333;padding-bottom:4px;margin-bottom:6px">
+      <p style="font-size:7pt;color:#555;margin:0">NPSN: ${sch.npsn}</p>
+      <h2 style="font-size:11pt;margin:1px 0">${sch.nama.toUpperCase()}</h2>
+      <p style="font-size:7pt;color:#555;margin:0">${sch.kota}, ${sch.prov}</p>
+      <p style="font-size:10pt;margin:3px 0 0;font-weight:700">LAPORAN HASIL PTS</p>
     </div>
     
-    <table style="width:100%; border-collapse:collapse; margin-bottom:14px;">
-      <tr><td style="border:none; padding:2px 8px; width:140px; font-weight:700">Nama</td><td style="border:none; padding:2px 8px;">: ${r.nama}</td></tr>
-      <tr><td style="border:none; padding:2px 8px; font-weight:700">NIS</td><td style="border:none; padding:2px 8px;">: ${r.nis}</td></tr>
-      <tr><td style="border:none; padding:2px 8px; font-weight:700">Kelas</td><td style="border:none; padding:2px 8px;">: ${r.kelas}</td></tr>
-      <tr><td style="border:none; padding:2px 8px; font-weight:700">Ortu/Wali</td><td style="border:none; padding:2px 8px;">: ${ortu}</td></tr>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:4px;font-size:8pt">
+      <tr><td style="border:none;padding:1px 4px;width:80px;font-weight:700">Nama</td><td style="border:none;padding:1px 4px">: ${r.nama}</td><td style="border:none;padding:1px 4px;width:60px;font-weight:700">Kelas</td><td style="border:none;padding:1px 4px">: ${r.kelas}</td></tr>
+      <tr><td style="border:none;padding:1px 4px;font-weight:700">NIS</td><td style="border:none;padding:1px 4px">: ${r.nis}</td><td style="border:none;padding:1px 4px;font-weight:700">Tanggal</td><td style="border:none;padding:1px 4px">: ${tgl}</td></tr>
+      <tr><td style="border:none;padding:1px 4px;font-weight:700">Ortu/Wali</td><td style="border:none;padding:1px 4px" colspan="3">: ${ortu}</td></tr>
     </table>
     
-    <table style="width:100%; border-collapse:collapse; border:2px solid #000; box-shadow:0 0 0 2px #000;">
+    <table style="width:100%;border-collapse:collapse;border:1.5px solid #000;margin-bottom:4px;font-size:8pt">
       <thead>
         <tr style="background:#f0f0f0;">
-          <th style="${bdr} padding:6px;">No</th><th style="${bdr} padding:6px;">Mapel</th><th style="${bdr} padding:6px;">Soal</th><th style="${bdr} padding:6px;">Benar</th><th style="${bdr} padding:6px;">Salah</th><th style="${bdr} padding:6px;">Nilai</th><th style="${bdr} padding:6px;">Grade</th><th style="${bdr} padding:6px;">Ket</th>
+          <th style="${bdr}padding:3px;">No</th><th style="${bdr}padding:3px;">Mapel</th><th style="${bdr}padding:3px;">Soal</th><th style="${bdr}padding:3px;">Benar</th><th style="${bdr}padding:3px;">Salah</th><th style="${bdr}padding:3px;">PG</th><th style="${bdr}padding:3px;">Uraian</th><th style="${bdr}padding:3px;">Akhir</th><th style="${bdr}padding:3px;">Grade</th><th style="${bdr}padding:3px;">Ket</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td style="${bdr} padding:6px; text-align:center;">1</td><td style="${bdr} padding:6px;">${r.mapel}</td><td style="${bdr} padding:6px; text-align:center;">${r.total}</td><td style="${bdr} padding:6px; text-align:center;">${r.correct}</td><td style="${bdr} padding:6px; text-align:center;">${r.total-r.correct}</td><td style="${bdr} padding:6px; text-align:center; font-weight:800;">${r.score}</td><td style="${bdr} padding:6px; text-align:center;">${grade}</td><td style="${bdr} padding:6px; text-align:center;">${label}</td>
+          <td style="${bdr}padding:3px;text-align:center;">1</td><td style="${bdr}padding:3px;">${r.mapel}</td><td style="${bdr}padding:3px;text-align:center;">${r.total}</td><td style="${bdr}padding:3px;text-align:center;">${r.correct}</td><td style="${bdr}padding:3px;text-align:center;">${r.total-r.correct}</td><td style="${bdr}padding:3px;text-align:center;font-weight:800;">${r.autoScore||0}</td><td style="${bdr}padding:3px;text-align:center;font-weight:800;">${r.essayScore!==undefined?r.essayScore:(r.essays&&r.essays.length>0?'?':'-')}</td><td style="${bdr}padding:3px;text-align:center;font-weight:800;">${r.score}</td><td style="${bdr}padding:3px;text-align:center;">${grade}</td><td style="${bdr}padding:3px;text-align:center;">${label}</td>
         </tr>
       </tbody>
     </table>
-    ${(r.essays&&r.essays.length>0)?`<p style="font-size:9pt;margin-top:6px"><b>Nilai Pilihan Ganda:</b> ${r.autoScore||0} &nbsp;|&nbsp; <b>Nilai Uraian:</b> ${r.essayScore!==undefined?r.essayScore:'Menunggu'} &nbsp;|&nbsp; <b>Nilai Akhir:</b> ${r.score}</p><p style="font-size:9pt;margin-top:4px"><b>Catatan:</b> Pilihan Ganda No. 1&ndash;${pgC} (benar ${r.correct}/${pgC}) &middot; Uraian No. ${pgC+1}&ndash;${r.total} (${r.essays.length} soal, dinilai manual).</p>`:`<p style="font-size:9pt;margin-top:6px"><b>Nilai Pilihan Ganda:</b> ${r.autoScore||0} &nbsp;|&nbsp; <b>Nilai Akhir:</b> ${r.score}</p><p style="font-size:9pt;margin-top:4px"><b>Catatan:</b> Seluruh ${r.total} soal adalah Pilihan Ganda (No. 1&ndash;${r.total}).</p>`}
+    <p style="font-size:7pt;margin:2px 0"><b>Catatan:</b> PG=Nilai Pilihan Ganda | Uraian=Nilai Uraian | Akhir=Nilai Akhir (bobot 60% PG + 40% Uraian)</p>
 
-    <table style="width:100%; border-collapse:collapse; margin-top:12px; margin-bottom:20px;">
-      <tr><td style="border:none; padding:2px 8px; width:140px; font-weight:700">Waktu</td><td style="border:none; padding:2px 8px;">: ${tm}m ${ts}s</td></tr>
-      <tr><td style="border:none; padding:2px 8px; font-weight:700">Tanggal</td><td style="border:none; padding:2px 8px;">: ${tgl}</td></tr>
+    <table style="width:100%;border-collapse:collapse;margin:3px 0;font-size:8pt">
+      <tr><td style="border:none;padding:1px 4px;width:80px;font-weight:700">Waktu</td><td style="border:none;padding:1px 4px">: ${tm}m ${ts}s</td></tr>
     </table>
     
     ${essayHtml}
     
-    <div style="margin-top:36px; display:flex; justify-content:space-between;">
-      <div style="text-align:center; width:30%"><p style="font-size:9pt; font-weight:700">Orang Tua</p><div style="height:55px"></div><p style="font-size:9pt; border-top:1px solid #000; padding-top:3px">(____________)</p></div>
-      <div style="text-align:center; width:30%"><p style="font-size:9pt; font-weight:700">${labelGuru}</p><div style="height:55px"></div><p style="font-size:9pt; border-top:1px solid #000; padding-top:3px">(____________)</p></div>
-      <div style="text-align:center; width:30%"><p style="font-size:9pt; font-weight:700">Kepala Sekolah</p><div style="height:55px"></div><p style="font-size:9pt; border-top:1px solid #000; padding-top:3px">(____________)</p></div>
+    <div style="margin-top:14px;display:flex;justify-content:space-between;font-size:8pt">
+      <div style="text-align:center;width:28%"><p style="font-weight:700;margin:0">Orang Tua</p><div style="height:30px"></div><p style="border-top:1px solid #000;padding-top:2px;margin:0">(____________)</p></div>
+      <div style="text-align:center;width:28%"><p style="font-weight:700;margin:0">${labelGuru}</p><div style="height:30px"></div><p style="border-top:1px solid #000;padding-top:2px;margin:0">(____________)</p></div>
+      <div style="text-align:center;width:28%"><p style="font-weight:700;margin:0">Kepala Sekolah</p><div style="height:30px"></div><p style="border-top:1px solid #000;padding-top:2px;margin:0">(____________)</p></div>
     </div>
   </div>`;
   
   tt('Membuat PDF...','in');
   try{
     await html2pdf().set({
-      margin:10,
+      margin:[5,5,5,5],
       filename:`UTS_${r.nama}_${r.mapel}.pdf`,
       image:{type:'jpeg',quality:.98},
       html2canvas:{scale:2, useCORS:true, backgroundColor:'#ffffff'},
@@ -818,30 +817,22 @@ async function cSoalPDF(exId, npsn){
   const html = `
     <div class="pd" id="pdSoal">
       <!-- KOP SURAT DENGAN LOGO -->
-      <div style="text-align: center; border-bottom: 3px double #000; padding-bottom: 8px; margin-bottom: 12px;">
-        <img src="${LOGO_URL}" crossorigin="anonymous" style="width: 70px; height: 70px; object-fit: cover; border-radius: 50%; border: 2px solid #333; margin-bottom: 6px; display: inline-block;" onerror="this.style.display='none'"/>
-        <p style="font-size: 11pt; font-weight: 700; text-transform: uppercase; margin: 0; line-height: 1.3;">PEMERINTAH KABUPATEN ${D.sch.kota ? D.sch.kota.toUpperCase() : 'MAJALENGKA'}</p>
-        <p style="font-size: 11pt; font-weight: 700; text-transform: uppercase; margin: 0; line-height: 1.3;">DINAS PENDIDIKAN</p>
-        <p style="font-size: 11pt; font-weight: 700; text-transform: uppercase; margin: 0; line-height: 1.3;">KECAMATAN MAJALENGKA</p>
-        <h2 style="font-size: 14pt; font-weight: 800; text-transform: uppercase; margin: 4px 0 0 0; line-height: 1.3;">${D.sch.nama ? D.sch.nama.toUpperCase() : 'SEKOLAH'}</h2>
-        <p style="font-size: 9pt; margin: 2px 0 0 0; font-style: italic;">NPSN: ${D.sch.npsn || '-'} ${D.sch.kota ? '· '+D.sch.kota : ''}</p>
+      <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:6px">
+        <img src="${LOGO_URL}" crossorigin="anonymous" style="width:40px;height:40px;object-fit:cover;border-radius:50%;border:1px solid #333;margin-bottom:2px;display:inline-block" onerror="this.style.display='none'"/>
+        <p style="font-size:8pt;font-weight:700;text-transform:uppercase;margin:0;line-height:1.2">PEMERINTAH KABUPATEN ${D.sch.kota ? D.sch.kota.toUpperCase() : 'MAJALENGKA'}</p>
+        <p style="font-size:8pt;font-weight:700;text-transform:uppercase;margin:0;line-height:1.2">DINAS PENDIDIKAN</p>
+        <h2 style="font-size:10pt;font-weight:800;text-transform:uppercase;margin:2px 0 0;line-height:1.2">${D.sch.nama ? D.sch.nama.toUpperCase() : 'SEKOLAH'}</h2>
+        <p style="font-size:7pt;margin:0;font-style:italic">NPSN: ${D.sch.npsn || '-'} ${D.sch.kota ? '· '+D.sch.kota : ''}</p>
       </div>
-
-      <!-- JUDUL UJIAN -->
-      <div style="text-align: center; margin-bottom: 12px;">
-        <p style="font-size: 12pt; font-weight: 700; text-decoration: underline; margin: 0;">SUMATIF TENGAH SEMESTER (STS)</p>
-        <p style="font-size: 11pt; font-weight: 700; margin: 2px 0 0 0;">TAHUN PELAJARAN 2026/2027 SEMESTER I</p>
+      <div style="text-align:center;margin-bottom:6px">
+        <p style="font-size:9pt;font-weight:700;text-decoration:underline;margin:0">SUMATIF TENGAH SEMESTER (STS)</p>
+        <p style="font-size:8pt;font-weight:700;margin:1px 0 0">TP. 2026/2027 SEMESTER I</p>
       </div>
-
-      <!-- INFO UJIAN -->
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 11pt;">
-        <tr><td style="width: 110px; border:none; padding:1px 0;">Mata Pelajaran</td><td style="width: 8px; border:none; padding:1px 0;">:</td><td style="border:none; padding:1px 0;"><b>${ex.mapel}</b></td>
-            <td style="width: 60px; border:none; padding:1px 0; text-align:right;">Kelas</td><td style="width: 8px; border:none; padding:1px 0;">:</td><td style="border:none; padding:1px 0;"><b>${ex.kelas}</b></td></tr>
-        <tr><td style="border:none; padding:1px 0;">Hari / Tanggal</td><td style="border:none; padding:1px 0;">:</td><td style="border:none; padding:1px 0;">.............................</td>
-            <td style="border:none; padding:1px 0; text-align:right;">Waktu</td><td style="border:none; padding:1px 0;">:</td><td style="border:none; padding:1px 0;">${ex.timeLimit} Menit</td></tr>
-        <tr><td style="border:none; padding:1px 0;">Jumlah Soal</td><td style="border:none; padding:1px 0;">:</td><td style="border:none; padding:1px 0;" colspan="4"><b>${pgCount} Pilihan Ganda</b> (No. 1&ndash;${pgCount}) + <b>${esCount} Uraian</b> (No. ${pgCount+1}&ndash;${pgCount+esCount})</td></tr>
-        <tr><td style="border:none; padding:1px 0;">Nama</td><td style="border:none; padding:1px 0;">:</td><td style="border:none; padding:1px 0; border-bottom:1px solid #000;">&nbsp;</td>
-            <td style="border:none; padding:1px 0; text-align:right;">Nilai</td><td style="border:none; padding:1px 0;">:</td><td style="border:none; padding:1px 0; border-bottom:1px solid #000;">&nbsp;</td></tr>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:6px;font-size:8pt">
+        <tr><td style="width:90px;border:none;padding:1px 0">Mapel</td><td style="width:6px;border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0"><b>${ex.mapel}</b></td><td style="width:40px;border:none;padding:1px 0;text-align:right">Kelas</td><td style="width:6px;border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0"><b>${ex.kelas}</b></td></tr>
+        <tr><td style="border:none;padding:1px 0">Hari/Tgl</td><td style="border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0">...................</td><td style="border:none;padding:1px 0;text-align:right">Waktu</td><td style="border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0">${ex.timeLimit} Menit</td></tr>
+        <tr><td style="border:none;padding:1px 0">Soal</td><td style="border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0" colspan="4"><b>${pgCount} PG</b> + <b>${esCount} Uraian</b></td></tr>
+        <tr><td style="border:none;padding:1px 0">Nama</td><td style="border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0;border-bottom:1px solid #000">&nbsp;</td><td style="border:none;padding:1px 0;text-align:right">Nilai</td><td style="border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0;border-bottom:1px solid #000">&nbsp;</td></tr>
       </table>
 
       ${pgQuestions.length > 0 ? `<p style="text-align: left; font-weight: 700; margin-bottom: 10px; font-size: 11pt;">A. PILIHAN GANDA (Soal Nomor 1 s.d. ${pgCount}) &mdash; Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf ${isKelasKecil ? 'a, b, atau c' : 'a, b, c, atau d'}!</p>
@@ -868,7 +859,7 @@ async function cSoalPDF(exId, npsn){
 
   try {
     await html2pdf().set({
-      margin: [12, 12, 12, 12],
+      margin: [8, 8, 8, 8],
       filename: `Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollY: 0 },
@@ -1402,7 +1393,7 @@ async function cRekapPDF(filterKelas, filterMapel){
   box.innerHTML = html;
   tt('Membuat PDF Rekap...','in');
   try {
-    await html2pdf().set({margin:10,filename:`Rekap_Nilai_${D.sch.nama}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdRekap')).save();
+    await html2pdf().set({margin:[5,5,5,5],filename:`Rekap_Nilai_${D.sch.nama}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdRekap')).save();
     tt('Rekap PDF berhasil!');
   } catch(e) {
     tt('Gagal: '+e.message,'er');
