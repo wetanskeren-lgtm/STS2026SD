@@ -134,6 +134,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div id="tt" class="tt"></div>
@@ -776,6 +777,7 @@ async function cSoalPDF(exId, npsn){
     D.sch = sDoc.exists ? sDoc.data() : {nama:'Sekolah', npsn};
   } else {
     ex = D.ex.find(e=>e.id===exId);
+    if(D.isPusat && !npsn){ D.sch = {npsn:'-', nama:'Bank Soal Pusat', kota:'', prov:''}; }
   }
   if(!ex || !ex.questions || ex.questions.length === 0) return tt('Soal belum diisi!', 'er');
 
@@ -784,6 +786,7 @@ async function cSoalPDF(exId, npsn){
   const kelas = ex.kelas;
   const mo = maxOpts(kelas);
   const isKelasKecil = kelas <= 2;
+  const fs = isKelasKecil ? 14 : 12; // UKURAN FONT DINAMIS: Kelas 1-2 => 14pt, Kelas 3-6 => 12pt
   const LET = ['a','b','c','d','e','f'];
   const LOGO_URL = "https://cdn.phototourl.com/free/2026-09-04-7825e90c-b085-495b-ac97-b4d09f741830.jpg";
 
@@ -841,17 +844,30 @@ async function cSoalPDF(exId, npsn){
 
   const html = `
     <div class="pd" id="pdSoal">
+      <style>
+        #pdSoal{font-size:${fs}pt !important;line-height:1.35}
+        #pdSoal .soal-tbl td{font-size:${fs}pt !important}
+        #pdSoal .soal-text{font-size:${fs}pt !important}
+        #pdSoal .opsi-letter,#pdSoal .opsi-text,#pdSoal .opsi-item{font-size:${fs}pt !important}
+        #pdSoal .soal-img-wrap img{max-width:${isKelasKecil?160:120}px;max-height:${isKelasKecil?120:90}px}
+        #pdSoal .opsi-item img{max-width:${isKelasKecil?100:80}px;max-height:${isKelasKecil?75:60}px}
+        #pdSoal .essay-box{height:${isKelasKecil?55:40}px}
+        #pdSoal table{font-size:${fs-2}pt !important}
+        #pdSoal .soal-block{margin-bottom:${isKelasKecil?8:6}px;padding-bottom:${isKelasKecil?6:4}px}
+        #pdSoal .opsi-cols + .opsi-cols{margin-top:${isKelasKecil?3:1}px}
+        #pdSoal .sn{width:${isKelasKecil?28:24}px}
+      </style>
       <!-- KOP SURAT DENGAN LOGO -->
       <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:6px">
         <img src="${LOGO_URL}" crossorigin="anonymous" style="width:40px;height:40px;object-fit:cover;border-radius:50%;border:1px solid #333;margin-bottom:2px;display:inline-block" onerror="this.style.display='none'"/>
         <p style="font-size:8pt;font-weight:700;text-transform:uppercase;margin:0;line-height:1.2">PEMERINTAH KABUPATEN ${D.sch.kota ? D.sch.kota.toUpperCase() : 'MAJALENGKA'}</p>
         <p style="font-size:8pt;font-weight:700;text-transform:uppercase;margin:0;line-height:1.2">DINAS PENDIDIKAN</p>
-        <h2 style="font-size:10pt;font-weight:800;text-transform:uppercase;margin:2px 0 0;line-height:1.2">${D.sch.nama ? D.sch.nama.toUpperCase() : 'SEKOLAH'}</h2>
-        <p style="font-size:7pt;margin:0;font-style:italic">NPSN: ${D.sch.npsn || '-'} ${D.sch.kota ? '· '+D.sch.kota : ''}</p>
+        <h2 style="font-size:${fs-2}pt;font-weight:800;text-transform:uppercase;margin:2px 0 0;line-height:1.2">${D.sch.nama ? D.sch.nama.toUpperCase() : 'SEKOLAH'}</h2>
+        ${D.sch.npsn && D.sch.npsn !== '-' ? `<p style="font-size:${fs-6}pt;margin:0;font-style:italic">NPSN: ${D.sch.npsn} ${D.sch.kota ? '· '+D.sch.kota : ''}</p>` : ''}
       </div>
       <div style="text-align:center;margin-bottom:6px">
-        <p style="font-size:9pt;font-weight:700;text-decoration:underline;margin:0">SUMATIF TENGAH SEMESTER (STS)</p>
-        <p style="font-size:8pt;font-weight:700;margin:1px 0 0">TP. 2026/2027 SEMESTER I</p>
+        <p style="font-size:${fs-1}pt;font-weight:700;text-decoration:underline;margin:0">SUMATIF TENGAH SEMESTER (STS)</p>
+        <p style="font-size:${fs-3}pt;font-weight:700;margin:1px 0 0">TP. 2026/2027 SEMESTER I</p>
       </div>
       <table style="width:100%;border-collapse:collapse;margin-bottom:6px;font-size:8pt">
         <tr><td style="width:90px;border:none;padding:1px 0">Mapel</td><td style="width:6px;border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0"><b>${ex.mapel}</b></td><td style="width:40px;border:none;padding:1px 0;text-align:right">Kelas</td><td style="width:6px;border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0"><b>${ex.kelas}</b></td></tr>
@@ -860,10 +876,10 @@ async function cSoalPDF(exId, npsn){
         <tr><td style="border:none;padding:1px 0">Nama</td><td style="border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0;border-bottom:1px solid #000">&nbsp;</td><td style="border:none;padding:1px 0;text-align:right">Nilai</td><td style="border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0;border-bottom:1px solid #000">&nbsp;</td></tr>
       </table>
 
-      ${pgQuestions.length > 0 ? `<p style="text-align: left; font-weight: 700; margin-bottom: 10px; font-size: 11pt;">A. PILIHAN GANDA (Soal Nomor 1 s.d. ${pgCount}) &mdash; Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf ${isKelasKecil ? 'a, b, atau c' : 'a, b, c, atau d'}!</p>
+      ${pgQuestions.length > 0 ? `<p style="text-align: left; font-weight: 700; margin-bottom: 10px; font-size: ${fs}pt;">A. PILIHAN GANDA (Soal Nomor 1 s.d. ${pgCount}) &mdash; Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf ${isKelasKecil ? 'a, b, atau c' : 'a, b, c, atau d'}!</p>
       <div id="soalPgContainer">${pgHtml}</div>` : ''}
 
-      ${hasEssay ? `<p style="text-align: left; font-weight: 700; margin-bottom: 10px; margin-top: 18px; font-size: 11pt;">B. URAIAN (Soal Nomor ${pgCount+1} s.d. ${pgCount+esCount}) &mdash; Jawablah pertanyaan-pertanyaan di bawah ini dengan kalimat yang jelas dan tepat pada kolom yang telah disediakan!</p>
+      ${hasEssay ? `<p style="text-align: left; font-weight: 700; margin-bottom: 10px; margin-top: 18px; font-size: ${fs}pt;">B. URAIAN (Soal Nomor ${pgCount+1} s.d. ${pgCount+esCount}) &mdash; Jawablah pertanyaan-pertanyaan di bawah ini dengan kalimat yang jelas dan tepat pada kolom yang telah disediakan!</p>
       <div id="soalEssayContainer">${essayHtml}</div>` : ''}
     </div>
   `;
@@ -976,6 +992,7 @@ function renderSoal(c){
       
       if(D.isPusat){
         h+=`<button class="bt bt2 btx" onclick="editUjian('${ex.id}')"><i class="fas fa-edit"></i> Edit</button>
+          <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button>
           <button class="bt bt1 btx" onclick="sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Sebar</button>
           <button class="bt bt4 btx" onclick="hapusUjianPusat('${ex.id}')"><i class="fas fa-trash"></i></button>`;
       }else{
