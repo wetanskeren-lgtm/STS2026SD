@@ -790,6 +790,16 @@ async function cSoalPDF(exId, npsn){
   const LET = ['a','b','c','d','e','f'];
   const LOGO_URL = "https://cdn.phototourl.com/free/2026-09-04-7825e90c-b085-495b-ac97-b4d09f741830.jpg";
 
+  // Proxy gambar agar lolos CORS saat di-render html2canvas (gambar PASTI masuk PDF)
+  const corsImg = (url) => {
+    if(!url) return '';
+    try{
+      const u = new URL(url);
+      if(/images\.weserv\.nl/.test(u.hostname)) return url;
+      return 'https://images.weserv.nl/?url=' + encodeURIComponent(u.host + u.pathname + u.search) + '&output=jpg';
+    }catch(e){ return url; }
+  };
+
   const buildRow = (q, from, to) => `<div class="opsi-cols">` + q.options.slice(from, to).map((o, k) => {
     const j = from + k;
     let optText = '';
@@ -811,7 +821,7 @@ async function cSoalPDF(exId, npsn){
       opsiHtml = `<div class="opsi-list">` + q.options.map((o, j) => {
         let optText = '', optImg = '';
         if (typeof o === 'object' && o !== null) { optText = o.text || ''; optImg = o.image || ''; } else { optText = String(o); }
-        return `<div class="opsi-item"><span class="opsi-letter">${LET[j]}.</span><span class="opsi-text">${optText}</span>${optImg ? `<img src="${optImg}" onerror="this.style.display='none'"/>` : ''}</div>`;
+        return `<div class="opsi-item"><span class="opsi-letter">${LET[j]}.</span><span class="opsi-text">${optText}</span>${optImg ? `<img src="${corsImg(optImg)}" crossorigin="anonymous" onerror="this.style.display='none'"/>` : ''}</div>`;
       }).join('') + `</div>`;
     } else if (mo <= 3) {
       opsiHtml = buildRow(q, 0, q.options.length);
@@ -819,7 +829,7 @@ async function cSoalPDF(exId, npsn){
       opsiHtml = buildRow(q, 0, 2) + buildRow(q, 2, q.options.length);
     }
     let imageHtml = '';
-    if(q.image) imageHtml = `<div class="soal-img-wrap"><img src="${q.image}" onerror="this.style.display='none'"/></div>`;
+    if(q.image) imageHtml = `<div class="soal-img-wrap"><img src="${corsImg(q.image)}" crossorigin="anonymous" onerror="this.style.display='none'"/></div>`;
     pgHtml += `<div class="soal-block" id="soal-pg-${i}">
       <table class="soal-tbl"><tr>
         <td class="sn">${i + 1}.</td>
@@ -832,7 +842,7 @@ async function cSoalPDF(exId, npsn){
   if(hasEssay){
     essayQuestions.forEach((q, i) => {
       let imageHtml = '';
-      if(q.image) imageHtml = `<div class="soal-img-wrap"><img src="${q.image}" onerror="this.style.display='none'"/></div>`;
+      if(q.image) imageHtml = `<div class="soal-img-wrap"><img src="${corsImg(q.image)}" crossorigin="anonymous" onerror="this.style.display='none'"/></div>`;
       essayHtml += `<div class="soal-block" id="soal-es-${i}">
         <table class="soal-tbl"><tr>
           <td class="sn">${pgQuestions.length + i + 1}.</td>
@@ -856,10 +866,13 @@ async function cSoalPDF(exId, npsn){
         #pdSoal .soal-block{margin-bottom:${isKelasKecil?8:6}px;padding-bottom:${isKelasKecil?6:4}px}
         #pdSoal .opsi-cols + .opsi-cols{margin-top:${isKelasKecil?3:1}px}
         #pdSoal .sn{width:${isKelasKecil?28:24}px}
+        #pdSoal .soal-block,#pdSoal .soal-tbl,#pdSoal .soal-tbl tr,#pdSoal .soal-tbl td{page-break-inside:avoid !important;break-inside:avoid !important}
+        #pdSoal .soal-img-wrap,#pdSoal .opsi-item,#pdSoal .essay-box{page-break-inside:avoid !important;break-inside:avoid !important}
+        #pdSoal .soal-text{display:block}
       </style>
       <!-- KOP SURAT DENGAN LOGO -->
       <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:6px">
-        <img src="${LOGO_URL}" crossorigin="anonymous" style="width:40px;height:40px;object-fit:cover;border-radius:50%;border:1px solid #333;margin-bottom:2px;display:inline-block" onerror="this.style.display='none'"/>
+        <img src="${corsImg(LOGO_URL)}" crossorigin="anonymous" style="width:40px;height:40px;object-fit:cover;border-radius:50%;border:1px solid #333;margin-bottom:2px;display:inline-block" onerror="this.style.display='none'"/>
         <p style="font-size:8pt;font-weight:700;text-transform:uppercase;margin:0;line-height:1.2">PEMERINTAH KABUPATEN ${D.sch.kota ? D.sch.kota.toUpperCase() : 'MAJALENGKA'}</p>
         <p style="font-size:8pt;font-weight:700;text-transform:uppercase;margin:0;line-height:1.2">DINAS PENDIDIKAN</p>
         <h2 style="font-size:${fs-2}pt;font-weight:800;text-transform:uppercase;margin:2px 0 0;line-height:1.2">${D.sch.nama ? D.sch.nama.toUpperCase() : 'SEKOLAH'}</h2>
@@ -894,7 +907,7 @@ async function cSoalPDF(exId, npsn){
   try {
     await Promise.race([
       Promise.all([...box.querySelectorAll('img')].map(img => img.complete ? 1 : new Promise(res => { img.onload = res; img.onerror = res; }))),
-      new Promise(r => setTimeout(r, 12000))
+      new Promise(r => setTimeout(r, 18000))
     ]);
   } catch(e) {}
 
@@ -905,7 +918,7 @@ async function cSoalPDF(exId, npsn){
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollY: 0 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      pagebreak: { mode: ['css', 'legacy'] }
     }).from($('pdSoal')).save();
     tt('PDF Soal berhasil dibuat!', 'ok');
   } catch (e) {
