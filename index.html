@@ -129,6 +129,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div id="tt" class="tt"></div>
@@ -798,12 +799,33 @@ async function cSoalPDF(exId, npsn){
     }catch(e){ return url; }
   };
 
-  const buildRow = (q, from, to) => `<div class="opsi-cols">` + q.options.slice(from, to).map((o, k) => {
-    const j = from + k;
-    let optText = '';
-    if (typeof o === 'object' && o !== null) { optText = o.text || ''; } else { optText = String(o); }
-    return `<div class="opsi-col"><span class="opsi-letter">${LET[j]}.&nbsp;</span><span class="opsi-text">${capFirst(optText)}</span></div>`;
-  }).join('') + `</div>`;
+  const optTextOf = o => (typeof o === 'object' && o !== null) ? (o.text || '') : String(o);
+  /* Ambang batas "opsi panjang": kelas 1-2 font besar -> batas lebih ketat */
+  const LONG_LIM = isKelasKecil ? 35 : 55;
+  /* Konsisten per soal: jika ADA SATU opsi panjang -> seluruh opsi soal itu menurun */
+  const isLongOpt = q => q.options.some(o => optTextOf(o).length > LONG_LIM);
+
+  /* Vertikal (menurun) */
+  const buildList = q => `<div class="opsi-list">` + q.options.map((o, j) =>
+    `<div class="opsi-item"><span class="opsi-letter">${LET[j]}.&nbsp;</span><span class="opsi-text">${capFirst(optTextOf(o))}</span></div>`
+  ).join('') + `</div>`;
+
+  /* Sejajar 1 baris (kelas 1-2 opsi pendek): A  B  C */
+  const buildRow = q => `<div class="opsi-cols">` + q.options.map((o, j) =>
+    `<div class="opsi-col"><span class="opsi-letter">${LET[j]}.&nbsp;</span><span class="opsi-text">${capFirst(optTextOf(o))}</span></div>`
+  ).join('') + `</div>`;
+
+  /* 2 kolom (kelas 3-6 opsi pendek): kiri A,B · kanan C,D */
+  const build2Col = q => {
+    const n = q.options.length, half = Math.ceil(n / 2);
+    return `<div class="opsi-cols">` + [0, 1].map(c => {
+      const from = c * half, to = Math.min(n, (c + 1) * half);
+      const items = q.options.slice(from, to).map((o, k) =>
+        `<div class="opsi-item" style="margin:0 0 1px"><span class="opsi-letter">${LET[from + k]}.&nbsp;</span><span class="opsi-text">${capFirst(optTextOf(o))}</span></div>`
+      ).join('');
+      return `<div class="opsi-col">${items}</div>`;
+    }).join('') + `</div>`;
+  };
 
   const pgQuestions = ex.questions.filter(q => q.type !== 'essay');
   const essayQuestions = ex.questions.filter(q => q.type === 'essay');
@@ -819,15 +841,15 @@ async function cSoalPDF(exId, npsn){
         if (typeof o === 'object' && o !== null) { optText = o.text || ''; optImg = o.image || ''; } else { optText = String(o); }
         return `<div class="opsi-item"><span class="opsi-letter">${LET[j]}.&nbsp;</span><span class="opsi-text">${capFirst(optText)}</span>${optImg ? `<img src="${corsImg(optImg)}" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="this.onerror=null;this.crossOrigin=null;this.src='${optImg}';this.onerror=function(){this.style.display='none';};"/>` : ''}</div>`;
       }).join('') + `</div>`;
+    } else if (isLongOpt(q)) {
+      /* Opsinya panjang -> seluruh opsi soal ini MENURUN (konsisten) */
+      opsiHtml = buildList(q);
     } else if (isKelasKecil) {
-      opsiHtml = `<div class="opsi-list">` + q.options.map((o, j) => {
-        const optText = (typeof o === 'object' && o !== null) ? (o.text || '') : String(o);
-        return `<div class="opsi-item"><span class="opsi-letter">${LET[j]}.&nbsp;</span><span class="opsi-text">${capFirst(optText)}</span></div>`;
-      }).join('') + `</div>`;
-    } else if (mo <= 3) {
-      opsiHtml = buildRow(q, 0, q.options.length);
+      /* Kelas 1-2 opsi pendek -> sejajar 1 baris */
+      opsiHtml = buildRow(q);
     } else {
-      opsiHtml = buildRow(q, 0, 2) + buildRow(q, 2, q.options.length);
+      /* Kelas 3-6 opsi pendek -> 2 kolom: kiri A,B · kanan C,D */
+      opsiHtml = build2Col(q);
     }
     let imageHtml = '';
     if(q.image) imageHtml = `<div class="soal-img-wrap"><img src="${corsImg(q.image)}" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="this.onerror=null;this.crossOrigin=null;this.src='${q.image}';this.onerror=function(){this.parentElement.style.display='none';};"/></div>`;
