@@ -130,6 +130,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div id="tt" class="tt"></div>
@@ -514,8 +515,51 @@ function imgProxyAlt(url){
   try{
     const u=new URL(url);
     if(!u.host) return url;
-    return 'https://images.weserv.nl/?url='+encodeURIComponent(url)+'&output=jpg&n=-1';
+    return 'https://wsrv.nl/?url='+encodeURIComponent(url)+'&output=jpg&n=-1';
   }catch(e){ return url; }
+}
+
+/* Proxy fallback ketiga: allOrigins (raw) */
+function imgAllOrigins(url){
+  if(!url) return '';
+  if(url.startsWith('data:')||url.startsWith('blob:')) return url;
+  try{ return 'https://api.allorigins.win/raw?url='+encodeURIComponent(url); }catch(e){ return url; }
+}
+
+/* Rantai fallback otomatis utk <img> di halaman (ujian siswa / pratinjau admin).
+   Coba: proxy1 (weserv) -> proxy2 (wsrv.nl) -> proxy3 (allOrigins) -> sembunyikan. */
+function imgErr(el){
+  if(!el.dataset.orig) el.dataset.orig = el.getAttribute('src') || '';
+  const orig = el.dataset.orig;
+  if(!orig){ el.style.display='none'; return; }
+  if(orig.startsWith('data:')||orig.startsWith('blob:')){ el.style.display='none'; return; }
+  const chain = [];
+  [imgProxy(orig), imgProxyAlt(orig), imgAllOrigins(orig)].forEach(u=>{
+    if(u && u !== orig && !chain.includes(u)) chain.push(u);
+  });
+  const i = parseInt(el.dataset.fbi || '0', 10);
+  if(i < chain.length){ el.dataset.fbi = String(i+1); el.src = chain[i]; }
+  else el.style.display = 'none';
+}
+
+/* Muat gambar via fetch (CORS) dengan rantai fallback -> blob URL.
+   Blob URL 100% aman dirender html2canvas/html2pdf (tidak kena CORS/hotlink). */
+async function loadImgBlob(url){
+  if(!url) return null;
+  if(url.startsWith('data:') || url.startsWith('blob:')) return url;
+  const cands = [...new Set([url, imgProxy(url), imgProxyAlt(url), imgAllOrigins(url)])];
+  for(const c of cands){
+    try{
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 12000);
+      const r = await fetch(c, {mode:'cors', signal:ctrl.signal, referrerPolicy:'no-referrer'});
+      clearTimeout(to);
+      if(!r.ok) continue;
+      const b = await r.blob();
+      if(b && (b.type||'').startsWith('image') && b.size > 80) return URL.createObjectURL(b);
+    }catch(e){}
+  }
+  return null;
 }
 
 function rQ(){
@@ -524,7 +568,7 @@ function rQ(){
   let h=`<div class="asu"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p><h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:4px">${q.text}</h3>`;
   
   if(q.image){
-    h+=`<img src="${q.image}" referrerpolicy="no-referrer" class="q-img" alt="Gambar Soal" onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='${imgProxy(q.image)}';}else if(!this.dataset.fb2){this.dataset.fb2='1';this.src='${imgProxyAlt(q.image)}';}else{this.style.display='none'}">`;
+    h+=`<img src="${q.image}" referrerpolicy="no-referrer" class="q-img" alt="Gambar Soal" onerror="imgErr(this)">`;
   }
   
   h+=`<div class="grid gap-3" style="margin-top:12px">`;
@@ -535,7 +579,7 @@ function rQ(){
       let optText='',optImg='';
       if(typeof o==='object'&&o!==null){optText=o.text||'';optImg=o.image||'';}else{optText=String(o);}
       let inner='';
-      if(optImg)inner+=`<img src="${optImg}" referrerpolicy="no-referrer" style="display:block;width:auto;max-width:100%;max-height:130px;object-fit:contain;border-radius:10px;border:2px solid var(--bd);background:#faf6f1;margin:0 auto 8px" alt="Opsi ${OL_FULL[j]}" onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='${imgProxy(optImg)}';}else if(!this.dataset.fb2){this.dataset.fb2='1';this.src='${imgProxyAlt(optImg)}';}else{this.style.display='none'}">`;
+      if(optImg)inner+=`<img src="${optImg}" referrerpolicy="no-referrer" style="display:block;width:auto;max-width:100%;max-height:130px;object-fit:contain;border-radius:10px;border:2px solid var(--bd);background:#faf6f1;margin:0 auto 8px" alt="Opsi ${OL_FULL[j]}" onerror="imgErr(this)">`;
       inner+=`<span class="lt">${OL_FULL[j]}</span><span style="flex:1">${optText}</span>`;
       h+=`<div class="oc ${D.an[i]===j?'sl':''}" onclick="pA(${j})">${inner}</div>`;
     });
@@ -927,41 +971,24 @@ async function cSoalPDF(exId, npsn){
   box.style.left = '0'; box.style.top = '0'; box.style.zIndex = '9999';
   box.innerHTML = html;
 
-  tt('Menyesuaikan layout PDF...', 'in');
+  tt('Memuat & menyiapkan gambar...', 'in');
 
-  await new Promise(r => setTimeout(r, 300));
+  await new Promise(r => setTimeout(r, 200));
   try {
-    const pdfImgs = [...box.querySelectorAll('img.pdf-img')];
-    const otherImgs = [...box.querySelectorAll('img:not(.pdf-img)')];
-    const settlePdfImg = img => new Promise(resolve => {
-      let tried = false;
-      const hide = () => {
+    const allImgs = [...box.querySelectorAll('img')];
+    await Promise.all(allImgs.map(async img => {
+      const orig = img.getAttribute('src');
+      if(!orig){ img.style.display = 'none'; return; }
+      const blobUrl = await loadImgBlob(orig);
+      if(blobUrl){
+        img.src = blobUrl;
+        try { await img.decode(); } catch(e) {}
+      } else {
         if(img.dataset.hide === 'wrap'){ const w = img.closest('.soal-img-wrap'); if(w) w.style.display = 'none'; }
-        else { img.style.display = 'none'; }
-        resolve();
-      };
-      const onLoad = () => { img.removeEventListener('error', onError); resolve(); };
-      const onError = () => {
-        if(!tried && img.dataset.alt){ tried = true; img.src = img.dataset.alt; }
-        else { img.removeEventListener('load', onLoad); hide(); }
-      };
-      if(img.complete && img.naturalWidth > 0){ resolve(); return; }
-      img.addEventListener('load', onLoad, {once:true});
-      img.addEventListener('error', onError);
-    });
-    const settleOther = img => img.complete ? Promise.resolve() : new Promise(res => { img.addEventListener('load', res, {once:true}); img.addEventListener('error', res, {once:true}); });
-    await Promise.race([
-      Promise.all([...pdfImgs.map(settlePdfImg), ...otherImgs.map(settleOther)]),
-      new Promise(r => setTimeout(r, 18000))
-    ]);
+        else img.style.display = 'none';
+      }
+    }));
   } catch(e) {}
-
-  [...box.querySelectorAll('img')].forEach(img => {
-    if(!img.naturalWidth){
-      const w = img.closest('.soal-img-wrap');
-      if(w) w.style.display = 'none'; else img.style.display = 'none';
-    }
-  });
 
   try {
     await html2pdf().set({
@@ -1248,7 +1275,7 @@ function previewQImg(){
   const url=$v('eqImg');const prev=$('eqImgPrev');
   if(!url){prev.innerHTML='';return;}
   prev.innerHTML=`<div style="display:flex;align-items:center;gap:10px">
-    <img src="${url}" style="max-width:200px;max-height:150px;border-radius:10px;border:2px solid var(--bd);object-fit:contain;background:#faf6f1" onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='${imgProxy(url)}';}else{this.style.display='none';this.nextElementSibling.style.display='inline'}">
+    <img src="${url}" style="max-width:200px;max-height:150px;border-radius:10px;border:2px solid var(--bd);object-fit:contain;background:#faf6f1" onerror="imgErr(this);if(this.style.display==='none'&&this.nextElementSibling)this.nextElementSibling.style.display='inline'">
     <span style="display:none;color:var(--er);font-size:.78rem;font-weight:700"><i class="fas fa-triangle-exclamation"></i> Gambar tidak bisa dimuat — cek URL</span>
   </div>`;
 }
@@ -1605,7 +1632,7 @@ function koreksiEssay(rid, npsn){
 
   if(esArr.length){
     h+=`<h4 style="font-size:.9rem;margin-bottom:8px;color:var(--pr)"><i class="fas fa-align-left mr-1"></i> Uraian — Soal No. ${pgArr.length+1} s.d. ${pgArr.length+esArr.length}</h4><div style="max-height:280px;overflow-y:auto;margin-bottom:14px;padding-right:4px">`;
-    esArr.forEach((e,i)=>{h+=`<div class="cd mb-2" style="padding:12px 14px"><p style="font-weight:800;margin-bottom:6px;font-size:.85rem">Soal No. ${pgArr.length+i+1} <span style="color:var(--mt);font-weight:600">(Uraian ke-${i+1} dari ${esArr.length})</span>:</p><p style="margin-bottom:8px;font-size:.85rem">${e.text}</p>${e.image?`<img src="${e.image}" class="q-img" style="max-height:130px" onerror="this.style.display='none'">`:''}
+    esArr.forEach((e,i)=>{h+=`<div class="cd mb-2" style="padding:12px 14px"><p style="font-weight:800;margin-bottom:6px;font-size:.85rem">Soal No. ${pgArr.length+i+1} <span style="color:var(--mt);font-weight:600">(Uraian ke-${i+1} dari ${esArr.length})</span>:</p><p style="margin-bottom:8px;font-size:.85rem">${e.text}</p>${e.image?`<img src="${e.image}" referrerpolicy="no-referrer" class="q-img" style="max-height:130px" onerror="imgErr(this)">`:''}
       <div style="background:var(--bg);padding:8px 10px;border-radius:10px;margin-bottom:8px"><p style="font-size:.76rem;color:var(--mt)"><b>Kunci:</b> ${e.key||'-'}</p></div>
       <div style="background:#EFF6FF;padding:8px 10px;border-radius:10px;margin-bottom:10px"><p style="font-size:.76rem;color:var(--inf)"><b>Jawaban:</b> ${e.answer||'-'}</p></div>
       <label class="block mb-1 font-bold" style="font-size:.8rem">Nilai (0-100)</label><input class="ip" type="number" id="esScore${i}" value="${e.score||0}" min="0" max="100" style="max-width:120px;padding:6px 10px"></div>`;});
