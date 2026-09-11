@@ -15,6 +15,11 @@
 const firebaseConfig={apiKey:"AIzaSyDUYQzyiCnTn43A78hXb5kO0BUEBHyO0Y4",authDomain:"pts2026-fb4d7.firebaseapp.com",projectId:"pts2026-fb4d7",storageBucket:"pts2026-fb4d7.firebasestorage.app",messagingSenderId:"167251105079",appId:"1:167251105079:web:c652c51458227620f236b2",measurementId:"G-SEF0HCJ5CK"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
+/* ====== KONFIGURASI WAJIB ======
+   Ganti RTDB_URL dengan URL Realtime Database Anda sendiri:
+   Firebase Console → Build → Realtime Database → salin URL di bagian atas
+   (bentuknya: https://<project>-default-rtdb.<region>.firebasedatabase.app) */
+const RTDB_URL='https://pts2026-fb4d7-default-rtdb.asia-southeast1.firebasedatabase.app';
 </script>
 <style>
 :root{--bg:#FFF8F0;--fg:#2D1B00;--mt:#8B7355;--ac:#FF6B35;--ac2:#00B4D8;--cd:#FFF;--bd:#F0E0CC;--ok:#22C55E;--er:#EF4444;--inf:#3B82F6;--pr:#6366F1}
@@ -130,6 +135,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div id="tt" class="tt"></div>
@@ -141,6 +147,19 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
   <div class="cd asu" style="max-width:560px;width:100%;margin:16px">
     <div class="text-center mb-6"><div style="font-size:3rem;margin-bottom:8px"><i class="fas fa-shield-halved" style="color:var(--ac)"></i></div><h2 style="font-size:1.4rem;margin-bottom:6px">Setup Firebase Rules</h2><p style="color:var(--mt);font-size:.85rem">Langkah pertama: atur akses database</p></div>
     <div class="grid gap-4 mb-6">
+      <div class="step-box" id="step0"><div class="step-num">0</div><h4 style="font-size:.95rem;margin-bottom:4px">Aktifkan Realtime Database (wajib utk gambar)</h4><p style="color:var(--mt);font-size:.82rem;margin-bottom:8px">Console → <b>Build → Realtime Database</b> → Create Database (test mode) → tab <b>Rules</b>:</p>
+        <div style="background:#1e1e1e;color:#d4d4d4;border-radius:12px;padding:16px;text-align:left;font-family:monospace;font-size:.78rem;line-height:1.6;position:relative;overflow:hidden">
+          <button onclick="navigator.clipboard.writeText($('rtdbCode').textContent).then(()=>tt('Disalin!'))" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,.15);color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.72rem;font-family:'Nunito'"><i class="fas fa-copy"></i> Salin</button>
+          <pre id="rtdbCode" style="margin:0;white-space:pre-wrap;word-break:break-all">{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}</pre>
+        </div>
+        <a href="https://console.firebase.google.com/project/pts2026-fb4d7/database" target="_blank" class="bt bt3" style="padding:9px 16px;font-size:.82rem;justify-content:center;width:100%;margin-top:10px"><i class="fas fa-external-link-alt"></i> Buka Realtime Database</a>
+        <p style="color:var(--mt);font-size:.75rem;margin-top:8px"><i class="fas fa-circle-info mr-1" style="color:var(--ac2)"></i> Terakhir: salin URL database Anda ke konstanta <b>RTDB_URL</b> di dalam kode (langkah ini hanya sekali).</p>
+      </div>
       <div class="step-box" id="step1"><div class="step-num">1</div><h4 style="font-size:.95rem;margin-bottom:4px">Buka Firebase Console</h4><p style="color:var(--mt);font-size:.82rem;margin-bottom:10px">Login akun Google yang sama</p><a href="https://console.firebase.google.com/project/pts2026-fb4d7/firestore/rules" target="_blank" class="bt bt1" style="padding:10px 20px;font-size:.88rem;justify-content:center;width:100%"><i class="fas fa-external-link-alt"></i> Buka Firebase Console</a></div>
       <div class="step-box" id="step2"><div class="step-num">2</div><h4 style="font-size:.95rem;margin-bottom:4px">Ganti Rules</h4><p style="color:var(--mt);font-size:.82rem;margin-bottom:8px">Hapus semua, paste:</p>
         <div style="background:#1e1e1e;color:#d4d4d4;border-radius:12px;padding:16px;text-align:left;font-family:monospace;font-size:.78rem;line-height:1.6;position:relative;overflow:hidden">
@@ -329,8 +348,10 @@ function $v(id){return $(id).value.trim()}
 async function checkRules(){
   const msg=$('setupMsg');msg.style.display='block';
   msg.innerHTML='<div class="text-center"><div class="spn" style="margin-bottom:12px"></div><p style="font-weight:700;color:var(--mt)">Menguji koneksi...</p></div>';
+  let rtdbOk=false;
   try{const r=db.collection('_ct').doc('p');await r.set({t:Date.now()});await r.delete();
-    msg.innerHTML='<div class="text-center" style="padding:16px"><div style="font-size:2.5rem;margin-bottom:8px;color:var(--ok)"><i class="fas fa-check-circle"></i></div><p style="font-weight:800;color:var(--ok);font-size:1.1rem">Koneksi Berhasil!</p></div>';
+    try{const ru=RTDB_URL+'/_ct_test.json';const pr=await fetch(ru,{method:'PUT',body:'"ok"'});if(pr.ok){await fetch(ru,{method:'DELETE'});rtdbOk=true;}}catch(e){}
+    msg.innerHTML='<div class="text-center" style="padding:16px"><div style="font-size:2.5rem;margin-bottom:8px;color:var(--ok)"><i class="fas fa-check-circle"></i></div><p style="font-weight:800;color:var(--ok);font-size:1.1rem">Koneksi Berhasil!</p>'+(rtdbOk?'<p style="font-size:.8rem;color:var(--ok);margin-top:6px"><i class="fas fa-image mr-1"></i> Realtime Database OK — upload gambar siap dipakai.</p>':'<p style="font-size:.8rem;color:#B45309;margin-top:6px"><i class="fas fa-triangle-exclamation mr-1"></i> Realtime Database belum aktif — gambar tidak bisa diupload. Ikuti langkah 0.</p>')+'</div>';
     $('step1').classList.add('active');$('step2').classList.add('active');$('step3').classList.add('active');$('step4').querySelector('.step-num').classList.add('done');
     await new Promise(r=>setTimeout(r,1200));go('pH');
   }catch(e){msg.innerHTML=`<div class="text-center" style="padding:16px"><div style="font-size:2.5rem;margin-bottom:8px;color:var(--er)"><i class="fas fa-times-circle"></i></div><p style="font-weight:800;color:var(--er)">Gagal</p><p style="font-size:.82rem;margin:8px 0">${e.code||e.message}</p><button class="bt bt3 bts" onclick="checkRules()"><i class="fas fa-redo"></i> Coba Lagi</button></div>`;}
@@ -575,10 +596,21 @@ async function loadImgBlob(url){
   for(const c of imgChain(url)){
     try{
       const ctrl = new AbortController();
-      const to = setTimeout(() => ctrl.abort(), 10000);
+      const to = setTimeout(() => ctrl.abort(), 12000);
       const r = await fetch(c, {mode:'cors', signal:ctrl.signal, referrerPolicy:'no-referrer'});
       clearTimeout(to);
       if(!r.ok) continue;
+      /* KHUSUS Realtime Database: response-nya JSON string berisi data URL */
+      if(c.indexOf('firebasedatabase.app') !== -1 || c.indexOf('firebaseio.com') !== -1){
+        const txt = await r.text();
+        let dataUrl = null;
+        try{ dataUrl = JSON.parse(txt); }catch(e){ dataUrl = txt; }
+        if(typeof dataUrl === 'string' && dataUrl.indexOf('data:image') === 0){
+          const rb = await (await fetch(dataUrl)).blob();
+          if(rb && rb.size > 80){ result = URL.createObjectURL(rb); break; }
+        }
+        continue;
+      }
       const b = await r.blob();
       if(b && (b.type||'').startsWith('image') && b.size > 80){ result = URL.createObjectURL(b); break; }
     }catch(e){}
@@ -605,27 +637,29 @@ function imgSrcFor(url){
   return (typeof c==='string' && c) ? c : url;
 }
 
-function rQ(){
+async function rQ(){
   const ex=D.cEx,i=D.cQ,q=ex.questions[i],t=ex.questions.length;
   $('eP').style.width=((i+1)/t*100)+'%';
   let h=`<div class="asu"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p><h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:4px">${q.text}</h3>`;
   
   if(q.image){
-    h+=`<img src="${imgSrcFor(q.image)}" referrerpolicy="no-referrer" class="q-img" alt="Gambar Soal" onerror="imgErr(this)">`;
+    const bu=await loadImgBlob(q.image);
+    h+=`<img src="${bu||''}" referrerpolicy="no-referrer" class="q-img" alt="Gambar Soal" onerror="imgErr(this)">`;
   }
   
   h+=`<div class="grid gap-3" style="margin-top:12px">`;
   if(q.type==='essay'){
     h+=`<textarea class="ip" id="ansEss" rows="5" placeholder="Tulis jawaban uraian..." oninput="D.an[${i}]=$('ansEss').value;autoSaveLocal()">${D.an[i]||''}</textarea>`;
   }else{
-    q.options.forEach((o,j)=>{
+    for(let j=0;j<q.options.length;j++){
+      const o=q.options[j];
       let optText='',optImg='';
       if(typeof o==='object'&&o!==null){optText=o.text||'';optImg=o.image||'';}else{optText=String(o);}
       let inner='';
-      if(optImg)inner+=`<img src="${imgSrcFor(optImg)}" referrerpolicy="no-referrer" style="display:block;width:auto;max-width:100%;max-height:130px;object-fit:contain;border-radius:10px;border:2px solid var(--bd);background:#faf6f1;margin:0 auto 8px" alt="Opsi ${OL_FULL[j]}" onerror="imgErr(this)">`;
+      if(optImg){const bu2=await loadImgBlob(optImg);inner+=`<img src="${bu2||''}" referrerpolicy="no-referrer" style="display:block;width:auto;max-width:100%;max-height:130px;object-fit:contain;border-radius:10px;border:2px solid var(--bd);background:#faf6f1;margin:0 auto 8px" alt="Opsi ${OL_FULL[j]}" onerror="imgErr(this)">`;}
       inner+=`<span class="lt">${OL_FULL[j]}</span><span style="flex:1">${optText}</span>`;
       h+=`<div class="oc ${D.an[i]===j?'sl':''}" onclick="pA(${j})">${inner}</div>`;
-    });
+    }
   }
   h+=`</div></div>`;$('eA').innerHTML=h;
   
@@ -1353,24 +1387,39 @@ function addOptRow(){
 function previewQImg(){
   const url=$v('eqImg');const prev=$('eqImgPrev');
   if(!url){prev.innerHTML='';return;}
-  prev.innerHTML=`<div style="display:flex;align-items:center;gap:10px">
-    <img src="${url}" style="max-width:200px;max-height:150px;border-radius:10px;border:2px solid var(--bd);object-fit:contain;background:#faf6f1" onerror="imgErr(this);if(this.style.display==='none'&&this.nextElementSibling)this.nextElementSibling.style.display='inline'">
-    <span style="display:none;color:var(--er);font-size:.78rem;font-weight:700"><i class="fas fa-triangle-exclamation"></i> Gambar tidak bisa dimuat — cek URL atau pakai Upload</span>
-  </div>`;
+  prev.innerHTML='<div class="spn" style="width:24px;height:24px"></div>';
+  loadImgBlob(url).then(bu=>{
+    if(!bu){prev.innerHTML='<span style="color:var(--er);font-size:.78rem;font-weight:700"><i class="fas fa-triangle-exclamation"></i> Gambar tidak bisa dimuat — cek URL atau pakai Upload</span>';return;}
+    prev.innerHTML=`<div style="display:flex;align-items:center;gap:10px">
+      <img src="${bu}" style="max-width:200px;max-height:150px;border-radius:10px;border:2px solid var(--bd);object-fit:contain;background:#faf6f1">
+      <span style="color:var(--ok);font-size:.78rem;font-weight:700"><i class="fas fa-circle-check"></i> Gambar OK</span>
+    </div>`;
+  });
 }
 
-/* Konversi file gambar -> data URL (dikompres, max 800px, JPEG).
-   Data URL tersimpan langsung di soal -> tampil di ujian siswa & PDF tanpa masalah CORS/hotlink. */
-function fileToDataURL(file, cb){
+/* Upload gambar -> Realtime Database (gratis, CORS *).
+   Gambar dikompres (max 800px, JPEG q0.75) -> base64 -> simpan di RTDB -> simpan URL-nya di soal.
+   URL RTDB aman di <img> siswa & tercetak di PDF. */
+async function uploadImageToRTDB(file, cb){
   const r=new FileReader();
   r.onload=e=>{
     const img=new Image();
-    img.onload=()=>{
+    img.onload=async ()=>{
       const max=800;let w=img.width,h=img.height;
       if(w>max){h=Math.round(h*max/w);w=max;}
       const cv=document.createElement('canvas');cv.width=w;cv.height=h;
       cv.getContext('2d').drawImage(img,0,0,w,h);
-      cb(cv.toDataURL('image/jpeg',0.85));
+      const dataUrl=cv.toDataURL('image/jpeg',0.75);
+      try{
+        const key=uid();
+        const url=RTDB_URL+'/gambar/'+key+'.json';
+        const resp=await fetch(url,{method:'PUT',body:JSON.stringify(dataUrl)});
+        if(!resp.ok) throw new Error('RTDB HTTP '+resp.status);
+        cb(url);
+      }catch(err){
+        hd();
+        tt('Upload gagal: aktifkan Realtime Database (langkah 0) & cek RTDB_URL di kode!','er');
+      }
     };
     img.onerror=()=>{hd();tt('File bukan gambar valid!','er');};
     img.src=e.target.result;
@@ -1381,8 +1430,8 @@ function fileToDataURL(file, cb){
 function uploadQImg(inp){
   const f=inp.files[0];if(!f)return;
   if(f.size>5*1024*1024){tt('Maks 5MB!','er');inp.value='';return;}
-  ld('Memproses & mengompres gambar...');
-  fileToDataURL(f,url=>{$('eqImg').value=url;hd();previewQImg();tt('Gambar terpasang & akan tersimpan di soal!');});
+  ld('Mengompres & mengupload gambar...');
+  uploadImageToRTDB(f,url=>{$('eqImg').value=url;hd();previewQImg();tt('Gambar tersimpan di Realtime Database!');});
   inp.value='';
 }
 
@@ -1391,7 +1440,7 @@ function updOptPrev(inp){
   const prev=row.querySelector('.opt-prev');if(!prev)return;
   const im=prev.querySelector('img');if(!im)return;
   const v=(inp.value||'').trim();
-  if(v){prev.style.display='';im.style.display='';im.src=v;}
+  if(v){prev.style.display='';im.style.display='';im.src='';loadImgBlob(v).then(bu=>{im.src=bu||v;});}
   else{prev.style.display='none';}
 }
 
@@ -1400,8 +1449,8 @@ function uploadOptImg(inp){
   if(f.size>5*1024*1024){tt('Maks 5MB!','er');inp.value='';return;}
   const row=inp.closest('div[style]');const target=row?row.querySelector('.opt-img'):null;
   if(!target){tt('Target input tidak ditemukan!','er');inp.value='';return;}
-  ld('Memproses & mengompres gambar...');
-  fileToDataURL(f,url=>{target.value=url;updOptPrev(target);hd();tt('Gambar opsi terpasang!');});
+  ld('Mengompres & mengupload gambar...');
+  uploadImageToRTDB(f,url=>{target.value=url;updOptPrev(target);hd();tt('Gambar opsi tersimpan!');});
   inp.value='';
 }
 
@@ -1840,7 +1889,7 @@ function onFilterSiswaRombel(){D._siswaFilterRombel=$v('fSwRombel');renderSiswa(
 
 function showTambahSiswa(edit){
   oMo(`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-user-plus mr-2" style="color:var(--ac)"></i>${edit?'Edit':'Tambah'} Siswa</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
-    <div class="grid grid-cols-3 gap-3 mb-3"><div><label class="block mb-1 font-bold" style="font-size:.82rem">NIS *</label><input id="swNIS" class="ip" maxlength="20" ${edit?'readonly style="opacity:.6"':''} value="${edit?edit.nis:''}"></div><div><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas *</label><select id="swKelas" class="ip">${KL.map(k=>`<option value="${k.v}" ${edit&&edit.kelas===k.v?'selected':''}>Kelas ${k.l}</option>`).join('')}</select></div><div><label class="block mb-1 font-bold" style="font-size:.82rem">Rombel *</label><select id="swRombel" class="ip">${['A','B','C','D','E','F'].map(v=>`<option value="${v}" ${edit&&edit.rombel===v?'selected':''}>${v}</option>`).join('')}</select></div></div>
+    <div class="grid grid-cols-3 gap-3 mb-3"><div><label class="block mb-1 font-bold" style="font-size:.82rem">NIS *</label><input id="swNIS" class="ip" ${edit?'readonly style="opacity:.6"':''} value="${edit?edit.nis:''}"></div><div><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas *</label><select id="swKelas" class="ip">${KL.map(k=>`<option value="${k.v}" ${edit&&edit.kelas===k.v?'selected':''}>Kelas ${k.l}</option>`).join('')}</select></div><div><label class="block mb-1 font-bold" style="font-size:.82rem">Rombel *</label><input id="swRombel" class="ip" value="${edit?(edit.rombel||'A'):'A'}" placeholder="A / B / 1 / bebas"></div></div>
     <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Nama *</label><input id="swNama" class="ip" value="${edit?edit.nama:''}"></div>
     <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Ortu/Wali</label><input id="swOrtu" class="ip" value="${edit?edit.ortu||'':''}"></div>
     <div class="mb-4"><label class="block mb-1 font-bold" style="font-size:.82rem">Password *</label><input id="swPwd" class="ip" type="text" value="${edit?edit.password:'siswa123'}"></div>
@@ -1866,7 +1915,7 @@ function showImportSiswaJSON(){
     </div>
     <div class="grid grid-cols-2 gap-3 mb-4">
       <div><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas Tujuan *</label><select id="impKelas" class="ip">${KL.map(k=>`<option value="${k.v}">Kelas ${k.l}</option>`).join('')}</select></div>
-      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Rombel Tujuan *</label><select id="impRombel" class="ip">${['A','B','C','D','E','F'].map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div>
+      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Rombel Tujuan *</label><input id="impRombel" class="ip" value="A" placeholder="A / B / 1 / bebas"></div>
     </div>
     <div class="mb-3"><input type="file" accept=".json" onchange="const r=new FileReader();r.onload=e=>{$('siswaTA').value=e.target.result;tt('Dimuat!')};r.readAsText(this.files[0])" class="ip" style="padding:10px"></div>
     <textarea id="siswaTA" class="json-ta" style="min-height:140px" placeholder='[{"nis":"001","nama":"Budi","ortu":"Pak Budi","password":"siswa123"}]'></textarea>
@@ -1883,7 +1932,7 @@ async function doImportSiswaJSON(){
   const prog=$('impProgress');
   ld(`Mengimport 0/${valid.length} siswa...`);
   let count=0;
-  const CHUNK=450; // di bawah batas 500 operasi per batch Firestore, tanpa batas jumlah total siswa
+  const CHUNK=450; // batas teknis Firestore (max 500 operasi/batch) — LOOP terus sampai semua terimport, JUMLAH SISWA TANPA BATAS
   for(let i=0;i<valid.length;i+=CHUNK){
     const slice=valid.slice(i,i+CHUNK);
     const batch=db.batch();
