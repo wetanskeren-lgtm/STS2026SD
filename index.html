@@ -857,6 +857,7 @@ async function cSoalPDF(exId, npsn){
         #pdSoal .kop-block,#pdSoal .info-block{page-break-inside:avoid !important;break-inside:avoid !important}
         #pdSoal .soal-block,#pdSoal .soal-tbl,#pdSoal .soal-tbl tr,#pdSoal .soal-tbl td{page-break-inside:avoid !important;break-inside:avoid !important}
         #pdSoal .soal-img-wrap,#pdSoal .opsi-item,#pdSoal .essay-box{page-break-inside:avoid !important;break-inside:avoid !important}
+        #pdSoal .section-head{page-break-after:avoid !important;break-after:avoid !important;page-break-inside:avoid !important;break-inside:avoid !important}
         #pdSoal .soal-text{display:block}
         /* Jika gambar gagal dimuat, kotak kosong disembunyikan otomatis lewat onerror di setiap <img> */
       </style>
@@ -879,10 +880,10 @@ async function cSoalPDF(exId, npsn){
         <tr><td style="border:none;padding:1px 0">Nama</td><td style="border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0;border-bottom:1px solid #000">&nbsp;</td><td style="border:none;padding:1px 0;text-align:right">Nilai</td><td style="border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0;border-bottom:1px solid #000">&nbsp;</td></tr>
       </table>
 
-      ${pgQuestions.length > 0 ? `<p style="text-align: left; font-weight: 700; margin-bottom: 10px; font-size: ${fs}pt;">A. PILIHAN GANDA (Soal Nomor 1 s.d. ${pgCount}) &mdash; Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf ${isKelasKecil ? 'a, b, atau c' : 'a, b, c, atau d'}!</p>
+      ${pgQuestions.length > 0 ? `<p class="section-head" style="text-align: left; font-weight: 700; margin-bottom: 10px; font-size: ${fs}pt;">A. PILIHAN GANDA (Soal Nomor 1 s.d. ${pgCount}) &mdash; Pilihlah salah satu jawaban yang paling tepat dengan memberi tanda silang (X) pada huruf ${isKelasKecil ? 'a, b, atau c' : 'a, b, c, atau d'}!</p>
       <div id="soalPgContainer">${pgHtml}</div>` : ''}
 
-      ${hasEssay ? `<p style="text-align: left; font-weight: 700; margin-bottom: 10px; margin-top: 18px; font-size: ${fs}pt;">B. URAIAN (Soal Nomor ${pgCount+1} s.d. ${pgCount+esCount}) &mdash; Jawablah pertanyaan-pertanyaan di bawah ini dengan kalimat yang jelas dan tepat pada kolom yang telah disediakan!</p>
+      ${hasEssay ? `<p class="section-head" style="text-align: left; font-weight: 700; margin-bottom: 10px; margin-top: 18px; font-size: ${fs}pt;">B. URAIAN (Soal Nomor ${pgCount+1} s.d. ${pgCount+esCount}) &mdash; Jawablah pertanyaan-pertanyaan di bawah ini dengan kalimat yang jelas dan tepat pada kolom yang telah disediakan!</p>
       <div id="soalEssayContainer">${essayHtml}</div>` : ''}
     </div>
   `;
@@ -908,7 +909,7 @@ async function cSoalPDF(exId, npsn){
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', scrollY: 0 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['avoid-all', 'css'] }
+      pagebreak: { mode: ['avoid-all', 'css'], avoid: ['.soal-block', '.kop-block', '.info-block', '.section-head'] }
     }).from($('pdSoal')).save();
     tt('PDF Soal berhasil dibuat!', 'ok');
   } catch (e) {
