@@ -129,12 +129,6 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 </style>
 
 <base target="_blank">
-<base target="_blank">
-<base target="_blank">
-<base target="_blank">
-<base target="_blank">
-<base target="_blank">
-<base target="_blank">
 </head>
 <body>
 <div id="tt" class="tt"></div>
@@ -366,12 +360,10 @@ async function loadAllResults(){
   }
 }
 
-// PUSAT: Ambil soal dari sub-koleksi PUSAT_PUSAT
 async function loadPusatExams(){
   const snap = await db.collection('schools').doc('PUSAT').collection('exams').get();
   D.ex = snap.docs.map(d=>({id:d.id,...d.data()}));
 }
-// SEKOLAH: Ambil soal dari sub-koleksi sekolah tsb
 async function loadD(npsn){const[a,b,c]=await Promise.all([eR(npsn).get(),rR(npsn).get(),wR(npsn).get()]);D.ex=a.docs.map(d=>({id:d.id,...d.data()}));D.rs=b.docs.map(d=>({id:d.id,...d.data()}));D.ss=c.docs.map(d=>({id:d.id,...d.data()}));}
 
 async function logP(){
@@ -455,7 +447,6 @@ function outS(){D.st=null;D.sch=null;['sN','sK','sR','sI','sM','sW'].forEach(i=>
 async function startEx(id){
   const ex=D.ex.find(e=>e.id===id);if(!ex||!ex.questions.length)return tt('Ujian belum punya soal!','er');
   
-  // CEK DATABASE APAKAH SUDAH PERNAH UJIAN
   ld('Memverifikasi data ujian...');
   try {
     const snap = await rR(D.sch.npsn).where('nis','==',D.st.nis).where('examId','==',id).get();
@@ -470,14 +461,12 @@ async function startEx(id){
   }
 
   D.cEx=ex;D.cQ=0;D.tL=ex.timeLimit*60;go('pEX');
-  // PRELOAD SEMUA GAMBAR soal & opsi agar pasti muncul saat ujian (siswa)
   try{ex.questions.forEach(q=>{
     if(q.image){const im=new Image();im.referrerPolicy='no-referrer';im.src=q.image;}
     (q.options||[]).forEach(o=>{if(o&&typeof o==='object'&&o.image){const im=new Image();im.referrerPolicy='no-referrer';im.src=o.image;}});
   });}catch(e){}
   $('eT').textContent=ex.mapel;$('eI').textContent=`${D.sch.nama} · Kelas ${D.st.kelas} · ${D.st.nama} · ${ex.questions.length} soal`;
   
-  // Cek apakah ada jawaban tersimpan sebelumnya (refresh/handphone mati)
   const savedData = localStorage.getItem('ujian_'+D.st.nis+'_'+ex.id);
   if(savedData){
     const parsed = JSON.parse(savedData);
@@ -492,7 +481,6 @@ async function startEx(id){
   rQ();sT();
 }
 
-// Fungsi simpan otomatis ke localStorage (tanpa internet)
 function autoSaveLocal(){
   if(!D.cEx || !D.st) return;
   const data = {
@@ -506,14 +494,22 @@ function autoSaveLocal(){
 function sT(){clearInterval(D.tI);uT();D.tI=setInterval(()=>{D.tL--;uT();autoSaveLocal();if(D.tL<=0){clearInterval(D.tI);finEx()}},1000)}
 function uT(){const m=Math.floor(D.tL/60),s=D.tL%60;const el=$('eTm');el.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');el.style.color=D.tL<=60?'var(--er)':'var(--ac)'}
 
+/* proxy fallback untuk gambar yang gagal load karena CORS/hotlink block */
+function imgProxy(url){
+  try{
+    const u=new URL(url);
+    if(/images\.weserv\.nl/.test(u.hostname)) return url;
+    return 'https://images.weserv.nl/?url='+encodeURIComponent(u.host+u.pathname+u.search)+'&output=jpg';
+  }catch(e){ return url; }
+}
+
 function rQ(){
   const ex=D.cEx,i=D.cQ,q=ex.questions[i],t=ex.questions.length;
   $('eP').style.width=((i+1)/t*100)+'%';
   let h=`<div class="asu"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p><h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:4px">${q.text}</h3>`;
   
-  // Gambar Soal utama dengan referrerPolicy agar tidak diblokir di HP
   if(q.image){
-    h+=`<img src="${q.image}" referrerpolicy="no-referrer" class="q-img" alt="Gambar Soal" onerror="this.style.display='none'">`;
+    h+=`<img src="${q.image}" referrerpolicy="no-referrer" class="q-img" alt="Gambar Soal" onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='${imgProxy(q.image)}';}else{this.style.display='none'}">`;
   }
   
   h+=`<div class="grid gap-3" style="margin-top:12px">`;
@@ -524,8 +520,7 @@ function rQ(){
       let optText='',optImg='';
       if(typeof o==='object'&&o!==null){optText=o.text||'';optImg=o.image||'';}else{optText=String(o);}
       let inner='';
-      // Gambar Opsi dengan referrerPolicy
-      if(optImg)inner+=`<img src="${optImg}" referrerpolicy="no-referrer" class="oc-img" alt="${OL_FULL[j]}" onerror="this.style.display='none'">`;
+      if(optImg)inner+=`<img src="${optImg}" referrerpolicy="no-referrer" class="oc-img" alt="${OL_FULL[j]}" onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='${imgProxy(optImg)}';}else{this.style.display='none'}">`;
       inner+=`<span class="lt">${OL_FULL[j]}</span><span style="flex:1">${optText}</span>`;
       h+=`<div class="oc ${D.an[i]===j?'sl':''}" onclick="pA(${j})">${inner}</div>`;
     });
@@ -579,14 +574,11 @@ async function finEx(){
   const r={id:uid(),examId:ex.id,kelas:s.kelas,rombel:s.rombel||'-',mapel:ex.mapel,nama:s.nama,nis:s.nis,score:finalScore,autoScore,essayScore:hasEssay?0:undefined,correct:cor,total:ex.questions.length,essays,pg:pgList,timeUsed:tu,timestamp:Date.now()};
   
   try {
-    // ONLINE SAAT KIRIM JAWABAN
     await rR(D.sch.npsn).doc(r.id).set(r);
     
-    // Hapus data offline di localStorage karena sudah sukses terkirim
     localStorage.removeItem('ujian_'+s.nis+'_'+ex.id);
     
     D.rs.push(r);hd();showR(r);kirimNotifWA(r);
-    // Notifikasi EMAIL otomatis (lewat ekstensi Firebase "Trigger Email")
     try{
       const em=String(D.sch.emailGuru||'').trim();
       if(em){
@@ -786,11 +778,10 @@ async function cSoalPDF(exId, npsn){
   const kelas = ex.kelas;
   const mo = maxOpts(kelas);
   const isKelasKecil = kelas <= 2;
-  const fs = isKelasKecil ? 14 : 12; // UKURAN FONT DINAMIS: Kelas 1-2 => 14pt, Kelas 3-6 => 12pt
+  const fs = isKelasKecil ? 14 : 12;
   const LET = ['a','b','c','d','e','f'];
   const LOGO_URL = "https://cdn.phototourl.com/free/2026-09-04-7825e90c-b085-495b-ac97-b4d09f741830.jpg";
 
-  // Proxy gambar agar lolos CORS saat di-render html2canvas (gambar PASTI masuk PDF)
   const corsImg = (url) => {
     if(!url) return '';
     try{
@@ -807,13 +798,11 @@ async function cSoalPDF(exId, npsn){
     return `<div class="opsi-col"><span class="opsi-letter">${LET[j]}.</span><span class="opsi-text">${optText}</span></div>`;
   }).join('') + `</div>`;
 
-  // Pisahkan soal PG dan Uraian
   const pgQuestions = ex.questions.filter(q => q.type !== 'essay');
   const essayQuestions = ex.questions.filter(q => q.type === 'essay');
   const hasEssay = essayQuestions.length > 0;
   const pgCount = pgQuestions.length, esCount = essayQuestions.length;
 
-  // Render PG
   pgQuestions.forEach((q, i) => {
     let hasAnyImg = q.options.some(o => typeof o === 'object' && o !== null && o.image);
     let opsiHtml = '';
@@ -821,7 +810,7 @@ async function cSoalPDF(exId, npsn){
       opsiHtml = `<div class="opsi-list">` + q.options.map((o, j) => {
         let optText = '', optImg = '';
         if (typeof o === 'object' && o !== null) { optText = o.text || ''; optImg = o.image || ''; } else { optText = String(o); }
-        return `<div class="opsi-item"><span class="opsi-letter">${LET[j]}.</span><span class="opsi-text">${optText}</span>${optImg ? `<img src="${corsImg(optImg)}" crossorigin="anonymous" onerror="this.style.display='none'"/>` : ''}</div>`;
+        return `<div class="opsi-item"><span class="opsi-letter">${LET[j]}.</span><span class="opsi-text">${optText}</span>${optImg ? `<img src="${corsImg(optImg)}" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${optImg}';this.crossOrigin=null;"/>` : ''}</div>`;
       }).join('') + `</div>`;
     } else if (mo <= 3) {
       opsiHtml = buildRow(q, 0, q.options.length);
@@ -829,7 +818,7 @@ async function cSoalPDF(exId, npsn){
       opsiHtml = buildRow(q, 0, 2) + buildRow(q, 2, q.options.length);
     }
     let imageHtml = '';
-    if(q.image) imageHtml = `<div class="soal-img-wrap"><img src="${corsImg(q.image)}" crossorigin="anonymous" onerror="this.style.display='none'"/></div>`;
+    if(q.image) imageHtml = `<div class="soal-img-wrap"><img src="${corsImg(q.image)}" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${q.image}';this.crossOrigin=null;"/></div>`;
     pgHtml += `<div class="soal-block" id="soal-pg-${i}">
       <table class="soal-tbl"><tr>
         <td class="sn">${i + 1}.</td>
@@ -838,11 +827,10 @@ async function cSoalPDF(exId, npsn){
     </div>`;
   });
 
-  // Render Essay
   if(hasEssay){
     essayQuestions.forEach((q, i) => {
       let imageHtml = '';
-      if(q.image) imageHtml = `<div class="soal-img-wrap"><img src="${corsImg(q.image)}" crossorigin="anonymous" onerror="this.style.display='none'"/></div>`;
+      if(q.image) imageHtml = `<div class="soal-img-wrap"><img src="${corsImg(q.image)}" crossorigin="anonymous" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${q.image}';this.crossOrigin=null;"/></div>`;
       essayHtml += `<div class="soal-block" id="soal-es-${i}">
         <table class="soal-tbl"><tr>
           <td class="sn">${pgQuestions.length + i + 1}.</td>
@@ -872,7 +860,7 @@ async function cSoalPDF(exId, npsn){
       </style>
       <!-- KOP SURAT DENGAN LOGO -->
       <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:6px">
-        <img src="${corsImg(LOGO_URL)}" crossorigin="anonymous" style="width:40px;height:40px;object-fit:cover;border-radius:50%;border:1px solid #333;margin-bottom:2px;display:inline-block" onerror="this.style.display='none'"/>
+        <img src="${corsImg(LOGO_URL)}" crossorigin="anonymous" referrerpolicy="no-referrer" style="width:40px;height:40px;object-fit:cover;border-radius:50%;border:1px solid #333;margin-bottom:2px;display:inline-block" onerror="this.onerror=null;this.style.display='none'"/>
         <p style="font-size:8pt;font-weight:700;text-transform:uppercase;margin:0;line-height:1.2">PEMERINTAH KABUPATEN ${D.sch.kota ? D.sch.kota.toUpperCase() : 'MAJALENGKA'}</p>
         <p style="font-size:8pt;font-weight:700;text-transform:uppercase;margin:0;line-height:1.2">DINAS PENDIDIKAN</p>
         <h2 style="font-size:${fs-2}pt;font-weight:800;text-transform:uppercase;margin:2px 0 0;line-height:1.2">${D.sch.nama ? D.sch.nama.toUpperCase() : 'SEKOLAH'}</h2>
@@ -926,7 +914,9 @@ async function cSoalPDF(exId, npsn){
   }
   box.style.left = '-9999px';
   box.style.zIndex = '-1';
-}/* ================================================================
+}
+
+/* ================================================================
    ADMIN TABS
    ================================================================ */
 function aTab(t,el){
@@ -1475,7 +1465,6 @@ function koreksiEssay(rid, npsn){
   const esArr = r.essays || [];
   let h=`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-pen mr-2" style="color:var(--pr)"></i>Koreksi — ${r.nama} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(${r.mapel} · Kelas ${r.kelas} Rombel ${r.rombel||'-'})</span></h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>`;
 
-  /* ===== BAGIAN PILIHAN GANDA — jawaban siswa BISA DIEDIT ===== */
   if(pgArr.length){
     h+=`<h4 style="font-size:.9rem;margin-bottom:8px;color:var(--ac)"><i class="fas fa-list mr-1"></i> Pilihan Ganda — Soal No. 1 s.d. ${pgArr.length} — ubah jawaban jika perlu</h4><div style="max-height:280px;overflow-y:auto;margin-bottom:14px;padding-right:4px">`;
     pgArr.forEach((g,i)=>{
@@ -1491,7 +1480,6 @@ function koreksiEssay(rid, npsn){
     h+=`</div>`;
   }
 
-  /* ===== BAGIAN URAIAN — nilai tiap jawaban ===== */
   if(esArr.length){
     h+=`<h4 style="font-size:.9rem;margin-bottom:8px;color:var(--pr)"><i class="fas fa-align-left mr-1"></i> Uraian — Soal No. ${pgArr.length+1} s.d. ${pgArr.length+esArr.length}</h4><div style="max-height:280px;overflow-y:auto;margin-bottom:14px;padding-right:4px">`;
     esArr.forEach((e,i)=>{h+=`<div class="cd mb-2" style="padding:12px 14px"><p style="font-weight:800;margin-bottom:6px;font-size:.85rem">Soal No. ${pgArr.length+i+1} <span style="color:var(--mt);font-weight:600">(Uraian ke-${i+1} dari ${esArr.length})</span>:</p><p style="margin-bottom:8px;font-size:.85rem">${e.text}</p>${e.image?`<img src="${e.image}" class="q-img" style="max-height:130px" onerror="this.style.display='none'">`:''}
@@ -1511,7 +1499,6 @@ async function simpanKoreksi(rid, npsn){
   let r = D.rs.find(x=>x.id===rid);
   if(!r)return;
   let totalEssay=0;
-  /* 1. Ambil jawaban PG hasil edit & hitung ulang benar */
   let cor=0;
   if(r.pg && r.pg.length){
     r.pg.forEach((g,i)=>{
@@ -1522,11 +1509,9 @@ async function simpanKoreksi(rid, npsn){
       if(g.studentAns===g.correctAns)cor++;
     });
   }
-  /* 2. Nilai uraian */
   if(r.essays && r.essays.length){
     r.essays.forEach((e,i)=>{const el=document.getElementById('esScore'+i);const sc=el?(parseInt(el.value)||0):0;e.score=Math.min(100,Math.max(0,sc));e.graded=true;totalEssay+=e.score;});
   }
-  /* 3. Hitung ulang nilai akhir (rumus sama seperti saat ujian) */
   r.correct = cor;
   const pgCount = r.pg ? r.pg.length : (r.total - (r.essays?r.essays.length:0));
   r.autoScore = pgCount>0 ? Math.round(cor/pgCount*100) : 0;
@@ -1545,16 +1530,38 @@ async function simpanKoreksi(rid, npsn){
 
 /* ===== DATA SISWA ===== */
 function renderSiswa(c){
+  const fk=D._siswaFilterKelas||'';const fr=D._siswaFilterRombel||'';
+  const kelasOpts=[...new Set(D.ss.map(s=>s.kelas))].sort((a,b)=>a-b);
+  const rombelOpts=[...new Set(D.ss.filter(s=>!fk||String(s.kelas)===String(fk)).map(s=>s.rombel||'-'))].sort();
   let h=`<div class="asu"><div class="flex items-center justify-between flex-wrap gap-3 mb-5"><div><h2 style="font-size:1.5rem;margin-bottom:2px">Data Siswa</h2><p style="color:var(--mt);font-size:.85rem">${D.ss.length} siswa</p></div>
-    <div class="flex gap-2"><button class="bt bt2 bts" onclick="showImportSiswaJSON()"><i class="fas fa-file-import"></i> Import</button><button class="bt bt1 bts" onclick="showTambahSiswa()"><i class="fas fa-user-plus"></i> Tambah</button></div></div>`;
+    <div class="flex gap-2 flex-wrap"><button class="bt bt2 bts" onclick="showImportSiswaJSON()"><i class="fas fa-file-import"></i> Import per Kelas/Rombel</button><button class="bt bt1 bts" onclick="showTambahSiswa()"><i class="fas fa-user-plus"></i> Tambah</button></div></div>
+    <div class="cd mb-5" style="padding:14px 16px">
+      <p class="mb-2 font-bold" style="font-size:.82rem"><i class="fas fa-filter mr-1" style="color:var(--ac)"></i> Filter Data Siswa</p>
+      <div class="flex gap-2 flex-wrap">
+        <select id="fSwKelas" class="ip" style="max-width:170px" onchange="onFilterSiswaKelas()"><option value="">Semua Kelas</option>${kelasOpts.map(k=>`<option value="${k}" ${String(fk)===String(k)?'selected':''}>Kelas ${k}</option>`).join('')}</select>
+        <select id="fSwRombel" class="ip" style="max-width:170px" onchange="onFilterSiswaRombel()" ${!fk?'disabled':''}><option value="">Semua Rombel</option>${rombelOpts.map(r=>`<option value="${r}" ${String(fr)===String(r)?'selected':''}>Rombel ${r}</option>`).join('')}</select>
+        ${(fk||fr)?`<button class="bt bt3 bts" onclick="D._siswaFilterKelas='';D._siswaFilterRombel='';renderSiswa($('aC'))"><i class="fas fa-times"></i> Reset Filter</button>`:''}
+      </div>
+    </div>`;
+  const filtered=D.ss.filter(s=>(!fk||String(s.kelas)===String(fk))&&(!fr||String(s.rombel||'-')===String(fr)));
   if(D.ss.length===0){h+=`<div class="cd" style="text-align:center;padding:40px"><p style="color:var(--mt)">Belum ada siswa.</p></div>`;}
-  else{const byKelas={};D.ss.forEach(s=>{if(!byKelas[s.kelas])byKelas[s.kelas]=[];byKelas[s.kelas].push(s);});
-    Object.keys(byKelas).sort((a,b)=>a-b).forEach(k=>{const list=byKelas[k].sort((a,b)=>a.nama.localeCompare(b.nama));
-      h+=`<div class="cd mb-4" style="padding:16px"><h3 style="font-size:1rem;margin-bottom:10px"><i class="fas fa-graduation-cap mr-2" style="color:var(--ac)"></i>Kelas ${k} (${list.length})</h3><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">NIS</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Rombel</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Ortu</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`;
-      list.forEach(s=>{h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${s.nis}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${s.nama}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);text-align:center;font-weight:800;color:var(--ac)">${s.rombel||'-'}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${s.ortu||'-'}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center"><button class="bt bt2 btx" onclick="showTambahSiswa(D.ss.find(x=>x.nis==='${s.nis}'))" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-edit"></i></button><button class="bt bt4 btx" onclick="doHapusSiswa('${s.nis}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button></div></td></tr>`;});
-      h+=`</tbody></table></div></div>`;});}
+  else if(filtered.length===0){h+=`<div class="cd" style="text-align:center;padding:40px"><p style="color:var(--mt)">Tidak ada siswa untuk filter ini.</p></div>`;}
+  else{const byKelas={};filtered.forEach(s=>{if(!byKelas[s.kelas])byKelas[s.kelas]=[];byKelas[s.kelas].push(s);});
+    Object.keys(byKelas).sort((a,b)=>a-b).forEach(k=>{
+      const byRombel={};byKelas[k].forEach(s=>{const rb=s.rombel||'-';if(!byRombel[rb])byRombel[rb]=[];byRombel[rb].push(s);});
+      h+=`<div class="cd mb-4" style="padding:16px"><h3 style="font-size:1rem;margin-bottom:10px"><i class="fas fa-graduation-cap mr-2" style="color:var(--ac)"></i>Kelas ${k} (${byKelas[k].length})</h3>`;
+      Object.keys(byRombel).sort().forEach(rb=>{
+        const list=byRombel[rb].sort((a,b)=>a.nama.localeCompare(b.nama));
+        h+=`<p style="font-size:.8rem;font-weight:800;color:var(--ac2);margin:10px 0 6px">Rombel ${rb} (${list.length})</p><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">NIS</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Ortu</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`;
+        list.forEach(s=>{h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${s.nis}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${s.nama}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${s.ortu||'-'}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center"><button class="bt bt2 btx" onclick="showTambahSiswa(D.ss.find(x=>x.nis==='${s.nis}'))" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-edit"></i></button><button class="bt bt4 btx" onclick="doHapusSiswa('${s.nis}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button></div></td></tr>`;});
+        h+=`</tbody></table></div>`;
+      });
+      h+=`</div>`;
+    });}
   h+=`</div>`;c.innerHTML=h;
 }
+function onFilterSiswaKelas(){D._siswaFilterKelas=$v('fSwKelas');D._siswaFilterRombel='';renderSiswa($('aC'));}
+function onFilterSiswaRombel(){D._siswaFilterRombel=$v('fSwRombel');renderSiswa($('aC'));}
 
 function showTambahSiswa(edit){
   oMo(`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-user-plus mr-2" style="color:var(--ac)"></i>${edit?'Edit':'Tambah'} Siswa</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
@@ -1575,20 +1582,36 @@ async function simpanSiswa(oldNis){
 }
 async function doHapusSiswa(nis){ld('Menghapus...');try{await wR(D.sch.npsn).doc(nis).delete();D.ss=D.ss.filter(s=>s.nis!==nis);hd();renderSiswa($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}}
 
+/* ===== IMPORT SISWA PER KELAS + PER ROMBEL (dengan filter target) ===== */
 function showImportSiswaJSON(){
-  oMo(`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-file-import mr-2" style="color:var(--ac2)"></i>Import Siswa JSON</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
-    <div style="background:#E0F7FA;border:2px solid var(--ac2);border-radius:12px;padding:14px;margin-bottom:16px"><pre style="font-size:.75rem;color:#0E7490;margin:0">[{"nis":"001","nama":"Budi","kelas":1,"rombel":"A","ortu":"Pak Budi","password":"siswa123"}]</pre></div>
+  oMo(`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-file-import mr-2" style="color:var(--ac2)"></i>Import Siswa — per Kelas &amp; Rombel</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
+    <div style="background:#E0F7FA;border:2px solid var(--ac2);border-radius:12px;padding:14px;margin-bottom:16px">
+      <p style="font-size:.8rem;color:#0E7490;font-weight:700;margin-bottom:6px"><i class="fas fa-info-circle mr-1"></i> Cara pakai:</p>
+      <p style="font-size:.76rem;color:#0E7490;line-height:1.6">1. Pilih <b>Kelas</b> &amp; <b>Rombel</b> tujuan di bawah — ini jadi filter/target import.<br>2. Paste JSON. Boleh array sederhana <code>[{"nis":"001","nama":"Budi"}]</code> (kelas/rombel otomatis ikut yang dipilih), atau array lengkap dengan field kelas/rombel sendiri per siswa (field JSON menang jika diisi).</p>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas Tujuan *</label><select id="impKelas" class="ip">${KL.map(k=>`<option value="${k.v}">Kelas ${k.l}</option>`).join('')}</select></div>
+      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Rombel Tujuan *</label><select id="impRombel" class="ip">${['A','B','C','D','E','F'].map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div>
+    </div>
     <div class="mb-3"><input type="file" accept=".json" onchange="const r=new FileReader();r.onload=e=>{$('siswaTA').value=e.target.result;tt('Dimuat!')};r.readAsText(this.files[0])" class="ip" style="padding:10px"></div>
-    <textarea id="siswaTA" class="json-ta" style="min-height:140px" placeholder='Paste JSON...'></textarea>
-    <button class="bt bt1 w-full justify-center mt-3" onclick="doImportSiswaJSON()"><i class="fas fa-cloud-upload-alt"></i> Import</button></div>`);
+    <textarea id="siswaTA" class="json-ta" style="min-height:140px" placeholder='[{"nis":"001","nama":"Budi","ortu":"Pak Budi","password":"siswa123"}]'></textarea>
+    <button class="bt bt1 w-full justify-center mt-3" onclick="doImportSiswaJSON()"><i class="fas fa-cloud-upload-alt"></i> Import ke Kelas &amp; Rombel Terpilih</button></div>`);
 }
 async function doImportSiswaJSON(){
   let raw=$('siswaTA').value.trim();if(!raw)return tt('Paste/upload JSON!','er');let data;try{data=JSON.parse(raw);}catch(e){return tt('JSON tidak valid!','er');}
-  if(!Array.isArray(data))return tt('Harus array!','er');let count=0;ld('Mengimport...');
-  for(const s of data){if(!s.nis||!s.nama||!s.kelas)continue;const pwd=s.password||'siswa123';const ortu=s.ortu||'';const rombel=s.rombel||'A';
-    await wR(D.sch.npsn).doc(String(s.nis)).set({nis:String(s.nis),kelas:s.kelas,rombel,nama:s.nama,ortu,password:pwd,createdAt:Date.now()});
-    const idx=D.ss.findIndex(x=>x.nis===String(s.nis));if(idx>=0)D.ss[idx]={...D.ss[idx],kelas:s.kelas,rombel,nama:s.nama,ortu,password:pwd};else D.ss.push({id:String(s.nis),nis:String(s.nis),kelas:s.kelas,rombel,nama:s.nama,ortu,password:pwd,createdAt:Date.now()});count++;}
-  hd();cMo();renderSiswa($('aC'));tt(count+' siswa diimport!');
+  if(!Array.isArray(data))return tt('Harus array!','er');
+  const targetKelas=parseInt($('impKelas').value),targetRombel=$v('impRombel');
+  let count=0;ld('Mengimport...');
+  for(const s of data){
+    if(!s.nis||!s.nama)continue;
+    const pwd=s.password||'siswa123';const ortu=s.ortu||'';
+    const kelas=s.kelas?parseInt(s.kelas):targetKelas;
+    const rombel=s.rombel||targetRombel;
+    await wR(D.sch.npsn).doc(String(s.nis)).set({nis:String(s.nis),kelas,rombel,nama:s.nama,ortu,password:pwd,createdAt:Date.now()});
+    const idx=D.ss.findIndex(x=>x.nis===String(s.nis));if(idx>=0)D.ss[idx]={...D.ss[idx],kelas,rombel,nama:s.nama,ortu,password:pwd};else D.ss.push({id:String(s.nis),nis:String(s.nis),kelas,rombel,nama:s.nama,ortu,password:pwd,createdAt:Date.now()});count++;
+  }
+  D._siswaFilterKelas=String(targetKelas);D._siswaFilterRombel=targetRombel;
+  hd();cMo();renderSiswa($('aC'));tt(count+' siswa diimport ke Kelas '+targetKelas+' Rombel '+targetRombel+'!');
 }
 
 /* ===== DAFTAR SEKOLAH ===== */
@@ -1633,32 +1656,25 @@ async function doHapusSekolah(npsn, nama){
   try {
     const batch = db.batch();
     
-    // 1. Kumpulkan & hapus Soal (exams)
     const exSnap = await eR(npsn).get();
     exSnap.forEach(doc => batch.delete(doc.ref));
     
-    // 2. Kumpulkan & hapus Hasil Ujian (results)
     const resSnap = await rR(npsn).get();
     resSnap.forEach(doc => batch.delete(doc.ref));
     
-    // 3. Kumpulkan & hapus Data Siswa (students)
     const stuSnap = await wR(npsn).get();
     stuSnap.forEach(doc => batch.delete(doc.ref));
     
-    // Eksekusi batch delete sub-koleksi
     await batch.commit();
     
-    // 4. Hapus Dokumen Utama Sekolah
     await sR(npsn).delete();
     
-    // 5. Update state di frontend
     D.allSchools = D.allSchools.filter(s => s.npsn !== npsn);
     D.allResults = D.allResults.filter(r => r.schoolNpsn !== npsn);
     
     hd();
     tt(`Sekolah ${nama} berhasil dihapus!`, 'ok');
     
-    // Render ulang tabel
     renderDaftarSekolah($('aC'));
     
   } catch(e) {
