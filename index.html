@@ -1195,7 +1195,7 @@ function renderEditSoal(ex){
       <h4 style="font-size:.95rem;margin-bottom:12px"><i class="fas fa-pen mr-2" style="color:var(--ac)"></i>${D.editIdx>=0?'Edit Soal '+(D.editIdx+1):'Tambah Soal Baru'}</h4>
       <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Tipe</label><div class="flex gap-2"><button id="tpPG" class="bt ${D.editIdx<0||D.editQs[D.editIdx]?.type!=='essay'?'bt1':'bt3'} bts" onclick="setQType('pg')"><i class="fas fa-list"></i> PG (${mo} opsi)</button><button id="tpES" class="bt ${D.editIdx>=0&&D.editQs[D.editIdx]?.type==='essay'?'bt1':'bt3'} bts" onclick="setQType('essay')"><i class="fas fa-align-left"></i> Uraian</button></div></div>
       <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Teks Soal *</label><textarea id="eqText" class="ip" rows="3" placeholder="Tulis pertanyaan...">${D.editIdx>=0?D.editQs[D.editIdx].text:''}</textarea></div>
-      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem"><i class="fas fa-image mr-1" style="color:var(--ac2)"></i> URL Gambar Soal (opsional)</label><input id="eqImg" class="ip" placeholder="https://..." value="${D.editIdx>=0?(D.editQs[D.editIdx].image||''):''}" oninput="previewQImg()"><div id="eqImgPrev" style="margin-top:8px">${D.editIdx>=0&&D.editQs[D.editIdx].image?`<img src="${D.editQs[D.editIdx].image}" style="max-width:200px;max-height:150px;border-radius:10px;border:2px solid var(--bd);object-fit:contain" onerror="this.parentElement.innerHTML=''">`:''}</div></div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem"><i class="fas fa-image mr-1" style="color:var(--ac2)"></i> URL Gambar Soal (opsional)</label><div class="flex gap-2"><input id="eqImg" class="ip" placeholder="https://... atau klik Upload" value="${D.editIdx>=0?(D.editQs[D.editIdx].image||''):''}" oninput="previewQImg()"><label class="bt bt2 bts" style="flex-shrink:0;cursor:pointer;white-space:nowrap"><i class="fas fa-upload"></i> Upload<input type="file" accept="image/*" style="display:none" onchange="uploadQImg(this)"></label></div><div id="eqImgPrev" style="margin-top:8px">${D.editIdx>=0&&D.editQs[D.editIdx].image?`<img src="${D.editQs[D.editIdx].image}" style="max-width:200px;max-height:150px;border-radius:10px;border:2px solid var(--bd);object-fit:contain" onerror="this.parentElement.innerHTML=''">`:''}</div></div>
       <div id="eqOptsWrap"><label class="block mb-2 font-bold" style="font-size:.82rem">Opsi Jawaban (maks ${mo})</label><div class="grid gap-2" id="eqOpts"></div><div id="addOptWrap"></div><div class="mt-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Jawaban Benar</label><select id="eqAns" class="ip" style="max-width:200px"></select></div></div>
       <div id="eqEssayWrap" style="display:none"><div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Kunci Jawaban Uraian</label><textarea id="eqKey" class="ip" rows="3" placeholder="Kunci jawaban...">${D.editIdx>=0?(D.editQs[D.editIdx].key||''):''}</textarea></div></div>
       <div class="flex gap-2 mt-4">
@@ -1250,7 +1250,7 @@ function renderOptRows(){
       <span style="font-weight:800;font-size:.85rem;color:var(--ac);min-width:22px;margin-top:10px">${OL_FULL[i]}</span>
       <div style="flex:1">
         <input class="ip opt-text" value="${o.text.replace(/"/g,'&quot;')}" placeholder="Teks opsi ${OL_FULL[i]}" style="margin-bottom:6px">
-        <input class="ip opt-img" value="${o.image}" placeholder="URL gambar (opsional)" style="font-size:.82rem;padding:8px 12px">
+        <div class="flex gap-2"><input class="ip opt-img" value="${o.image}" placeholder="URL / upload gambar (opsional)" style="font-size:.82rem;padding:8px 12px"><label class="bt bt2 btx" style="flex-shrink:0;cursor:pointer;white-space:nowrap;margin-top:0"><i class="fas fa-upload"></i><input type="file" accept="image/*" style="display:none" onchange="uploadOptImg(this)"></label></div>
       </div>
     </div>`;
   });
@@ -1265,7 +1265,7 @@ function addOptRow(){
   const mo=maxOpts(D.editKelas);const wrap=$('eqOpts');const count=wrap.children.length;
   if(count>=mo)return tt(`Kelas ${D.editKelas} maksimal ${mo} opsi!`,'er');
   const div=document.createElement('div');div.className='flex items-start gap-2';div.style.cssText='padding:8px;background:var(--bg);border-radius:10px';
-  div.innerHTML=`<span style="font-weight:800;font-size:.85rem;color:var(--ac);min-width:22px;margin-top:10px">${OL_FULL[count]}</span><div style="flex:1"><input class="ip opt-text" value="" placeholder="Teks opsi ${OL_FULL[count]}" style="margin-bottom:6px"><input class="ip opt-img" value="" placeholder="URL gambar (opsional)" style="font-size:.82rem;padding:8px 12px"></div>`;
+  div.innerHTML=`<span style="font-weight:800;font-size:.85rem;color:var(--ac);min-width:22px;margin-top:10px">${OL_FULL[count]}</span><div style="flex:1"><input class="ip opt-text" value="" placeholder="Teks opsi ${OL_FULL[count]}" style="margin-bottom:6px"><div class="flex gap-2"><input class="ip opt-img" value="" placeholder="URL / upload gambar (opsional)" style="font-size:.82rem;padding:8px 12px"><label class="bt bt2 btx" style="flex-shrink:0;cursor:pointer;white-space:nowrap"><i class="fas fa-upload"></i><input type="file" accept="image/*" style="display:none" onchange="uploadOptImg(this)"></label></div></div>`;
   wrap.appendChild(div);
   const sel=$('eqAns');const opt=document.createElement('option');opt.value=count;opt.textContent=OL_FULL[count];sel.appendChild(opt);
   if(count+1>=mo){$('addOptWrap').innerHTML=`<p style="font-size:.75rem;color:var(--mt);margin-top:8px"><i class="fas fa-info-circle mr-1"></i> Sudah ${mo} opsi (maksimal).</p>`;}
@@ -1276,8 +1276,45 @@ function previewQImg(){
   if(!url){prev.innerHTML='';return;}
   prev.innerHTML=`<div style="display:flex;align-items:center;gap:10px">
     <img src="${url}" style="max-width:200px;max-height:150px;border-radius:10px;border:2px solid var(--bd);object-fit:contain;background:#faf6f1" onerror="imgErr(this);if(this.style.display==='none'&&this.nextElementSibling)this.nextElementSibling.style.display='inline'">
-    <span style="display:none;color:var(--er);font-size:.78rem;font-weight:700"><i class="fas fa-triangle-exclamation"></i> Gambar tidak bisa dimuat — cek URL</span>
+    <span style="display:none;color:var(--er);font-size:.78rem;font-weight:700"><i class="fas fa-triangle-exclamation"></i> Gambar tidak bisa dimuat — cek URL atau pakai Upload</span>
   </div>`;
+}
+
+/* Konversi file gambar -> data URL (dikompres, max 800px, JPEG).
+   Data URL tersimpan langsung di soal -> tampil di ujian siswa & PDF tanpa masalah CORS/hotlink. */
+function fileToDataURL(file, cb){
+  const r=new FileReader();
+  r.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const max=800;let w=img.width,h=img.height;
+      if(w>max){h=Math.round(h*max/w);w=max;}
+      const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      cb(cv.toDataURL('image/jpeg',0.85));
+    };
+    img.onerror=()=>{hd();tt('File bukan gambar valid!','er');};
+    img.src=e.target.result;
+  };
+  r.readAsDataURL(file);
+}
+
+function uploadQImg(inp){
+  const f=inp.files[0];if(!f)return;
+  if(f.size>5*1024*1024){tt('Maks 5MB!','er');inp.value='';return;}
+  ld('Memproses & mengompres gambar...');
+  fileToDataURL(f,url=>{$('eqImg').value=url;hd();previewQImg();tt('Gambar terpasang & akan tersimpan di soal!');});
+  inp.value='';
+}
+
+function uploadOptImg(inp){
+  const f=inp.files[0];if(!f)return;
+  if(f.size>5*1024*1024){tt('Maks 5MB!','er');inp.value='';return;}
+  const row=inp.closest('div[style]');const target=row?row.querySelector('.opt-img'):null;
+  if(!target){tt('Target input tidak ditemukan!','er');inp.value='';return;}
+  ld('Memproses & mengompres gambar...');
+  fileToDataURL(f,url=>{target.value=url;hd();tt('Gambar opsi terpasang!');});
+  inp.value='';
 }
 
 function simpanSoal(eid){
