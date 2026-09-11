@@ -129,6 +129,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div id="tt" class="tt"></div>
@@ -461,6 +462,7 @@ async function startEx(id){
   }
 
   D.cEx=ex;D.cQ=0;D.tL=ex.timeLimit*60;go('pEX');
+  warmImgCache(ex);
   try{ex.questions.forEach(q=>{
     if(q.image){const im=new Image();im.referrerPolicy='no-referrer';im.src=q.image;}
     (q.options||[]).forEach(o=>{if(o&&typeof o==='object'&&o.image){const im=new Image();im.referrerPolicy='no-referrer';im.src=o.image;}});
@@ -494,7 +496,14 @@ function autoSaveLocal(){
 function sT(){clearInterval(D.tI);uT();D.tI=setInterval(()=>{D.tL--;uT();autoSaveLocal();if(D.tL<=0){clearInterval(D.tI);finEx()}},1000)}
 function uT(){const m=Math.floor(D.tL/60),s=D.tL%60;const el=$('eTm');el.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');el.style.color=D.tL<=60?'var(--er)':'var(--ac)'}
 
-/* proxy fallback untuk gambar yang gagal load karena CORS/hotlink block */
+/* ================================================================
+   IMAGE LOADER & PROXY FALLBACK CHAIN (ANTI-BLOKIR)
+   Urutan coba per gambar:
+   URL asli -> weserv -> wsrv.nl -> codetabs -> corsproxy.io -> allOrigins
+   Hasil sukses di-cache sebagai blob URL (aman utk PDF & ujian siswa).
+   ================================================================ */
+let _imgBlobCache = {};
+
 function imgProxy(url){
   if(!url) return '';
   if(url.startsWith('data:')||url.startsWith('blob:')) return url;
@@ -506,7 +515,6 @@ function imgProxy(url){
   }catch(e){ return url; }
 }
 
-/* varian kedua proxy — percobaan cadangan jika percobaan pertama gagal */
 function imgProxyAlt(url){
   if(!url) return '';
   if(url.startsWith('data:')||url.startsWith('blob:')) return url;
@@ -517,47 +525,84 @@ function imgProxyAlt(url){
   }catch(e){ return url; }
 }
 
-/* Proxy fallback ketiga: allOrigins (raw) */
+function imgProxy3(url){
+  if(!url) return '';
+  if(url.startsWith('data:')||url.startsWith('blob:')) return url;
+  try{ return 'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(url); }catch(e){ return url; }
+}
+
+function imgProxy4(url){
+  if(!url) return '';
+  if(url.startsWith('data:')||url.startsWith('blob:')) return url;
+  try{ return 'https://corsproxy.io/?url='+encodeURIComponent(url); }catch(e){ return url; }
+}
+
 function imgAllOrigins(url){
   if(!url) return '';
   if(url.startsWith('data:')||url.startsWith('blob:')) return url;
   try{ return 'https://api.allorigins.win/raw?url='+encodeURIComponent(url); }catch(e){ return url; }
 }
 
+/* Daftar kandidat URL utk satu gambar (unik, tanpa duplikat) */
+function imgChain(url){
+  if(!url) return [];
+  if(url.startsWith('data:')||url.startsWith('blob:')) return [url];
+  const c=[url, imgProxy(url), imgProxyAlt(url), imgProxy3(url), imgProxy4(url), imgAllOrigins(url)];
+  return [...new Set(c.filter(Boolean))];
+}
+
 /* Rantai fallback otomatis utk <img> di halaman (ujian siswa / pratinjau admin).
-   Coba: proxy1 (weserv) -> proxy2 (wsrv.nl) -> proxy3 (allOrigins) -> sembunyikan. */
+   Coba: asli -> proxy1..5 -> sembunyikan. */
 function imgErr(el){
   if(!el.dataset.orig) el.dataset.orig = el.getAttribute('src') || '';
   const orig = el.dataset.orig;
   if(!orig){ el.style.display='none'; return; }
   if(orig.startsWith('data:')||orig.startsWith('blob:')){ el.style.display='none'; return; }
-  const chain = [];
-  [imgProxy(orig), imgProxyAlt(orig), imgAllOrigins(orig)].forEach(u=>{
-    if(u && u !== orig && !chain.includes(u)) chain.push(u);
-  });
+  const chain = imgChain(orig);
   const i = parseInt(el.dataset.fbi || '0', 10);
   if(i < chain.length){ el.dataset.fbi = String(i+1); el.src = chain[i]; }
   else el.style.display = 'none';
 }
 
 /* Muat gambar via fetch (CORS) dengan rantai fallback -> blob URL.
-   Blob URL 100% aman dirender html2canvas/html2pdf (tidak kena CORS/hotlink). */
+   Blob URL 100% aman dirender html2canvas/html2pdf (tidak kena CORS/hotlink).
+   Hasil DI-CACHE: sukses = blob URL, gagal = null (tidak diulang terus). */
 async function loadImgBlob(url){
   if(!url) return null;
   if(url.startsWith('data:') || url.startsWith('blob:')) return url;
-  const cands = [...new Set([url, imgProxy(url), imgProxyAlt(url), imgAllOrigins(url)])];
-  for(const c of cands){
+  if(_imgBlobCache[url] !== undefined) return _imgBlobCache[url];
+  let result = null;
+  for(const c of imgChain(url)){
     try{
       const ctrl = new AbortController();
-      const to = setTimeout(() => ctrl.abort(), 12000);
+      const to = setTimeout(() => ctrl.abort(), 10000);
       const r = await fetch(c, {mode:'cors', signal:ctrl.signal, referrerPolicy:'no-referrer'});
       clearTimeout(to);
       if(!r.ok) continue;
       const b = await r.blob();
-      if(b && (b.type||'').startsWith('image') && b.size > 80) return URL.createObjectURL(b);
+      if(b && (b.type||'').startsWith('image') && b.size > 80){ result = URL.createObjectURL(b); break; }
     }catch(e){}
   }
-  return null;
+  _imgBlobCache[url] = result;
+  return result;
+}
+
+/* Panaskan cache gambar soal saat ujian dimulai (jalan di background, tanpa nunggu) */
+function warmImgCache(ex){
+  const urls=[];
+  ex.questions.forEach(q=>{
+    if(q.image) urls.push(q.image);
+    (q.options||[]).forEach(o=>{ if(o && typeof o==='object' && o.image) urls.push(o.image); });
+  });
+  urls.forEach(u=>{ if(u && _imgBlobCache[u]===undefined) loadImgBlob(u); });
+}
+
+/* URL terbaik utk <img>: blob hasil cache kalau sudah siap, kalau belum URL asli */
+function imgSrcFor(url){
+  if(!url) return '';
+  if(url.startsWith('data:')||url.startsWith('blob:')) return url;
+  const c=_imgBlobCache[url];
+  return (typeof c==='string' && c) ? c : url;
 }
 
 function rQ(){
@@ -566,7 +611,7 @@ function rQ(){
   let h=`<div class="asu"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p><h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:4px">${q.text}</h3>`;
   
   if(q.image){
-    h+=`<img src="${q.image}" referrerpolicy="no-referrer" class="q-img" alt="Gambar Soal" onerror="imgErr(this)">`;
+    h+=`<img src="${imgSrcFor(q.image)}" referrerpolicy="no-referrer" class="q-img" alt="Gambar Soal" onerror="imgErr(this)">`;
   }
   
   h+=`<div class="grid gap-3" style="margin-top:12px">`;
@@ -577,7 +622,7 @@ function rQ(){
       let optText='',optImg='';
       if(typeof o==='object'&&o!==null){optText=o.text||'';optImg=o.image||'';}else{optText=String(o);}
       let inner='';
-      if(optImg)inner+=`<img src="${optImg}" referrerpolicy="no-referrer" style="display:block;width:auto;max-width:100%;max-height:130px;object-fit:contain;border-radius:10px;border:2px solid var(--bd);background:#faf6f1;margin:0 auto 8px" alt="Opsi ${OL_FULL[j]}" onerror="imgErr(this)">`;
+      if(optImg)inner+=`<img src="${imgSrcFor(optImg)}" referrerpolicy="no-referrer" style="display:block;width:auto;max-width:100%;max-height:130px;object-fit:contain;border-radius:10px;border:2px solid var(--bd);background:#faf6f1;margin:0 auto 8px" alt="Opsi ${OL_FULL[j]}" onerror="imgErr(this)">`;
       inner+=`<span class="lt">${OL_FULL[j]}</span><span style="flex:1">${optText}</span>`;
       h+=`<div class="oc ${D.an[i]===j?'sl':''}" onclick="pA(${j})">${inner}</div>`;
     });
@@ -881,7 +926,7 @@ async function cSoalPDF(exId, npsn){
       opsiHtml = `<div class="opsi-list">` + q.options.map((o, j) => {
         let optText = '', optImg = '';
         if (typeof o === 'object' && o !== null) { optText = o.text || ''; optImg = o.image || ''; } else { optText = String(o); }
-        return `<div class="opsi-item"><span class="opsi-letter">${LET[j]}.&nbsp;</span><span class="opsi-text">${capFirst(optText)}</span>${optImg ? `<img class="pdf-img" data-hide="self" data-alt="${imgProxyAlt(optImg).replace(/"/g,'&quot;')}" src="${imgProxy(optImg)}" crossorigin="anonymous" referrerpolicy="no-referrer">` : ''}</div>`;
+        return `<div class="opsi-item"><span class="opsi-letter">${LET[j]}.&nbsp;</span><span class="opsi-text">${capFirst(optText)}</span>${optImg ? `<img class="pdf-img" data-hide="self" src="${optImg}" crossorigin="anonymous" referrerpolicy="no-referrer">` : ''}</div>`;
       }).join('') + `</div>`;
     } else if (isLongOpt(q)) {
       /* Opsinya panjang -> seluruh opsi soal ini MENURUN (konsisten) */
@@ -894,7 +939,7 @@ async function cSoalPDF(exId, npsn){
       opsiHtml = build2Col(q);
     }
     let imageHtml = '';
-    if(q.image) imageHtml = `<div class="soal-img-wrap"><img class="pdf-img" data-hide="wrap" data-alt="${imgProxyAlt(q.image).replace(/"/g,'&quot;')}" src="${imgProxy(q.image)}" crossorigin="anonymous" referrerpolicy="no-referrer"></div>`;
+    if(q.image) imageHtml = `<div class="soal-img-wrap"><img class="pdf-img" data-hide="wrap" src="${q.image}" crossorigin="anonymous" referrerpolicy="no-referrer"></div>`;
     pgHtml += `<div class="soal-block" id="soal-pg-${i}">
       <div class="soal-row"><span class="sn">${i + 1}.</span><span class="sc2"><span class="soal-text">${capFirst(q.text)}</span>${imageHtml}${opsiHtml}</span></div>
     </div>`;
@@ -903,7 +948,7 @@ async function cSoalPDF(exId, npsn){
   if(hasEssay){
     essayQuestions.forEach((q, i) => {
       let imageHtml = '';
-      if(q.image) imageHtml = `<div class="soal-img-wrap"><img class="pdf-img" data-hide="wrap" data-alt="${imgProxyAlt(q.image).replace(/"/g,'&quot;')}" src="${imgProxy(q.image)}" crossorigin="anonymous" referrerpolicy="no-referrer"></div>`;
+      if(q.image) imageHtml = `<div class="soal-img-wrap"><img class="pdf-img" data-hide="wrap" src="${q.image}" crossorigin="anonymous" referrerpolicy="no-referrer"></div>`;
       essayHtml += `<div class="soal-block" id="soal-es-${i}">
         <div class="soal-row"><span class="sn">${pgQuestions.length + i + 1}.</span><span class="sc2"><span class="soal-text">${capFirst(q.text)}</span>${imageHtml}<div class="essay-box"></div></span></div>
       </div>`;
@@ -940,7 +985,7 @@ async function cSoalPDF(exId, npsn){
       </style>
       <!-- KOP SURAT DENGAN LOGO -->
       <div class="kop-block" style="text-align:center;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:6px">
-        <img src="${imgProxy(LOGO_URL)}" crossorigin="anonymous" referrerpolicy="no-referrer" style="width:40px;height:40px;object-fit:cover;border-radius:50%;border:1px solid #333;margin-bottom:2px;display:inline-block" onerror="this.onerror=null;this.style.display='none'"/>
+        <img src="${LOGO_URL}" crossorigin="anonymous" referrerpolicy="no-referrer" style="width:40px;height:40px;object-fit:cover;border-radius:50%;border:1px solid #333;margin-bottom:2px;display:inline-block" onerror="this.onerror=null;this.style.display='none'"/>
         <p style="font-weight:700;text-transform:uppercase;margin:0;line-height:1.2">PEMERINTAH ${(()=>{const k=(D.sch.kota||'MAJALENGKA').toUpperCase();return (k.indexOf('KOTA')===0?'KOTA ':'KABUPATEN ')+k.replace(/^KAB\.?\s*/i,'').replace(/^KOTA\s*/i,'');})()}</p>
         <p style="font-weight:700;text-transform:uppercase;margin:0;line-height:1.2">DINAS PENDIDIKAN</p>
         <h2 style="font-weight:800;text-transform:uppercase;margin:2px 0 0;line-height:1.2">${D.sch.nama ? D.sch.nama.toUpperCase() : 'SEKOLAH'}</h2>
