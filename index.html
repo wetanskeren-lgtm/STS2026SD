@@ -135,6 +135,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div id="tt" class="tt"></div>
@@ -825,7 +826,8 @@ async function finEx(){
     
     D.rs.push(r);hd();showR(r);kirimNotifWA(r);
     try{
-      const em=String(D.sch.emailGuru||'').trim();
+      const gN=getGuruFor(s.kelas,s.rombel,ex.mapel);
+      const em=String(gN.email||D.sch.emailGuru||'').trim();
       if(em){
         const hasEs2=r.essays&&r.essays.length>0;
         const pgC2=r.total-(r.essays?r.essays.length:0);
@@ -834,7 +836,7 @@ async function finEx(){
           to: em,
           message: {
             subject: `[UTS Digital] ${s.nama} menyelesaikan ujian ${ex.mapel}`,
-            text: `Assalamu'alaikum Wr. Wb.\n\nYth. Bapak/Ibu Guru,\n\nSiswa ${r.nama} (Kelas ${r.kelas}, NIS ${r.nis}) telah MENYELESAIKAN ulangan tengah semester mapel ${ex.mapel} di ${D.sch.nama}.\n\nPILIHAN GANDA (Soal No. 1 s.d. ${pgC2}):\nBenar: ${r.correct}/${pgC2} soal -> Nilai otomatis: ${r.autoScore}\n${hasEs2?`\nURAIAN (Soal No. ${pgC2+1} s.d. ${r.total}):\n${r.essays.length} soal sudah masuk, TINGGAL DIKOREKSI via Admin -> Hasil Ujian.\n`:''}\nWaktu pengerjaan: ${mnt2} menit ${dtk2} detik.\n\n-- Notifikasi otomatis UTS Digital`
+            text: `Assalamu'alaikum Wr. Wb.\n\nYth. Bapak/Ibu ${gN.nama||'Guru'},\n\nSiswa ${r.nama} (Kelas ${r.kelas}, NIS ${r.nis}) telah MENYELESAIKAN ulangan tengah semester mapel ${ex.mapel} di ${D.sch.nama}.\n\nPILIHAN GANDA (Soal No. 1 s.d. ${pgC2}):\nBenar: ${r.correct}/${pgC2} soal -> Nilai otomatis: ${r.autoScore}\n${hasEs2?`\nURAIAN (Soal No. ${pgC2+1} s.d. ${r.total}):\n${r.essays.length} soal sudah masuk, TINGGAL DIKOREKSI via Admin -> Hasil Ujian.\n`:''}\nWaktu pengerjaan: ${mnt2} menit ${dtk2} detik.\n\n-- Notifikasi otomatis UTS Digital`
           }
         });
       }
@@ -846,15 +848,24 @@ async function finEx(){
   }
 }
 
+/* Cari guru penerima notifikasi berdasarkan kelas+rombel siswa & mapel */
+function getGuruFor(kelas,rombel,mapel){
+  const gm=(D.sch&&D.sch.guruMap)||{};
+  if(/agama|pai/i.test(mapel||'')&&gm['PAI']&&(gm['PAI'].hp||gm['PAI'].email||gm['PAI'].nama))return gm['PAI'];
+  if(/pjok|jasmani|olahraga/i.test(mapel||'')&&gm['PJOK']&&(gm['PJOK'].hp||gm['PJOK'].email||gm['PJOK'].nama))return gm['PJOK'];
+  return gm[kelas+'|'+(rombel||'A')]||gm[kelas+'|A']||{};
+}
+
 function normWANum(v){let n=String(v||'').replace(/\D/g,'');if(n.startsWith('0'))n='62'+n.slice(1);return n;}
 function kirimNotifWA(r){
   if(!D.sch||D.isPusat)return;
-  const num=normWANum(D.sch.waGuru);
+  const g=getGuruFor(r.kelas,r.rombel,r.mapel);
+  const num=normWANum(g.hp||D.sch.waGuru||'');
   if(!num||num.length<9)return;
   const hasEs=r.essays&&r.essays.length>0;
   const pgC=r.pg?r.pg.length:(r.total-(r.essays?r.essays.length:0));
   const esC=r.essays?r.essays.length:0;
-  const msg=`Assalamu'alaikum Wr. Wb.\nYth. Bapak/Ibu Guru,\n\nSiswa *${r.nama}* (Kelas ${r.kelas}, NIS ${r.nis}) telah *menyelesaikan* ulangan tengah semester mapel *${r.mapel}* di ${D.sch.nama}.\n\n*PILIHAN GANDA (Soal No. 1 s.d. ${pgC}):*\nBenar: ${r.correct}/${pgC} soal → Nilai otomatis: *${r.autoScore}*\n${hasEs?`\n*URAIAN (Soal No. ${pgC+1} s.d. ${pgC+esC}):*\n${esC} soal sudah masuk, *TINGGAL DIKOREKSI* via Admin → Hasil Ujian.\n`:''}\nWaktu pengerjaan: ${Math.floor(r.timeUsed/60)} menit ${r.timeUsed%60} detik.\n\n— Notifikasi otomatis UTS Digital`;
+  const msg=`Assalamu'alaikum Wr. Wb.\nYth. Bapak/Ibu ${g.nama||'Guru'},\n\nSiswa *${r.nama}* (Kelas ${r.kelas}, NIS ${r.nis}) telah *menyelesaikan* ulangan tengah semester mapel *${r.mapel}* di ${D.sch.nama}.\n\n*PILIHAN GANDA (Soal No. 1 s.d. ${pgC}):*\nBenar: ${r.correct}/${pgC} soal → Nilai otomatis: *${r.autoScore}*\n${hasEs?`\n*URAIAN (Soal No. ${pgC+1} s.d. ${pgC+esC}):*\n${esC} soal sudah masuk, *TINGGAL DIKOREKSI* via Admin → Hasil Ujian.\n`:''}\nWaktu pengerjaan: ${Math.floor(r.timeUsed/60)} menit ${r.timeUsed%60} detik.\n\n— Notifikasi otomatis UTS Digital`;
   const url='https://wa.me/'+num+'?text='+encodeURIComponent(msg);
   window._waNotifUrl=url;
   const w=window.open(url,'_blank');
@@ -892,7 +903,7 @@ function showR(r){
   <div class="flex gap-3 justify-center flex-wrap">
     <button class="bt bt3 bts" onclick="go('pSD');renderSD()"><i class="fas fa-arrow-left"></i> Kembali</button>
     <button class="bt bt2 bts" onclick="outS()"><i class="fas fa-sign-out-alt"></i> Keluar</button>
-    ${D.sch.waGuru?`<button class="bt bt5 bts" onclick="window.open(window._waNotifUrl,'_blank')"><i class="fa-brands fa-whatsapp"></i> Kirim ke WA Guru</button>`:''}
+    ${window._waNotifUrl?`<button class="bt bt5 bts" onclick="window.open(window._waNotifUrl,'_blank')"><i class="fa-brands fa-whatsapp"></i> Kirim ke WA Guru</button>`:''}
   </div>`;
 }
 function cft(){const cols=['#FF6B35','#00B4D8','#22C55E','#EAB308','#A855F7','#EF4444','#FF69B4'];for(let i=0;i<40;i++){const el=document.createElement('div');el.className='cp';el.style.left=Math.random()*100+'vw';el.style.background=cols[Math.floor(Math.random()*cols.length)];el.style.borderRadius=Math.random()>.5?'50%':'2px';el.style.width=(6+Math.random()*8)+'px';el.style.height=(6+Math.random()*8)+'px';el.style.animationDuration=(2+Math.random()*2)+'s';el.style.animationDelay=(Math.random()*1.5)+'s';document.body.appendChild(el);setTimeout(()=>el.remove(),5000)}}
@@ -925,9 +936,10 @@ async function cPDF(rid, npsn){
   const tm=Math.floor(r.timeUsed/60),ts=r.timeUsed%60;
   const pgC=r.total-(r.essays?r.essays.length:0);
 
-  let labelGuru = "Guru Kelas";
-  if(/agama/i.test(r.mapel)) labelGuru = "Guru Mapel PAI";
-  else if(/pjok|jasmani|olahraga/i.test(r.mapel)) labelGuru = "Guru Mapel PJOK";
+  const gPdf=getGuruFor(r.kelas,r.rombel,r.mapel);
+  let labelGuru = gPdf.nama ? 'Guru Kelas: '+gPdf.nama : "Guru Kelas";
+  if(/agama|pai/i.test(r.mapel)) labelGuru = gPdf.nama ? 'Guru PAI: '+gPdf.nama : "Guru Mapel PAI";
+  else if(/pjok|jasmani|olahraga/i.test(r.mapel)) labelGuru = gPdf.nama ? gPdf.nama : "Guru Mapel PJOK";
   
   let essayHtml='';
   if(r.essays&&r.essays.length>0){
@@ -1823,46 +1835,62 @@ async function doImportJSON(){
 
 /* ===== HASIL UJIAN ===== */
 function renderHasil(c){
-  const list = D.isPusat ? D.allResults : D.rs;
-  if(list.length===0){c.innerHTML=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Hasil Ujian</h2><div class="cd" style="text-align:center;padding:40px"><p style="color:var(--mt)">Belum ada hasil.</p></div></div>`;return;}
-  
-  const grouped={};
-  list.forEach(r=>{const k=(D.isPusat?r.schoolNpsn+'|':'')+r.mapel+'|'+r.kelas+'|'+(r.rombel||'-');if(!grouped[k])grouped[k]={mapel:r.mapel,kelas:r.kelas,rombel:r.rombel||'-',schoolName:r.schoolName||D.sch.nama,schoolNpsn:r.schoolNpsn||D.sch.npsn,items:[]};grouped[k].items.push(r);});
-  
+  if(!D.hasilFilter)D.hasilFilter={kelas:'',rombel:'',mapel:''};
+  const fk=D.hasilFilter.kelas||'',fr=D.hasilFilter.rombel||'',fm=D.hasilFilter.mapel||'';
+  const listAll=D.isPusat?D.allResults:D.rs;
+  const kOpts=[...new Set(listAll.map(r=>r.kelas))].sort((a,b)=>a-b);
+  const rOpts=fk?[...new Set(listAll.filter(r=>String(r.kelas)===String(fk)).map(r=>r.rombel||'-'))].sort():[];
+  const mOpts=(fk&&fr)?[...new Set(listAll.filter(r=>String(r.kelas)===String(fk)&&(r.rombel||'-')===fr).map(r=>r.mapel))].sort():[];
+
   let h=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Hasil Ujian ${D.isPusat?'(Semua Sekolah)':''}</h2>
-    <div class="flex gap-2 mb-4 flex-wrap"><select id="fMapel" class="ip" style="max-width:200px" onchange="filterHasil()"><option value="">Semua Mapel</option>${[...new Set(list.map(r=>r.mapel))].map(m=>`<option value="${m}">${m}</option>`).join('')}</select><select id="fKelas" class="ip" style="max-width:140px" onchange="filterHasil()"><option value="">Semua Kelas</option>${[...new Set(list.map(r=>r.kelas))].sort().map(k=>`<option value="${k}">Kelas ${k}</option>`).join('')}</select><select id="fRombel" class="ip" style="max-width:140px" onchange="filterHasil()"><option value="">Semua Rombel</option>${[...new Set(list.map(r=>r.rombel||'-'))].sort().map(v=>`<option value="${v}">Rombel ${v}</option>`).join('')}</select> 
-    ${!D.isPusat ? `<button class="bt bt1 bts" onclick="cetakFilterRekap()"><i class="fas fa-file-pdf"></i> Cetak Rekap Filter</button>` : ''}
-    </div>
-    <div class="grid gap-3" id="hasilList">`;
-    
-  Object.values(grouped).forEach(g=>{const m=gm(g.mapel);const avg=Math.round(g.items.reduce((a,r)=>a+(r.score||0),0)/g.items.length);
-    h+=`<div class="cd hasil-card" data-mapel="${g.mapel}" data-kelas="${g.kelas}" data-rombel="${g.rombel}" style="padding:18px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${g.mapel} — Kelas ${g.kelas} Rombel ${g.rombel}</p><p style="font-size:.75rem;color:var(--mt)">${g.schoolName} · ${g.items.length} siswa · Rata-rata: ${avg}</p></div></div></div>
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">PG</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Uraian</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Akhir</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`;
+    <div class="cd mb-6" style="padding:16px 20px;border-color:var(--ac);border-style:dashed">
+      <p class="mb-3 font-bold" style="font-size:.85rem"><i class="fas fa-filter mr-2" style="color:var(--ac)"></i>Filter Hasil Ujian <span style="color:var(--er)">*</span> <span style="font-weight:400;color:var(--mt);font-size:.75rem">(hasil disembunyikan dulu &mdash; pilih Kelas, Rombel & Mapel agar rapi dan mudah diperiksa)</span></p>
+      <div class="flex gap-3 flex-wrap">
+        <div style="flex:1;min-width:150px;max-width:220px"><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas</label><select class="ip" onchange="D.hasilFilter.kelas=this.value;D.hasilFilter.rombel='';D.hasilFilter.mapel='';renderHasil($('aC'))"><option value="">-- Pilih Kelas --</option>${kOpts.map(k=>`<option value="${k}" ${String(fk)===String(k)?'selected':''}>Kelas ${k}</option>`).join('')}</select></div>
+        <div style="flex:1;min-width:150px;max-width:220px"><label class="block mb-1 font-bold" style="font-size:.82rem">Rombel</label><select class="ip" ${fk?'':'disabled'} onchange="D.hasilFilter.rombel=this.value;D.hasilFilter.mapel='';renderHasil($('aC'))"><option value="">${fk?'-- Pilih Rombel --':'-- Pilih Kelas Dulu --'}</option>${rOpts.map(v=>`<option value="${v}" ${fr===v?'selected':''}>Rombel ${v}</option>`).join('')}</select></div>
+        <div style="flex:1;min-width:180px;max-width:280px"><label class="block mb-1 font-bold" style="font-size:.82rem">Mata Pelajaran</label><select class="ip" ${(fk&&fr)?'':'disabled'} onchange="D.hasilFilter.mapel=this.value;renderHasil($('aC'))"><option value="">${(fk&&fr)?'-- Pilih Mapel --':'-- Pilih Rombel Dulu --'}</option>${mOpts.map(m=>`<option value="${m}" ${fm===m?'selected':''}>${m}</option>`).join('')}</select></div>
+        ${(fk||fr||fm)?`<div style="display:flex;align-items:flex-end"><button class="bt bt3 bts" onclick="D.hasilFilter={kelas:'',rombel:'',mapel:''};renderHasil($('aC'))"><i class="fas fa-times"></i> Reset</button></div>`:''}
+      </div>
+    </div>`;
+
+  if(!fk||!fr||!fm){
+    h+=`<div class="cd" style="text-align:center;padding:44px 20px"><div style="font-size:3rem;margin-bottom:12px;opacity:.3"><i class="fas fa-filter"></i></div><p style="font-weight:800;margin-bottom:6px">Pilih Kelas, Rombel & Mata Pelajaran Terlebih Dahulu</p><p style="font-size:.85rem;color:var(--mt);max-width:460px;margin:0 auto">Hasil ujian sengaja disembunyikan dulu supaya tampilan rapi dan mudah diperiksa. Silakan pilih <b>Kelas</b>, <b>Rombel</b>, dan <b>Mata Pelajaran</b> pada filter di atas.</p></div></div>`;
+    c.innerHTML=h;return;
+  }
+
+  const list=listAll.filter(r=>String(r.kelas)===String(fk)&&(r.rombel||'-')===fr&&r.mapel===fm);
+  if(list.length===0){
+    h+=`<div class="cd" style="text-align:center;padding:40px"><p style="color:var(--mt)">Belum ada hasil untuk <b>${fm}</b> &mdash; Kelas ${fk} Rombel ${fr}.</p></div></div>`;c.innerHTML=h;return;
+  }
+
+  const avg=Math.round(list.reduce((a,r)=>a+(r.score||0),0)/list.length);
+  const mf=gm(fm);
+  h+=`<div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+    <p style="font-size:.88rem;color:var(--mt)"><i class="fas ${mf.ic} mr-1" style="color:${mf.c}"></i><b style="color:var(--fg)">${fm} &mdash; Kelas ${fk} Rombel ${fr}</b> &middot; ${list.length} siswa &middot; Rata-rata: ${avg}</p>
+    ${!D.isPusat?`<button class="bt bt1 bts" onclick="cetakFilterRekap()"><i class="fas fa-file-pdf"></i> Cetak Rekap Filter Ini</button>`:''}
+  </div>`;
+
+  const grouped={};
+  list.forEach(r=>{const k=D.isPusat?(r.schoolNpsn||'-'):'-';if(!grouped[k])grouped[k]={schoolName:r.schoolName||D.sch.nama,schoolNpsn:r.schoolNpsn||D.sch.npsn,items:[]};grouped[k].items.push(r);});
+  Object.values(grouped).forEach(g=>{
+    const gAvg=Math.round(g.items.reduce((a,r)=>a+(r.score||0),0)/g.items.length);
+    h+=`<div class="cd mb-4" style="padding:18px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><p style="font-weight:800">${D.isPusat?`<i class="fas fa-school mr-2" style="color:var(--ac)"></i>${g.schoolName} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(NPSN: ${g.schoolNpsn})</span>`:`<i class="fas fa-list-ol mr-2" style="color:var(--ac)"></i>Daftar Nilai Siswa`}</p><p style="font-size:.75rem;color:var(--mt)">${g.items.length} siswa &middot; Rata-rata: ${gAvg}</p></div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">PG</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Uraian</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Akhir</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`;
     g.items.sort((a,b)=>(b.score||0)-(a.score||0)).forEach((r,i)=>{
-      const sc=r.score||0;
-      let stC, stL;
-      if(r.essays && r.essays.length > 0) {
-        const isGraded = r.essays.every(e => e.graded === true);
-        if(isGraded) {
-          if(sc >= 70) { stC='var(--ok)'; stL='Tuntas'; } 
-          else { stC='var(--er)'; stL='Belum Tuntas'; }
-        } else {
-          stC='var(--inf)'; stL='Menunggu';
-        }
-      } else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}
-      
-      const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-';h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cPDF('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;});
+      const sc=r.score||0;let stC,stL;
+      if(r.essays&&r.essays.length>0){const isGraded=r.essays.every(e=>e.graded===true);if(isGraded){if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}}else{stC='var(--inf)';stL='Menunggu';}}
+      else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}
+      const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-';
+      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cPDF('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;});
     h+=`</tbody></table></div></div>`;});
-  h+=`</div></div>`;c.innerHTML=h;
+  h+=`</div>`;c.innerHTML=h;
 }
 
 function cetakFilterRekap(){
-  const fMapel = $('fMapel').value;
-  const fKelas = $('fKelas').value;
-  const fRombel = $('fRombel').value;
-  if(!fMapel || !fKelas) return tt('Pilih Kelas dan Mapel dulu!', 'er');
+  const f=D.hasilFilter||{};
+  if(!f.kelas||!f.rombel||!f.mapel) return tt('Pilih Kelas, Rombel & Mapel dulu!', 'er');
   ld('Menyiapkan Rekap...');
-  setTimeout(() => { cRekapPDF(fKelas, fMapel, fRombel); }, 100);
+  setTimeout(() => { cRekapPDF(f.kelas, f.mapel, f.rombel); }, 100);
 }
 
 async function cRekapPDF(filterKelas, filterMapel, filterRombel){
@@ -1895,9 +1923,10 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
       const siswa = kelasData.items[mapel];
       const avg = Math.round(siswa.reduce((a,r)=>a+(r.score||0),0)/siswa.length);
       
-      let labelGuru = "Guru Kelas";
-      if(/agama/i.test(mapel)) labelGuru = "Guru Mapel PAI";
-      else if(/pjok|jasmani|olahraga/i.test(mapel)) labelGuru = "Guru Mapel PJOK";
+      const gRk=getGuruFor(kelasData.kelas,rb,mapel);
+      let labelGuru = gRk.nama ? 'Guru Kelas: '+gRk.nama : "Guru Kelas";
+      if(/agama|pai/i.test(mapel)) labelGuru = gRk.nama ? 'Guru PAI: '+gRk.nama : "Guru Mapel PAI";
+      else if(/pjok|jasmani|olahraga/i.test(mapel)) labelGuru = gRk.nama ? gRk.nama : "Guru Mapel PJOK";
       
       html += `<p style="font-size:10pt;font-weight:700;margin:8px 0 4px">${mapel} <span style="font-weight:400;font-size:8pt">(Rata-rata: ${avg})</span></p>`;
       html += `<table style="width:100%; border:2px solid #000; border-collapse:collapse; margin-bottom:12px;">
@@ -1971,7 +2000,6 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
   hd(); 
   box.style.left='-9999px';box.style.zIndex='-1';
 }
-function filterHasil(){const fm=$v('fMapel'),fk=$v('fKelas'),fr=$v('fRombel');document.querySelectorAll('.hasil-card').forEach(card=>{let show=true;if(fm&&card.dataset.mapel!==fm)show=false;if(fk&&card.dataset.kelas!==fk)show=false;if(fr&&card.dataset.rombel!==fr)show=false;card.style.display=show?'':'none';});}
 async function doHapusHasil(rid,npsn){ld('Menghapus...');try{await rR(npsn).doc(rid).delete();if(!D.isPusat){D.rs=D.rs.filter(r=>r.id!==rid);}else{D.allResults=D.allResults.filter(r=>r.id!==rid);}hd();renderHasil($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}}
 
 function koreksiEssay(rid, npsn){
@@ -2231,22 +2259,54 @@ async function doHapusSekolah(npsn, nama){
 /* ===== PENGATURAN ===== */
 function renderSetting(c){
   if(D.isPusat){c.innerHTML=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Pengaturan</h2><div class="cd" style="max-width:500px"><p style="color:var(--mt)">Admin Pusat mengelola melalui menu lain.</p></div></div>`;return;}
-  const sch=D.sch;
+  const sch=D.sch;const ROMBELS=['A','B','C','D'];const gm=sch.guruMap||{};
+  const buildMapelGuru=(key,icon,color,title,desc)=>{const g=gm[key]||{};return `<div class="cd mb-4" style="max-width:760px;border-color:${color};border-style:dashed"><h3 style="margin-bottom:10px;font-size:.95rem"><i class="fas ${icon} mr-2" style="color:${color}"></i>${title} <span style="font-size:.7rem;color:var(--mt);font-weight:600">${desc}</span></h3><div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+    <div><label class="block mb-1 font-bold" style="font-size:.76rem">Nama Guru</label><input id="g${key}N" class="ip" style="padding:7px 10px;font-size:.84rem" value="${g.nama||''}" placeholder="Nama guru ${title}"></div>
+    <div><label class="block mb-1 font-bold" style="font-size:.76rem">No. HP / WhatsApp</label><input id="g${key}H" class="ip" style="padding:7px 10px;font-size:.84rem" value="${g.hp||''}" placeholder="08xxxxxxxxxx"></div>
+    <div><label class="block mb-1 font-bold" style="font-size:.76rem">Email</label><input id="g${key}E" class="ip" style="padding:7px 10px;font-size:.84rem" value="${g.email||''}" placeholder="email guru"></div>
+  </div></div>`;};
+  let guruHtml=`<p class="mb-3" style="font-size:.82rem;color:var(--mt)"><i class="fas fa-bell mr-1" style="color:var(--ac)"></i> Notifikasi WhatsApp &amp; email otomatis saat siswa selesai ujian dikirim ke <b>guru sesuai kelas &amp; rombel siswa</b> (mapel PAI/Agama &rarr; Guru PAI, mapel PJOK &rarr; Guru PJOK). Isi nama, no. HP dan email.</p>`;
+  for(let k=1;k<=6;k++){
+    guruHtml+=`<div class="cd mb-4" style="max-width:760px"><h3 style="margin-bottom:10px;font-size:.95rem"><i class="fas fa-chalkboard-user mr-2" style="color:var(--ac)"></i>Guru Kelas ${k} <span style="font-size:.7rem;color:var(--mt);font-weight:600">(isi per rombel A&ndash;D &mdash; nama, no. HP &amp; email)</span></h3>`;
+    ROMBELS.forEach(rb=>{const g=gm[k+'|'+rb]||{};
+      guruHtml+=`<div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2" style="background:var(--bg);padding:8px;border-radius:10px">
+        <div><label class="block mb-1 font-bold" style="font-size:.76rem">Rombel ${rb} &mdash; Nama Guru</label><input id="g${k}${rb}N" class="ip" style="padding:7px 10px;font-size:.84rem" value="${g.nama||''}" placeholder="Nama guru kelas ${k} rombel ${rb}"></div>
+        <div><label class="block mb-1 font-bold" style="font-size:.76rem">No. HP / WhatsApp</label><input id="g${k}${rb}H" class="ip" style="padding:7px 10px;font-size:.84rem" value="${g.hp||''}" placeholder="08xxxxxxxxxx"></div>
+        <div><label class="block mb-1 font-bold" style="font-size:.76rem">Email</label><input id="g${k}${rb}E" class="ip" style="padding:7px 10px;font-size:.84rem" value="${g.email||''}" placeholder="email guru"></div>
+      </div>`;});
+    guruHtml+=`</div>`;
+  }
+  guruHtml+=buildMapelGuru('PAI','fa-mosque','var(--pr)','Guru PAI','(notifikasi mapel PAI/Agama semua kelas &amp; rombel)');
+  guruHtml+=buildMapelGuru('PJOK','fa-futbol','#F97316','Guru PJOK','(notifikasi mapel PJOK semua kelas &amp; rombel)');
+  guruHtml+=`<button class="bt bt1 bts mb-4" onclick="simpanSetting()"><i class="fas fa-save"></i> Simpan Semua Data Guru</button>`;
+
   c.innerHTML=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Pengaturan</h2>
     <div class="cd mb-4" style="max-width:500px"><h3 style="margin-bottom:12px"><i class="fas fa-school mr-2" style="color:var(--ac)"></i>Info Sekolah</h3>
       <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">NPSN</label><input class="ip" value="${sch.npsn}" readonly style="opacity:.6"></div>
       <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Nama</label><input id="setNama" class="ip" value="${sch.nama}"></div>
       <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Kota</label><input id="setKota" class="ip" value="${sch.kota}"></div>
       <div class="mb-4"><label class="block mb-1 font-bold" style="font-size:.82rem">Provinsi</label><input id="setProv" class="ip" value="${sch.prov}"></div>
-      <div class="mb-4"><label class="block mb-1 font-bold" style="font-size:.82rem"><i class="fa-brands fa-whatsapp mr-1" style="color:var(--ok)"></i>Nomor WhatsApp Guru <span style="font-weight:400;color:var(--mt)">(untuk notifikasi otomatis, cth: 0812xxxx)</span></label><input id="setWA" class="ip" value="${sch.waGuru||''}" placeholder="628xxxxxxxxxx"></div>
-      <div class="mb-4"><label class="block mb-1 font-bold" style="font-size:.82rem"><i class="fas fa-envelope mr-1" style="color:var(--ac2)"></i>Email Guru <span style="font-weight:400;color:var(--mt)">(untuk notifikasi email otomatis)</span></label><input id="setEmail" class="ip" value="${sch.emailGuru||''}" placeholder="guru@sekolah.sch.id"></div>
-      <button class="bt bt1 bts" onclick="simpanSetting()"><i class="fas fa-save"></i> Simpan</button></div>
+      <button class="bt bt1 bts" onclick="simpanSetting()"><i class="fas fa-save"></i> Simpan Info Sekolah</button></div>
+    <h3 style="font-size:1.1rem;margin-bottom:10px"><i class="fas fa-chalkboard-user mr-2" style="color:var(--ac)"></i>Data Guru &amp; Notifikasi</h3>
+    ${guruHtml}
     <div class="cd" style="max-width:500px"><h3 style="margin-bottom:12px"><i class="fas fa-key mr-2" style="color:var(--pr)"></i>Ganti Password</h3>
       <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Password Lama</label><input id="setOld" class="ip" type="password"></div>
       <div class="mb-4"><label class="block mb-1 font-bold" style="font-size:.82rem">Password Baru</label><input id="setNew" class="ip" type="password"></div>
       <button class="bt bt5 bts" onclick="gantiPwdAdmin()"><i class="fas fa-key"></i> Ganti</button></div></div>`;
 }
-async function simpanSetting(){const nama=$v('setNama'),kota=$v('setKota'),prov=$v('setProv'),waGuru=$v('setWA'),emailGuru=$v('setEmail');if(!nama)return tt('Nama wajib!','er');ld('Menyimpan...');await sR(D.sch.npsn).update({nama,kota,prov,waGuru,emailGuru});D.sch.nama=nama;D.sch.kota=kota;D.sch.prov=prov;D.sch.waGuru=waGuru;D.sch.emailGuru=emailGuru;$('aSN2').textContent=nama;hd();tt('Disimpan!');}
+
+async function simpanSetting(){
+  const nama=$v('setNama'),kota=$v('setKota'),prov=$v('setProv');
+  if(!nama)return tt('Nama wajib!','er');
+  const ROMBELS=['A','B','C','D'];const guruMap={};
+  for(let k=1;k<=6;k++){ROMBELS.forEach(rb=>{const n=$v('g'+k+rb+'N'),hp=$v('g'+k+rb+'H'),email=$v('g'+k+rb+'E');if(n||hp||email)guruMap[k+'|'+rb]={nama:n,hp,email};});}
+  ['PAI','PJOK'].forEach(key=>{const n=$v('g'+key+'N'),hp=$v('g'+key+'H'),email=$v('g'+key+'E');if(n||hp||email)guruMap[key]={nama:n,hp,email};});
+  ld('Menyimpan...');
+  await sR(D.sch.npsn).update({nama,kota,prov,guruMap});
+  D.sch.nama=nama;D.sch.kota=kota;D.sch.prov=prov;D.sch.guruMap=guruMap;
+  $('aSN2').textContent=nama;hd();tt('Disimpan!');
+}
+
 async function gantiPwdAdmin(){const old=$v('setOld'),nw=$v('setNew');if(!old||!nw)return tt('Semua field wajib!','er');if(old!==D.sch.adminPass)return tt('Password lama salah!','er');if(nw.length<6)return tt('Min 6 karakter!','er');ld('Mengganti...');await sR(D.sch.npsn).update({adminPass:nw});D.sch.adminPass=nw;hd();tt('Password diganti!');}
 
 /* ===== SISWA DASHBOARD ===== */
