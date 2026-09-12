@@ -133,6 +133,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 </style>
 
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div id="tt" class="tt"></div>
@@ -345,6 +346,16 @@ function wR(n){return db.collection('schools').doc(n).collection('students')}
 function $(id){return document.getElementById(id)}
 function $v(id){return $(id).value.trim()}
 
+/* ================================================================
+   LIVE SYNC ENGINE — perubahan Admin Pusat otomatis ter-update
+   real-time ke Admin Sekolah & Siswa (tanpa sebar ulang).
+   Berbasis Firestore onSnapshot: begitu dokumen soal berubah di
+   database, semua perangkat yang sedang terbuka langsung di-refresh.
+   ================================================================ */
+let _unsub=[];
+function addUnsub(fn){_unsub.push(fn)}
+function clearUnsub(){_unsub.forEach(u=>{try{u()}catch(e){}});_unsub=[]}
+
 async function checkRules(){
   const msg=$('setupMsg');msg.style.display='block';
   msg.innerHTML='<div class="text-center"><div class="spn" style="margin-bottom:12px"></div><p style="font-weight:700;color:var(--mt)">Menguji koneksi...</p></div>';
@@ -388,11 +399,96 @@ async function loadPusatExams(){
 }
 async function loadD(npsn){const[a,b,c]=await Promise.all([eR(npsn).get(),rR(npsn).get(),wR(npsn).get()]);D.ex=a.docs.map(d=>({id:d.id,...d.data()}));D.rs=b.docs.map(d=>({id:d.id,...d.data()}));D.ss=c.docs.map(d=>({id:d.id,...d.data()}));}
 
+/* Jika siswa sedang mengerjakan ujian & soal berubah di pusat:
+   - soal & kunci langsung diganti dengan versi terbaru
+   - jawaban yang sudah diisi PERTAHANAN (dikenali via id soal) */
+function liveExamUpdate(){
+  if(!D.cEx||!D.st||!$('pEX').classList.contains('on'))return;
+  const fresh=D.ex.find(e=>e.id===D.cEx.id);if(!fresh)return;
+  if(JSON.stringify(fresh.questions)===JSON.stringify(D.cEx.questions))return;
+  const newAn={};
+  fresh.questions.forEach((q,i)=>{
+    const oi=D.cEx.questions.findIndex(o=>o&&o.id===q.id);
+    if(oi>=0&&D.an[oi]!==undefined)newAn[i]=D.an[oi];
+  });
+  D.cEx=JSON.parse(JSON.stringify(fresh));D.an=newAn;autoSaveLocal();
+  if(D.cQ>=D.cEx.questions.length)D.cQ=0;
+  tt('Soal diperbarui oleh Admin — jawaban Anda tetap tersimpan','in');
+  if(!$('moO').classList.contains('on'))rQ();
+}
+/* Refresh tampilan admin tanpa mengganggu layar edit soal / modal */
+function refreshAdminUI(){
+  if(!D.aIn||!$('pAD')||!$('pAD').classList.contains('on'))return;
+  if($('eqText')||$('moO').classList.contains('on'))return;
+  const links=[...document.querySelectorAll('#aSB a')];
+  const idx=links.findIndex(a=>a.classList.contains('on'));
+  const tabs=['d','s','h','w','k','c'];
+  if(idx>=0&&tabs[idx])aTab(tabs[idx],links[idx]);
+}
+function refreshStudentUI(){
+  if(!$('pSD')||!$('pSD').classList.contains('on'))return;
+  if($('moO').classList.contains('on'))return;
+  renderSD();
+}
+/* Listener real-time utk admin sekolah & siswa (soal, hasil, data siswa) */
+function attachLiveListeners(npsn){
+  clearUnsub();
+  addUnsub(eR(npsn).onSnapshot(snap=>{
+    D.ex=snap.docs.map(d=>({id:d.id,...d.data()}));
+    liveExamUpdate();refreshAdminUI();refreshStudentUI();
+  }));
+  addUnsub(rR(npsn).onSnapshot(snap=>{
+    D.rs=snap.docs.map(d=>({id:d.id,...d.data()}));
+    refreshAdminUI();refreshStudentUI();
+  }));
+  addUnsub(wR(npsn).onSnapshot(snap=>{
+    D.ss=snap.docs.map(d=>({id:d.id,...d.data()}));
+    refreshAdminUI();
+  }));
+}
+/* Pusat: pantau koleksi sekolah — sekolah BARU otomatis menerima
+   SEMUA soal pusat tanpa perlu disbar manual. */
+function attachPusatLiveListeners(){
+  clearUnsub();
+  let prevCount=D.allSchools.length;
+  addUnsub(db.collection('schools').where('isPusat','==',false).onSnapshot(async snap=>{
+    D.allSchools=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(D.allSchools.length>prevCount&&D.ex.length>0){
+      tt('Sekolah baru terdeteksi — soal pusat otomatis dikirim...','in');
+      await syncAllPusatExams();
+    }
+    prevCount=D.allSchools.length;
+    refreshAdminUI();
+  }));
+  addUnsub(eR('PUSAT').onSnapshot(snap=>{
+    D.ex=snap.docs.map(d=>({id:d.id,...d.data()}));
+    refreshAdminUI();
+  }));
+}
+/* Kirim SEMUA soal pusat ke SEMUA sekolah (sinkron penuh) */
+D._syncingAll=false;
+async function syncAllPusatExams(){
+  if(D._syncingAll||!D.isPusat)return;
+  D._syncingAll=true;ld('Menyinkronkan soal ke semua sekolah...');
+  try{
+    await loadAllSchools();
+    for(const ex of D.ex){
+      for(const s of D.allSchools){
+        try{await eR(s.npsn).doc(ex.id).set({id:ex.id,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,questions:ex.questions,fromPusat:true,createdAt:ex.createdAt||Date.now(),sharedAt:Date.now()});}catch(e){}
+      }
+      ex.sharedTo=D.allSchools.map(s=>s.npsn);
+      try{await eR('PUSAT').doc(ex.id).update({sharedTo:ex.sharedTo});}catch(e){}
+    }
+    tt('Semua soal pusat tersinkron ke '+D.allSchools.length+' sekolah!');
+  }catch(e){tt('Sinkron gagal: '+e.message,'er');}
+  hd();D._syncingAll=false;
+}
+
 async function logP(){
   const user=$v('aPU'),pass=$v('aPW');if(!user||!pass)return tt('Semua field wajib!','er');ld('Memverifikasi...');
   if(user==='adminpusat'&&pass==='adminpusat123'){
     D.sch={npsn:'PUSAT',nama:'Admin Pusat',kota:'Majalengka',prov:'Jawa Barat',isPusat:true};
-    D.aIn=true;D.isPusat=true;D.rs=[];D.ss=[];await loadAllSchools(); await loadAllResults(); await loadPusatExams();
+    D.aIn=true;D.isPusat=true;D.rs=[];D.ss=[];await loadAllSchools(); await loadAllResults(); await loadPusatExams();attachPusatLiveListeners();
     hd();go('pAD');$('aSN2').textContent='Admin Pusat';$('navSch').style.display='';
     aTab('d',document.querySelector('#aSB a'));tt('Selamat datang, Admin Pusat!');
   }else{hd();return tt('Username atau password salah!','er')}
@@ -403,20 +499,20 @@ async function logA(){
     const doc=await sR(npsn).get();if(!doc.exists){hd();return tt('NPSN tidak ditemukan!','er')}
     const sch=doc.data();if(sch.isPusat){hd();return tt('Gunakan Login Admin Pusat!','er')}
     if(sch.adminUser!==user||sch.adminPass!==pass){hd();return tt('Username atau password salah!','er')}
-    D.sch=sch;D.aIn=true;D.isPusat=false;await loadD(npsn);hd();go('pAD');
+    D.sch=sch;D.aIn=true;D.isPusat=false;await loadD(npsn);attachLiveListeners(npsn);hd();go('pAD');
     $('aSN2').textContent=sch.nama;$('navSch').style.display='none';
     aTab('d',document.querySelector('#aSB a'));tt('Selamat datang, Admin '+sch.nama+'!');
   }catch(e){hd();tt('Gagal: '+e.message,'er')}
 }
 
-function outA(e){if(e)e.preventDefault();D.aIn=false;D.sch=null;D.isPusat=false;D.ex=[];D.rs=[];D.ss=[];D.allSchools=[];D.allResults=[];go('pH');tt('Keluar','in')}
+function outA(e){if(e)e.preventDefault();clearUnsub();D.aIn=false;D.sch=null;D.isPusat=false;D.ex=[];D.rs=[];D.ss=[];D.allSchools=[];D.allResults=[];go('pH');tt('Keluar','in')}
 
 async function loadSiswaInit(){
   const npsn=$v('sN');$('sLError').style.display='none';
   if(!npsn||npsn.length!==8){$('sLKA').style.display='none';$('sLError').style.display='block';$('sLError').textContent='Masukkan 8 digit NPSN.';return;}
   ld('Memuat...');try{
     const sd=await sR(npsn).get();if(!sd.exists){hd();$('sLKA').style.display='none';$('sLError').style.display='block';$('sLError').textContent='Sekolah tidak ditemukan.';return;}
-    D.sch=sd.data();await loadD(npsn);
+    D.sch=sd.data();await loadD(npsn);attachLiveListeners(npsn);
     if(D.ss.length===0){hd();$('sLKA').style.display='none';$('sLError').style.display='block';$('sLError').textContent='Belum ada data siswa.';return;}
     const kelasUnik=[...new Set(D.ss.map(s=>s.kelas))].sort((a,b)=>a-b);
     $('sK').innerHTML='<option value="">-- Pilih Kelas --</option>'+kelasUnik.map(k=>`<option value="${k}">Kelas ${k}</option>`).join('');
@@ -463,7 +559,7 @@ async function logS(){
   const stu=D.ss.find(s=>s.nis===nis);if(!stu)return tt('Tidak valid!','er');if(stu.password!==pass)return tt('Password salah!','er');
   D.st=stu;startEx(exId);
 }
-function outS(){D.st=null;D.sch=null;['sN','sK','sR','sI','sM','sW'].forEach(i=>$(i).value='');$('sLKA').style.display='none';go('pH')}
+function outS(){clearUnsub();D.st=null;D.sch=null;['sN','sK','sR','sI','sM','sW'].forEach(i=>$(i).value='');$('sLKA').style.display='none';go('pH')}
 
 /* ===== UJIAN MODE OFFLINE HYBRID ===== */
 async function startEx(id){
@@ -1191,6 +1287,7 @@ function renderSoal(c){
     <div class="flex gap-2 flex-wrap">
       <button class="bt bt2 bts" onclick="showImportJSON()"><i class="fas fa-file-import"></i> Import JSON</button>
       <button class="bt bt5 bts" onclick="showContohJSON()"><i class="fas fa-code"></i> Contoh JSON</button>
+      ${D.isPusat?'<button class="bt bt1 bts" onclick="syncAllPusatExams()"><i class="fas fa-rotate"></i> Sinkron Semua Sekolah</button>':''}
       <button class="bt bt1 bts" onclick="showBuatUjian()"><i class="fas fa-plus"></i> Buat Ujian</button>
     </div>
   </div>`;
@@ -1614,6 +1711,7 @@ async function doHapusUjian(eid){
       /* Bersihkan gambar RTDB milik sekolah ini (bukan soal warisan pusat) */
       if(ex&&!ex.fromPusat){ex.questions.forEach(q=>{if(q.image)hapusRTDBGambar(q.image);(q.options||[]).forEach(o=>{if(o&&typeof o==='object'&&o.image)hapusRTDBGambar(o.image);});});}
     }
+    if(D.isPusat&&ex&&ex.sharedTo&&ex.sharedTo.length){for(const n of ex.sharedTo){try{await eR(n).doc(eid).delete();}catch(e){}}}
     D.ex=D.ex.filter(e=>e.id!==eid);hd();renderSoal($('aC'));tt('Dihapus!');
   }catch(e){hd();tt('Gagal: '+e.message,'er')}
 }
@@ -1678,6 +1776,7 @@ async function doImportJSON(){
     await eR(targetNpsn).doc(id).set(exam);
     D.ex.push(exam);
     hd();cMo();tt(questions.length+' soal diimport & disimpan!');renderSoal($('aC'));
+    if(D.isPusat)syncAllPusatExams();
   } catch(e) {
     hd();tt('Gagal menyimpan: '+e.message,'er');
   }
