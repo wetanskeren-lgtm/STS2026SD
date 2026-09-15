@@ -417,6 +417,14 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .dashboard-photo:hover img{transform:scale(1.05)}
 @media(max-width:900px){.dashboard-gallery{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:600px){.dashboard-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.dashboard-photo{border-radius:12px}}
+
+/* GALERI FOTO DEPAN - tampil sebelum login */
+#pH .front-gallery{position:relative;z-index:4;width:min(980px,94vw);margin:12px auto 0;display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+#pH .front-gallery .fg-item{height:105px;border-radius:16px;overflow:hidden;border:2px solid rgba(255,255,255,.5);box-shadow:0 10px 30px rgba(0,0,0,.28);background:#111;transition:transform .25s,box-shadow .25s}
+#pH .front-gallery .fg-item:hover{transform:translateY(-5px) scale(1.02);box-shadow:0 16px 36px rgba(0,0,0,.38)}
+#pH .front-gallery img{width:100%;height:100%;object-fit:cover;display:block}
+#pH .front-gallery-title{position:relative;z-index:4;color:#fff;font-weight:800;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;margin-top:10px;text-shadow:0 3px 12px rgba(0,0,0,.5)}
+@media(max-width:768px){#pH .front-gallery{grid-template-columns:repeat(2,1fr);gap:8px}#pH .front-gallery .fg-item{height:95px}#pH .front-gallery .fg-item:last-child{grid-column:span 2;max-width:50%;justify-self:center}}
 </style>
 
 <base target="_blank">
@@ -497,6 +505,14 @@ service cloud.firestore {
       <button class="bt bt3" onclick="go('pLSA')" style="padding:15px 34px"><i class="fas fa-school"></i> Admin Sekolah</button>
     </div>
     <p class="mt-4 daai-tagline"><span>DAAI SCORE</span><span class="tag-arrow">→</span><span>MENUJU I2 SCORE</span></p>
+  </div>
+  <div class="front-gallery-title">Dokumentasi & Galeri Sekolah</div>
+  <div class="front-gallery" aria-label="Galeri foto halaman depan">
+    <div class="fg-item"><img src="https://www.image2url.com/r2/default/images/1789479245514-47a695e2-a86d-4ce0-8d0d-4ee2c7f99364.jpeg" alt="Galeri 1" loading="eager"></div>
+    <div class="fg-item"><img src="https://www.image2url.com/r2/default/images/1789479288656-8f50b200-bf03-4570-bfbb-1591370b2015.jpeg" alt="Galeri 2" loading="eager"></div>
+    <div class="fg-item"><img src="https://www.image2url.com/r2/default/images/1789479327437-db8efbf8-869c-4d42-b549-9c7c141736f9.jpeg" alt="Galeri 3" loading="eager"></div>
+    <div class="fg-item"><img src="https://www.image2url.com/r2/default/images/1789479353882-bbf6f7c6-7091-4da2-ace4-2726d9344eee.jpeg" alt="Galeri 4" loading="eager"></div>
+    <div class="fg-item"><img src="https://www.image2url.com/r2/default/images/1789479406482-6160825d-c3ab-4755-8eb3-50f7023c70e8.jpeg" alt="Galeri 5" loading="eager"></div>
   </div>
 </div>
 
@@ -1733,6 +1749,7 @@ function aTab(t,el){
 
 /* ===== DASHBOARD ===== */
 function renderDash(c){
+  const quickScheduleHtml=D.isPusat?`<div class="cd" style="margin-bottom:18px;border:2px solid #C7D2FE;background:linear-gradient(135deg,#fff,#f5f3ff)"><div class="flex items-center justify-between gap-3 flex-wrap"><div><h3 style="font-size:1.05rem;margin-bottom:3px"><i class="fas fa-calendar-pen mr-2" style="color:var(--pr)"></i>Atur Jadwal Ulangan</h3><p style="font-size:.75rem;color:var(--mt)">Ubah jadwal langsung dari Dashboard Admin Pusat.</p></div><button class="bt bt5 bts" onclick="showQuickSchedulePicker()"><i class="fas fa-calendar-plus"></i> Ubah Jadwal Sekarang</button></div></div>`:'';
   const exCount=D.ex.length,rsCount=D.isPusat?D.allResults.length:D.rs.length,ssCount=D.ss.length;
   const avgScore=rsCount?Math.round((D.isPusat?D.allResults:D.rs).reduce((a,r)=>a+(r.score||0),0)/rsCount):0;
   let h=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:4px">Dashboard${D.isPusat?' Pusat':''}</h2>
@@ -1798,6 +1815,8 @@ function renderJadwal(c){
     </div></div>`;
   });
   h+=`</div></div>`;c.innerHTML=h;
+
+  if(D.isPusat){c.insertAdjacentHTML('afterbegin',quickScheduleHtml);}
 }
 function renderSoal(c){
   if(!D.soalFilter)D.soalFilter={kelas:'',mapel:''};
@@ -1922,6 +1941,17 @@ async function doSebarKeSekolah(exId){
 }
 
 /* ===== MODAL: BIKIN UJIAN ===== */
+
+function showQuickSchedulePicker(){
+  if(!D.isPusat)return tt('Hanya Admin Pusat yang dapat mengubah jadwal.','er');
+  const exs=D.ex||[];if(!exs.length)return tt('Belum ada paket ujian.','er');
+  const opts=exs.slice().sort((a,b)=>(a.startAt||0)-(b.startAt||0)).map(ex=>`<option value="${ex.id}">${ex.mapel} — Kelas ${ex.kelas}</option>`).join('');
+  oMo(`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-calendar-pen mr-2" style="color:var(--pr)"></i>Ubah Jadwal Langsung</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem">&times;</button></div><label class="block mb-1 font-bold" style="font-size:.82rem">Paket Ujian</label><select id="qExam" class="ip mb-3">${opts}</select><div id="qScheduleFields"></div><button class="bt bt1 w-full justify-center mt-3" onclick="saveQuickSchedule()"><i class="fas fa-save"></i> Simpan & Sinkron</button></div>`);
+  $('qExam').addEventListener('change',renderQuickScheduleFields);renderQuickScheduleFields();
+}
+function renderQuickScheduleFields(){const ex=D.ex.find(e=>e.id===$('qExam').value);if(!ex)return;const toLocal=ts=>ts?new Date(ts-Date.now()%60000).toISOString().slice(0,16):'';$('qScheduleFields').innerHTML=`<div class="grid gap-3"><div><label class="block mb-1 font-bold" style="font-size:.82rem">Mulai</label><input id="qStart" class="ip" type="datetime-local" value="${toLocal(ex.startAt)}"></div><div><label class="block mb-1 font-bold" style="font-size:.82rem">Selesai</label><input id="qEnd" class="ip" type="datetime-local" value="${toLocal(ex.endAt)}"></div></div>`;}
+async function saveQuickSchedule(){const eid=$('qExam').value;if(!eid)return;const ex=D.ex.find(e=>e.id===eid);const start=$('qStart').value?new Date($('qStart').value).getTime():null,end=$('qEnd').value?new Date($('qEnd').value).getTime():null;if(start&&end&&end<=start)return tt('Waktu selesai harus setelah mulai!','er');ld('Menyimpan jadwal...');try{await eR('PUSAT').doc(eid).update({startAt:start,endAt:end,updatedAt:Date.now()});ex.startAt=start;ex.endAt=end;cMo();hd();tt('Jadwal berhasil diubah dan disinkronkan otomatis.');renderDash($('aC'));}catch(e){hd();tt('Gagal menyimpan jadwal: '+e.message,'er');}}
+
 async function editJadwal(eid){
   const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
   const toLocal=ts=>ts?new Date(ts-Date.now()%60000).toISOString().slice(0,16):'';
@@ -2848,16 +2878,22 @@ async function simpanSetting(){
 async function gantiPwdAdmin(){const old=$v('setOld'),nw=$v('setNew');if(!old||!nw)return tt('Semua field wajib!','er');if(old!==D.sch.adminPass)return tt('Password lama salah!','er');if(nw.length<6)return tt('Min 6 karakter!','er');ld('Mengganti...');await sR(D.sch.npsn).update({adminPass:nw});D.sch.adminPass=nw;hd();tt('Password diganti!');}
 
 /* ===== SISWA DASHBOARD ===== */
+let sdCountdownTimer=null;
+function countdownText(ts){const diff=Math.max(0,ts-Date.now());const total=Math.floor(diff/1000),d=Math.floor(total/86400),hh=Math.floor(total%86400/3600),mm=Math.floor(total%3600/60),ss=total%60;const clock=[hh,mm,ss].map(v=>String(v).padStart(2,'0')).join(':');return d>0?`${d} hari ${clock}`:clock;}
+function refreshSDCountdowns(){document.querySelectorAll('[data-countdown-start]').forEach(el=>{const ts=Number(el.dataset.countdownStart);if(!ts)return;el.textContent=ts>Date.now()?'Ujian dimulai '+countdownText(ts)+' lagi':'Ujian sudah dimulai';});}
 function renderSD(){
+  if(sdCountdownTimer)clearInterval(sdCountdownTimer);
   const s=D.st;const exs=D.ex.filter(e=>e.kelas===s.kelas);const done=D.rs.filter(r=>r.nis===s.nis);
   $('sdN').textContent=D.sch.nama;$('sdI').textContent=`Kelas ${s.kelas} Rombel ${s.rombel||'-'} · ${s.nama}`;
   let h=`<h3 style="font-size:1.15rem;margin-bottom:16px">Halo, ${s.nama}!</h3>`;
   if(exs.length===0){h+=`<div class="cd" style="text-align:center;padding:30px"><p style="color:var(--mt)">Belum ada ujian untuk kelas ${s.kelas}.</p></div>`;}
   else{h+=`<div class="grid gap-3">`;exs.forEach(ex=>{const m=gm(ex.mapel);const rd=done.find(r=>r.examId===ex.id);
     const gate=examGate(ex),stx=examStatus(ex);
-    h+=`<div class="cd" style="padding:16px 20px;${gate.allowed?'':'opacity:.82'}"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:44px;height:44px;border-radius:12px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center;font-size:1.1rem"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m</p></div></div>${rd?`<p style="font-weight:800;color:${rd.score>=70?'var(--ok)':'var(--er)'}">${rd.essays&&rd.essays.length>0?'Menunggu':rd.score}</p>`:`<div class="text-right"><p style="font-size:.68rem;color:${stx[1]};font-weight:800;margin-bottom:5px"><i class="fas ${stx[2]} mr-1"></i>${stx[0]}</p><button class="bt ${gate.allowed?'bt2':'bt3'} bts" onclick="startEx('${ex.id}')"><i class="fas ${gate.allowed?'fa-play':'fa-lock'}"></i> ${gate.allowed?'Mulai':'Cek Jadwal'}</button></div>`}</div></div>`;});h+=`</div>`;}
+    h+=`<div class="cd" style="padding:16px 20px;${gate.allowed?'':'opacity:.82'}"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:44px;height:44px;border-radius:12px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center;font-size:1.1rem"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m</p></div></div>${rd?`<p style="font-weight:800;color:${rd.score>=70?'var(--ok)':'var(--er)'}">${rd.essays&&rd.essays.length>0?'Menunggu':rd.score}</p>`:`<div class="text-right"><p style="font-size:.68rem;color:${stx[1]};font-weight:800;margin-bottom:5px"><i class="fas ${stx[2]} mr-1"></i>${stx[0]}</p>${!gate.allowed&&gate.reason==='early'&&ex.startAt?`<p data-countdown-start="${ex.startAt}" style="font-size:.74rem;font-weight:800;color:var(--pr);margin-bottom:7px">Ujian dimulai ${countdownText(ex.startAt)} lagi</p>`:''}<button class="bt ${gate.allowed?'bt2':'bt3'} bts" onclick="startEx('${ex.id}')"><i class="fas ${gate.allowed?'fa-play':'fa-lock'}"></i> ${gate.allowed?'Mulai':'Cek Jadwal'}</button></div>`}</div></div>`;});h+=`</div>`;}
   if(done.length>0){h+=`<h3 style="font-size:1rem;margin:24px 0 12px"><i class="fas fa-history mr-2" style="color:var(--ac)"></i>Riwayat</h3><div class="grid gap-2">`;done.sort((a,b)=>b.timestamp-a.timestamp).forEach(r=>{const d=new Date(r.timestamp);h+=`<div class="cd" style="padding:12px 16px;display:flex;align-items:center;gap:12px"><div style="flex:1"><p style="font-weight:700">${r.mapel}</p><p style="font-size:.72rem;color:var(--mt)">${d.toLocaleDateString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} · ${r.correct}/${r.total}</p></div><p style="font-weight:800;font-size:1.1rem;color:${r.essays&&r.essays.length>0?'var(--inf)':r.score>=70?'var(--ok)':'var(--er)'}">${r.essays&&r.essays.length>0?'?':r.score}</p></div>`;});h+=`</div>`;}
   $('sdL').innerHTML=h;
+  refreshSDCountdowns();
+  sdCountdownTimer=setInterval(refreshSDCountdowns,1000);
 }
 
 /* ===== INIT ===== */
