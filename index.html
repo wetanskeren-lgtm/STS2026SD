@@ -410,6 +410,13 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
   }
 }
 
+
+.dashboard-gallery{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+.dashboard-photo{aspect-ratio:4/3;border-radius:18px;overflow:hidden;background:#eef2f7;border:1px solid rgba(255,255,255,.5);box-shadow:0 10px 30px rgba(0,0,0,.14)}
+.dashboard-photo img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s ease}
+.dashboard-photo:hover img{transform:scale(1.05)}
+@media(max-width:900px){.dashboard-gallery{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){.dashboard-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.dashboard-photo{border-radius:12px}}
 </style>
 
 <base target="_blank">
@@ -561,6 +568,7 @@ service cloud.firestore {
     <nav class="flex-1">
       <a href="#" class="on" onclick="aTab('d',this)"><i class="fas fa-chart-pie w-5 text-center"></i> <span>Dashboard</span></a>
       <a href="#" onclick="aTab('s',this)"><i class="fas fa-list-check w-5 text-center"></i> <span>Kelola Soal</span></a>
+      <a href="#" onclick="aTab('j',this)"><i class="fas fa-calendar-days w-5 text-center"></i> <span>Jadwal Ulangan</span></a>
       <a href="#" id="navHasil" onclick="aTab('h',this)"><i class="fas fa-trophy w-5 text-center"></i> <span>Hasil Ujian</span></a>
       <a href="#" id="navSiswa" onclick="aTab('w',this)"><i class="fas fa-users w-5 text-center"></i> <span>Data Siswa</span></a>
       <a href="#" id="navSch" onclick="aTab('k',this)" style="display:none"><i class="fas fa-school w-5 text-center"></i> <span>Daftar Sekolah</span></a>
@@ -620,6 +628,14 @@ const MP=[
   {v:'Bahasa Sunda',l:'B. Sunda',ic:'fa-comment-dots',c:'#14B8A6'}
 ];
 const OL_FULL=['A','B','C','D','E','F'];
+const DASH_PHOTOS=[
+  'https://www.image2url.com/r2/default/images/1789479245514-47a695e2-a86d-4ce0-8d0d-4ee2c7f99364.jpeg',
+  'https://www.image2url.com/r2/default/images/1789479288656-8f50b200-bf03-4570-bfbb-1591370b2015.jpeg',
+  'https://www.image2url.com/r2/default/images/1789479327437-db8efbf8-869c-4d42-b549-9c7c141736f9.jpeg',
+  'https://www.image2url.com/r2/default/images/1789479353882-bbf6f7c6-7091-4da2-ace4-2726d9344eee.jpeg',
+  'https://www.image2url.com/r2/default/images/1789479406482-6160825d-c3ab-4755-8eb3-50f7023c70e8.jpeg'
+];
+
 
 function maxOpts(kelas){ return kelas <= 2 ? 3 : 4; }
 
@@ -716,7 +732,7 @@ function refreshAdminUI(){
   if($('eqText')||$('moO').classList.contains('on'))return;
   const links=[...document.querySelectorAll('#aSB a')];
   const idx=links.findIndex(a=>a.classList.contains('on'));
-  const tabs=['d','s','h','w','k','c'];
+  const tabs=['d','s','j','h','w','k','c'];
   if(idx>=0&&tabs[idx])aTab(tabs[idx],links[idx]);
 }
 function refreshStudentUI(){
@@ -754,8 +770,16 @@ function attachPusatLiveListeners(){
     prevCount=D.allSchools.length;
     refreshAdminUI();
   }));
-  addUnsub(eR('PUSAT').onSnapshot(snap=>{
+  addUnsub(eR('PUSAT').onSnapshot(async snap=>{
     D.ex=snap.docs.map(d=>({id:d.id,...d.data()}));
+    /* Semua perubahan pusat (soal, jadwal, buka/tutup paksa) langsung disalin ke sekolah. */
+    if(D.isPusat && D.allSchools.length){
+      for(const ex of D.ex){
+        for(const sch of D.allSchools){
+          try{await eR(sch.npsn).doc(ex.id).set({id:ex.id,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,startAt:ex.startAt||null,endAt:ex.endAt||null,forceOpen:!!ex.forceOpen,forceClosed:!!ex.forceClosed,questions:ex.questions,fromPusat:true,createdAt:ex.createdAt||Date.now(),sharedAt:Date.now()},{merge:true});}catch(e){}
+        }
+      }
+    }
     refreshAdminUI();
   }));
 }
@@ -768,7 +792,7 @@ async function syncAllPusatExams(){
     await loadAllSchools();
     for(const ex of D.ex){
       for(const s of D.allSchools){
-        try{await eR(s.npsn).doc(ex.id).set({id:ex.id,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,questions:ex.questions,fromPusat:true,createdAt:ex.createdAt||Date.now(),sharedAt:Date.now()});}catch(e){}
+        try{await eR(s.npsn).doc(ex.id).set({id:ex.id,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,startAt:ex.startAt||null,endAt:ex.endAt||null,forceOpen:!!ex.forceOpen,forceClosed:!!ex.forceClosed,questions:ex.questions,fromPusat:true,createdAt:ex.createdAt||Date.now(),sharedAt:Date.now()});}catch(e){}
       }
       ex.sharedTo=D.allSchools.map(s=>s.npsn);
       try{await eR('PUSAT').doc(ex.id).update({sharedTo:ex.sharedTo});}catch(e){}
@@ -854,6 +878,35 @@ async function logS(){
   D.st=stu;startEx(exId);
 }
 function outS(){clearUnsub();D.st=null;D.sch=null;['sN','sK','sR','sI','sM','sW'].forEach(i=>$(i).value='');$('sLKA').style.display='none';go('pH')}
+
+/* ===== JADWAL & KUNCI UJIAN ===== */
+function fmtJadwal(ts){if(!ts)return 'Tidak dibatasi';const d=new Date(ts);return d.toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});}
+function examGate(ex,now=Date.now()){
+  if(ex.forceClosed)return {allowed:false,reason:'closed',message:'Ujian ditutup paksa oleh Admin.'};
+  if(ex.forceOpen)return {allowed:true,reason:'open'};
+  if(ex.startAt&&now<ex.startAt)return {allowed:false,reason:'early',message:'Ujian belum dimulai.',when:fmtJadwal(ex.startAt)};
+  if(ex.endAt&&now>ex.endAt)return {allowed:false,reason:'late',message:'Waktu ujian sudah berakhir.',when:fmtJadwal(ex.endAt)};
+  return {allowed:true,reason:'schedule'};
+}
+function showExamLocked(ex,gate){
+  const extra=gate.when?`<p style="font-size:.82rem;color:var(--mt);margin-bottom:16px">${gate.reason==='early'?'Mulai':'Berakhir'}: <b>${gate.when}</b></p>`:'';
+  const canForce=D.aIn;
+  oMo(`<div class="text-center"><div style="font-size:2.8rem;color:var(--er);margin-bottom:10px"><i class="fas fa-lock"></i></div>
+    <h3 style="margin-bottom:8px">${gate.message}</h3>${extra}
+    <p style="font-size:.78rem;color:var(--mt);margin-bottom:16px">Jadwal: ${fmtJadwal(ex.startAt)} s.d. ${fmtJadwal(ex.endAt)}</p>
+    <div class="flex gap-2 justify-center flex-wrap">
+      ${canForce&&D.isPusat?`<button class="bt bt5 bts" onclick="cMo();setForceExam('${ex.id}','open')"><i class="fas fa-unlock"></i> Buka Paksa</button>`:''}
+      <button class="bt bt3 bts" onclick="cMo()">Tutup</button>
+    </div></div>`);
+}
+function examStatus(ex){
+  const g=examGate(ex);
+  if(ex.forceClosed)return ['Tutup Paksa','var(--er)','fa-ban'];
+  if(ex.forceOpen)return ['Buka Paksa','var(--ok)','fa-unlock'];
+  if(ex.startAt&&Date.now()<ex.startAt)return ['Terkunci · '+fmtJadwal(ex.startAt),'var(--pr)','fa-lock'];
+  if(ex.endAt&&Date.now()>ex.endAt)return ['Selesai','var(--er)','fa-clock'];
+  return ['Terbuka','var(--ok)','fa-lock-open'];
+}
 
 /* ===== UJIAN MODE OFFLINE HYBRID ===== */
 async function startEx(id){
@@ -1674,7 +1727,7 @@ function aTab(t,el){
   if(window.event)window.event.preventDefault();
   document.querySelectorAll('#aSB a').forEach(a=>a.classList.remove('on'));if(el)el.classList.add('on');
   const c=$('aC');
-  if(t==='d')renderDash(c);else if(t==='s')renderSoal(c);else if(t==='h')renderHasil(c);
+  if(t==='d')renderDash(c);else if(t==='s')renderSoal(c);else if(t==='j')renderJadwal(c);else if(t==='h')renderHasil(c);
   else if(t==='w')renderSiswa(c);else if(t==='k')renderDaftarSekolah(c);else if(t==='c')renderSetting(c);
 }
 
@@ -1697,10 +1750,18 @@ function renderDash(c){
   }else if(D.ex.length>0){
     h+=`<h3 style="font-size:1rem;margin-bottom:10px"><i class="fas fa-list mr-2" style="color:var(--ac)"></i>Paket Ujian</h3><div class="grid gap-3">`;
     D.ex.forEach(ex=>{const m=gm(ex.mapel);const done=D.rs.filter(r=>r.examId===ex.id).length;const mo=maxOpts(ex.kelas);
-      h+=`<div class="cd" style="padding:14px 18px;cursor:pointer;border-left:5px solid ${m.c}" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(${mo} opsi)</span></p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${done}x dikerjakan</p></div></div></div>`;});
+      h+=`<div class="cd" style="padding:14px 18px;cursor:pointer;border-left:5px solid ${m.c}" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(${mo} opsi)</span></p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${done}x dikerjakan · ${fmtJadwal(ex.startAt)} → ${fmtJadwal(ex.endAt)}</p></div></div></div>`;});
     h+=`</div>`;
   }else{h+=`<div class="cd" style="text-align:center;padding:40px"><div style="font-size:3rem;margin-bottom:12px;opacity:.3"><i class="fas fa-inbox"></i></div><p style="font-weight:700;color:var(--mt);margin-bottom:12px">Belum Ada Paket Ujian</p><button class="bt bt1" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><i class="fas fa-plus"></i> Buat Soal</button></div>`;}
-  h+=`</div>`;c.innerHTML=h;
+  h+=`<div class="mt-8 mb-6">
+    <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
+      <div><h3 style="font-size:1.05rem"><i class="fas fa-images mr-2" style="color:var(--ac2)"></i>Galeri</h3>
+      <p style="font-size:.75rem;color:var(--mt)">Dokumentasi sekolah tertata rapi di halaman depan.</p></div>
+    </div>
+    <div class="dashboard-gallery">
+      ${DASH_PHOTOS.map((u,i)=>`<div class="dashboard-photo"><img src="${u}" alt="Dokumentasi ${i+1}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.style.display='none'"></div>`).join('')}
+    </div>
+  </div></div>`;c.innerHTML=h;
 }
 
 async function lihatSoalSekolah(npsn,nama){
@@ -1709,7 +1770,7 @@ async function lihatSoalSekolah(npsn,nama){
     <h2 style="font-size:1.3rem;margin-bottom:4px"><i class="fas fa-school mr-2" style="color:var(--ac)"></i>${nama}</h2><p style="color:var(--mt);font-size:.85rem;margin-bottom:20px">NPSN: ${npsn} — ${exs.length} paket</p>`;
   if(exs.length===0){h+=`<div class="cd" style="text-align:center;padding:30px"><p style="color:var(--mt)">Belum ada soal.</p></div>`;}
   else{h+=`<div class="grid gap-3">`;exs.forEach(ex=>{const m=gm(ex.mapel);const mo=maxOpts(ex.kelas);
-    h+=`<div class="cd" style="padding:14px 18px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt)">(${mo} opsi)</span>${ex.fromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Pusat</span>':''}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m</p></div></div><div class="flex gap-2"><button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}','${npsn}')"><i class="fas fa-file-pdf"></i> Cetak</button><button class="bt bt4 btx" onclick="doHapusSoalSch('${ex.id}','${npsn}','${nama.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button></div></div></div>`;});h+=`</div>`;}
+    h+=`<div class="cd" style="padding:14px 18px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt)">(${mo} opsi)</span>${ex.fromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Pusat</span>':''}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${fmtJadwal(ex.startAt)} → ${fmtJadwal(ex.endAt)}</p></div></div><div class="flex gap-2"><button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}','${npsn}')"><i class="fas fa-file-pdf"></i> Cetak</button><button class="bt bt4 btx" onclick="doHapusSoalSch('${ex.id}','${npsn}','${nama.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button></div></div></div>`;});h+=`</div>`;}
   h+=`</div>`;c.innerHTML=h;
 }
 async function doHapusSoalSch(exId,npsn,nama){oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus soal dari ${nama}?</h3><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();ld('Menghapus...');eR('${npsn}').doc('${exId}').delete().then(()=>{hd();tt('Dihapus!');lihatSoalSekolah('${npsn}','${nama.replace(/'/g, "\\'")}')}).catch(e=>{hd();tt('Gagal: '+e.message,'er')})">Hapus</button></div></div>`)}
@@ -1720,6 +1781,24 @@ async function doHapusSoalSch(exId,npsn,nama){oMo(`<div class="text-center"><h3 
    Daftar paket soal hanya muncul SETELAH pengguna memilih
    Kelas (1-6) DAN Mata Pelajaran. Sebelum itu tampil pesan panduan.
    ================================================================ */
+function renderJadwal(c){
+  let h=`<div class="asu"><div class="flex items-center justify-between flex-wrap gap-3 mb-5">
+    <div><h2 style="font-size:1.5rem;margin-bottom:2px"><i class="fas fa-calendar-days mr-2" style="color:var(--pr)"></i>Jadwal Ulangan</h2>
+    <p style="color:var(--mt);font-size:.85rem">${D.isPusat?'Jadwal dari pusat otomatis masuk ke seluruh Admin Sekolah & login siswa.':'Jadwal diterima dari Admin Pusat dan berlaku otomatis.'}</p></div>
+  </div><div class="grid gap-3">`;
+  if(!D.ex.length)h+=`<div class="cd text-center" style="padding:40px;color:var(--mt)">Belum ada paket ujian.</div>`;
+  D.ex.slice().sort((a,b)=>(a.startAt||0)-(b.startAt||0)).forEach(ex=>{
+    const st=examStatus(ex),m=gm(ex.mapel);
+    h+=`<div class="cd" style="padding:16px 20px;border-left:5px solid ${st[1]}"><div class="flex items-center justify-between gap-3 flex-wrap">
+      <div><p style="font-weight:800;font-size:1rem">${ex.mapel} — Kelas ${ex.kelas}</p>
+      <p style="font-size:.78rem;color:var(--mt)"><i class="fas fa-calendar mr-1"></i>${fmtJadwal(ex.startAt)} → ${fmtJadwal(ex.endAt)} · ${ex.timeLimit} menit</p>
+      <p style="font-size:.76rem;color:${st[1]};font-weight:800;margin-top:4px"><i class="fas ${st[2]} mr-1"></i>${st[0]}</p></div>
+      <div class="flex gap-2 flex-wrap">${D.isPusat?`<button class="bt bt2 btx" onclick="editJadwal('${ex.id}')"><i class="fas fa-calendar-pen"></i> Atur Jadwal</button>
+      ${ex.forceOpen?`<button class="bt bt4 btx" onclick="setForceExam('${ex.id}','close')"><i class="fas fa-lock"></i> Tutup Paksa</button>`:`<button class="bt bt5 btx" onclick="setForceExam('${ex.id}','open')"><i class="fas fa-unlock"></i> Buka Paksa</button>`}`:`<span class="tag-pusat"><i class="fas fa-cloud-arrow-down"></i> Sinkron Pusat</span>`}</div>
+    </div></div>`;
+  });
+  h+=`</div></div>`;c.innerHTML=h;
+}
 function renderSoal(c){
   if(!D.soalFilter)D.soalFilter={kelas:'',mapel:''};
   const fk=D.soalFilter.kelas||'',fm=D.soalFilter.mapel||'';
@@ -1779,13 +1858,15 @@ function renderSoal(c){
           <div style="width:46px;height:46px;border-radius:12px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center;font-size:1.2rem"><i class="fas ${m.ic}"></i></div>
           <div>
             <p style="font-weight:800;font-size:1rem">${ex.mapel} ${hasImg?'<span class="tag-img"><i class="fas fa-image"></i></span>':''}${isFromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Dari Pusat</span>':''}${D.isPusat&&ex.sharedTo&&ex.sharedTo.length>0?`<span class="tag-pusat" style="background:rgba(34,197,94,.1);color:#16a34a"><i class="fas fa-arrows-rotate"></i> Auto-sync ke ${ex.sharedTo.length} sekolah</span>`:''}</p>
-            <p style="font-size:.78rem;color:var(--mt)">Kelas ${ex.kelas} · ${mo} opsi · ${ex.questions.length} soal · ${ex.timeLimit}m</p>
+            <p style="font-size:.78rem;color:var(--mt)">Kelas ${ex.kelas} · ${mo} opsi · ${ex.questions.length} soal · ${ex.timeLimit}m</p><p style="font-size:.7rem;font-weight:800;color:${examStatus(ex)[1]};margin-top:3px"><i class="fas ${examStatus(ex)[2]} mr-1"></i>${examStatus(ex)[0]} · ${fmtJadwal(ex.startAt)} → ${fmtJadwal(ex.endAt)}</p>
           </div>
         </div>
         <div class="flex gap-2 flex-wrap">`;
 
       if(D.isPusat){
         h+=`<button class="bt bt2 btx" onclick="editUjian('${ex.id}')"><i class="fas fa-edit"></i> Edit</button>
+          <button class="bt bt5 btx" onclick="editJadwal('${ex.id}')"><i class="fas fa-calendar-days"></i> Jadwal</button>
+          ${ex.forceOpen?`<button class="bt bt4 btx" onclick="setForceExam('${ex.id}','close')"><i class="fas fa-lock"></i> Tutup Paksa</button>`:`<button class="bt bt5 btx" onclick="setForceExam('${ex.id}','open')"><i class="fas fa-unlock"></i> Buka Paksa</button>`}
           <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button>
           <button class="bt bt1 btx" onclick="sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Sebar</button>
           <button class="bt bt4 btx" onclick="hapusUjianPusat('${ex.id}')"><i class="fas fa-trash"></i></button>`;
@@ -1828,7 +1909,7 @@ async function doSebarKeSekolah(exId){
   if(checked.length===0)return tt('Pilih minimal 1 sekolah!','er');
   const info=$('sebarInfo');info.style.display='block';let berhasil=0;const sukses=[];
   for(const npsn of checked){
-    try{await eR(npsn).doc(exId).set({id:exId,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,questions:ex.questions,fromPusat:true,sharedAt:Date.now(),createdAt:ex.createdAt||Date.now()});
+    try{await eR(npsn).doc(exId).set({id:exId,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,startAt:ex.startAt||null,endAt:ex.endAt||null,forceOpen:!!ex.forceOpen,forceClosed:!!ex.forceClosed,questions:ex.questions,fromPusat:true,sharedAt:Date.now(),createdAt:ex.createdAt||Date.now()});
       berhasil++;sukses.push(npsn);info.innerHTML=`<div style="background:#F0FDF4;border:2px solid var(--ok);border-radius:12px;padding:14px"><p style="font-weight:800;color:var(--ok)"><i class="fas fa-check-circle mr-1"></i> ${berhasil}/${checked.length} berhasil</p><div style="margin-top:6px;height:8px;background:var(--bd);border-radius:8px;overflow:hidden"><div style="height:100%;background:var(--ok);width:${(berhasil/checked.length*100)}%;transition:width .3s"></div></div></div>`;
     }catch(e){}
   }
@@ -1841,6 +1922,35 @@ async function doSebarKeSekolah(exId){
 }
 
 /* ===== MODAL: BIKIN UJIAN ===== */
+async function editJadwal(eid){
+  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
+  const toLocal=ts=>ts?new Date(ts-Date.now()%60000).toISOString().slice(0,16):'';
+  oMo(`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-calendar-pen mr-2" style="color:var(--pr)"></i>Atur Jadwal — ${ex.mapel} Kelas ${ex.kelas}</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem">&times;</button></div>
+    <div class="grid gap-3 mb-4"><div><label class="block mb-1 font-bold" style="font-size:.82rem">Mulai</label><input id="jStart" class="ip" type="datetime-local" value="${toLocal(ex.startAt)}"></div>
+    <div><label class="block mb-1 font-bold" style="font-size:.82rem">Selesai</label><input id="jEnd" class="ip" type="datetime-local" value="${toLocal(ex.endAt)}"></div></div>
+    <button class="bt bt1 w-full justify-center" onclick="simpanJadwal('${eid}')"><i class="fas fa-save"></i> Simpan & Sinkron</button></div>`);
+}
+async function simpanJadwal(eid){
+  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
+  const start=$('jStart').value?new Date($('jStart').value).getTime():null,end=$('jEnd').value?new Date($('jEnd').value).getTime():null;
+  if(start&&end&&end<=start)return tt('Waktu selesai harus setelah mulai!','er');
+  ld('Menyimpan jadwal...');
+  try{
+    await eR('PUSAT').doc(eid).update({startAt:start,endAt:end,updatedAt:Date.now()});
+    ex.startAt=start;ex.endAt=end;cMo();hd();tt('Jadwal pusat diperbarui dan akan tersinkron otomatis.');renderJadwal($('aC'));
+  }catch(e){hd();tt('Gagal menyimpan jadwal: '+e.message,'er')}
+}
+async function setForceExam(eid,mode){
+  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
+  if(!D.isPusat)return tt('Kontrol paksa hanya dapat diubah Admin Pusat.','er');
+  const forceOpen=mode==='open',forceClosed=mode==='close';
+  ld(forceOpen?'Membuka paksa ujian...':'Menutup paksa ujian...');
+  try{
+    await eR('PUSAT').doc(eid).update({forceOpen,forceClosed,updatedAt:Date.now()});
+    ex.forceOpen=forceOpen;ex.forceClosed=forceClosed;hd();tt(forceOpen?'Ujian dibuka paksa.':'Ujian ditutup paksa.');
+    renderJadwal($('aC'));renderSoal($('aC'));
+  }catch(e){hd();tt('Gagal mengubah status paksa: '+e.message,'er')}
+}
 function showBuatUjian(){
   oMo(`<div><div class="flex items-center justify-between mb-5"><h3 style="font-size:1.2rem"><i class="fas fa-plus-circle mr-2" style="color:var(--ac)"></i>Buat Paket Ujian</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
@@ -1848,6 +1958,11 @@ function showBuatUjian(){
       <div><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas</label><select id="bK" class="ip" onchange="updateOpsiInfo()">${KL.map(k=>`<option value="${k.v}">Kelas ${k.l}</option>`).join('')}</select></div>
       <div><label class="block mb-1 font-bold" style="font-size:.82rem">Waktu (menit)</label><input id="bT" class="ip" type="number" value="60" min="10" max="300"></div>
     </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Mulai Ulangan</label><input id="bStart" class="ip" type="datetime-local"></div>
+      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Selesai Ulangan</label><input id="bEnd" class="ip" type="datetime-local"></div>
+    </div>
+    <div style="background:#EEF2FF;border:2px solid #818CF8;border-radius:12px;padding:12px;margin-bottom:16px;font-size:.78rem;color:#4338CA"><b><i class="fas fa-lock mr-1"></i> Aturan jadwal:</b> siswa otomatis terkunci sebelum waktu mulai dan setelah waktu selesai. Admin dapat <b>Buka Paksa</b> atau <b>Tutup Paksa</b>.</div>
     <div id="opsiInfo" style="background:#EFF6FF;border:2px solid var(--inf);border-radius:12px;padding:14px;margin-bottom:16px"></div>
     <div style="background:var(--bg);border:2px dashed var(--bd);border-radius:12px;padding:14px;margin-bottom:16px"><p style="font-size:.85rem;color:var(--mt)"><i class="fas fa-info-circle mr-1" style="color:var(--ac2)"></i> Soal akan otomatis tersimpan permanen ke Database Cloud setiap kali tombol Tambah/Update ditekan.</p></div>
     <button class="bt bt1 w-full justify-center" onclick="buatUjian()"><i class="fas fa-arrow-right"></i> Lanjut Input Soal</button></div>`);
@@ -1863,7 +1978,7 @@ function updateOpsiInfo(){
 async function buatUjian(){
   const mapel=$v('bM'),kelas=parseInt($('bK').value),timeLimit=parseInt($('bT').value)||60;
   if(!mapel||!kelas)return tt('Lengkapi semua field!','er');
-  const id=uid();const exam={id,mapel,kelas,timeLimit,questions:[],createdAt:Date.now(),sharedTo:[]};
+  const startAt=$('bStart').value?new Date($('bStart').value).getTime():null,endAt=$('bEnd').value?new Date($('bEnd').value).getTime():null;if(startAt&&endAt&&endAt<=startAt)return tt('Waktu selesai harus setelah waktu mulai!','er');const id=uid();const exam={id,mapel,kelas,timeLimit,startAt,endAt,forceOpen:false,forceClosed:false,questions:[],createdAt:Date.now(),sharedTo:[]};
   ld('Menyimpan paket ujian...');
   try {
     const targetNpsn = D.isPusat ? 'PUSAT' : D.sch.npsn;
@@ -2739,7 +2854,8 @@ function renderSD(){
   let h=`<h3 style="font-size:1.15rem;margin-bottom:16px">Halo, ${s.nama}!</h3>`;
   if(exs.length===0){h+=`<div class="cd" style="text-align:center;padding:30px"><p style="color:var(--mt)">Belum ada ujian untuk kelas ${s.kelas}.</p></div>`;}
   else{h+=`<div class="grid gap-3">`;exs.forEach(ex=>{const m=gm(ex.mapel);const rd=done.find(r=>r.examId===ex.id);
-    h+=`<div class="cd" style="padding:16px 20px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:44px;height:44px;border-radius:12px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center;font-size:1.1rem"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m</p></div></div>${rd?`<p style="font-weight:800;color:${rd.score>=70?'var(--ok)':'var(--er)'}">${rd.essays&&rd.essays.length>0?'Menunggu':rd.score}</p>`:`<button class="bt bt2 bts" onclick="startEx('${ex.id}')"><i class="fas fa-play"></i> Mulai</button>`}</div></div>`;});h+=`</div>`;}
+    const gate=examGate(ex),stx=examStatus(ex);
+    h+=`<div class="cd" style="padding:16px 20px;${gate.allowed?'':'opacity:.82'}"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:44px;height:44px;border-radius:12px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center;font-size:1.1rem"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m</p></div></div>${rd?`<p style="font-weight:800;color:${rd.score>=70?'var(--ok)':'var(--er)'}">${rd.essays&&rd.essays.length>0?'Menunggu':rd.score}</p>`:`<div class="text-right"><p style="font-size:.68rem;color:${stx[1]};font-weight:800;margin-bottom:5px"><i class="fas ${stx[2]} mr-1"></i>${stx[0]}</p><button class="bt ${gate.allowed?'bt2':'bt3'} bts" onclick="startEx('${ex.id}')"><i class="fas ${gate.allowed?'fa-play':'fa-lock'}"></i> ${gate.allowed?'Mulai':'Cek Jadwal'}</button></div>`}</div></div>`;});h+=`</div>`;}
   if(done.length>0){h+=`<h3 style="font-size:1rem;margin:24px 0 12px"><i class="fas fa-history mr-2" style="color:var(--ac)"></i>Riwayat</h3><div class="grid gap-2">`;done.sort((a,b)=>b.timestamp-a.timestamp).forEach(r=>{const d=new Date(r.timestamp);h+=`<div class="cd" style="padding:12px 16px;display:flex;align-items:center;gap:12px"><div style="flex:1"><p style="font-weight:700">${r.mapel}</p><p style="font-size:.72rem;color:var(--mt)">${d.toLocaleDateString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} · ${r.correct}/${r.total}</p></div><p style="font-weight:800;font-size:1.1rem;color:${r.essays&&r.essays.length>0?'var(--inf)':r.score>=70?'var(--ok)':'var(--er)'}">${r.essays&&r.essays.length>0?'?':r.score}</p></div>`;});h+=`</div>`;}
   $('sdL').innerHTML=h;
 }
