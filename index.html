@@ -3716,7 +3716,7 @@ function renderSoal(c){
 
           <div>
 
-            <p style="font-weight:800;font-size:1rem">${ex.mapel} ${hasImg?'<span class="tag-img"><i class="fas fa-image"></i></span>':''}${isFromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Dari Pusat</span>':''}${D.isPusat&&ex.sharedTo&&ex.sharedTo.length>0?`<span class="tag-pusat" style="background:rgba(34,197,94,.1);color:#16a34a"><i class="fas fa-arrows-rotate"></i> Auto-sync ke ${ex.sharedTo.length} sekolah</span>`:''}</p>
+            <p style="font-weight:800;font-size:1rem">${ex.mapel} ${hasImg?'<span class="tag-img"><i class="fas fa-image"></i></span>':''}${isFromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Dari Pusat</span>':''}${D.isPusat&&ex.draftQuestions?`<span class="tag-pusat" style="background:rgba(245,158,11,.12);color:#b45309"><i class="fas fa-file-pen"></i> Ada Draf — belum dipublikasikan</span>`:''}${D.isPusat&&ex.sharedTo&&ex.sharedTo.length>0?`<span class="tag-pusat" style="background:rgba(34,197,94,.1);color:#16a34a"><i class="fas fa-arrows-rotate"></i> Auto-sync ke ${ex.sharedTo.length} sekolah</span>`:''}</p>
 
             <p style="font-size:.78rem;color:var(--mt)">Kelas ${ex.kelas} · ${mo} opsi · ${ex.questions.length} soal · ${ex.timeLimit}m</p><p style="font-size:.7rem;font-weight:800;color:${examStatus(ex)[1]};margin-top:3px"><i class="fas ${examStatus(ex)[2]} mr-1"></i>${examStatus(ex)[0]} · ${fmtJadwal(ex.startAt)} → ${fmtJadwal(ex.endAt)}</p>
 
@@ -4007,13 +4007,10 @@ async function buatUjian(){
 /* ===== EDIT SOAL ===== */
 
 function editUjian(eid){
-
   const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
-
-  D.editQs=JSON.parse(JSON.stringify(ex.questions));D.editIdx=-1;D.editKelas=ex.kelas;
-
+  /* Admin Pusat mengedit DRAF. Soal yang tampil ke siswa tetap ex.questions. */
+  D.editQs=JSON.parse(JSON.stringify(ex.draftQuestions||ex.questions||[]));D.editIdx=-1;D.editKelas=ex.kelas;
   renderEditSoal(ex);
-
 }
 
 
@@ -4030,10 +4027,11 @@ function renderEditSoal(ex){
 
       <div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div>
 
-      <div><h2 style="font-size:1.2rem;line-height:1.2">${ex.mapel} — Kelas ${ex.kelas}</h2><p style="font-size:.78rem;color:var(--mt)">${D.editQs.length} soal · ${ex.timeLimit}m · <b style="color:var(--ac)">${mo} opsi (A-${OL_FULL[mo-1]})</b> · <span style="color:var(--ok)">[Auto-save aktif]</span></p></div>
+      <div><h2 style="font-size:1.2rem;line-height:1.2">${ex.mapel} — Kelas ${ex.kelas}</h2><p style="font-size:.78rem;color:var(--mt)">${D.editQs.length} soal · ${ex.timeLimit}m · <b style="color:var(--ac)">${mo} opsi (A-${OL_FULL[mo-1]})</b> · <span style="color:var(--pr)">[Draf otomatis]</span></p></div>
 
     </div>
 
+    ${D.isPusat&&ex.draftQuestions?`<div class="cd mb-4" style="border-color:#f59e0b;background:#fffbeb"><p style="font-size:.82rem;font-weight:800;color:#92400e"><i class="fas fa-triangle-exclamation mr-1"></i> Mode Draf</p><p style="font-size:.76rem;color:#92400e;margin-top:4px">Perubahan di sini belum mengubah soal yang dilihat siswa. Klik <b>Lakukan Perubahan</b> untuk mempublikasikan.</p></div>`:''}
     <div class="cd mb-4" style="border-color:var(--ac);border-style:dashed">
 
       <h4 style="font-size:.95rem;margin-bottom:12px"><i class="fas fa-pen mr-2" style="color:var(--ac)"></i>${D.editIdx>=0?'Edit Soal '+(D.editIdx+1):'Tambah Soal Baru'}</h4>
@@ -4064,7 +4062,7 @@ function renderEditSoal(ex){
 
     <div class="flex gap-2 mb-8">
 
-      <button class="bt bt1 bts" onclick="simpanAllSoal('${ex.id}')"><i class="fas fa-save"></i> Simpan Permanen ke Cloud</button>
+      <button class="bt bt1 bts" onclick="simpanAllSoal('${ex.id}')"><i class="fas fa-save"></i> Simpan Draf ke Cloud</button>${D.isPusat?`<button class="bt bt1 bts" onclick="publishDraft('${ex.id}')"><i class="fas fa-cloud-arrow-up"></i> Lakukan Perubahan</button>`:''}
 
       <button class="bt bt2 bts" onclick="exportExamJSON('${ex.id}')"><i class="fas fa-download"></i> Export JSON</button>
 
@@ -4393,8 +4391,11 @@ async function simpanSoal(eid){
   }
 
   renderEditSoal(D.ex.find(e=>e.id===eid));
-
-  autoSaveExam(eid,isNew?'Soal ditambahkan & otomatis tersimpan di Cloud!':'Soal diperbarui & otomatis tersimpan di Cloud!');
+  if(D.isPusat){
+    autoSaveDraft(eid,isNew?'Soal ditambahkan ke draf.':'Soal diperbarui di draf.');
+  }else{
+    autoSaveExam(eid,isNew?'Soal ditambahkan & otomatis tersimpan di Cloud!':'Soal diperbarui & otomatis tersimpan di Cloud!');
+  }
 
 }
 
@@ -4418,7 +4419,9 @@ async function simpanAllSoal(eid){
 
   }
 
-  const ok=await autoSaveExam(eid,D.editQs.length+' soal disimpan permanen!');
+  const ok=await (D.isPusat
+    ? autoSaveDraft(eid,D.editQs.length+' soal tersimpan sebagai draf!')
+    : autoSaveExam(eid,D.editQs.length+' soal disimpan permanen!'));
 
   if(ok){const ex=D.ex.find(e=>e.id===eid);renderEditSoal(ex);}
 
@@ -4430,58 +4433,116 @@ async function simpanAllSoal(eid){
 
 D._savingExam=false;
 
-async function autoSaveExam(eid,msg){
-
-  if(D._savingExam||!D.aIn)return false;
-
+async function autoSaveDraft(eid,msg){
+  if(D._savingExam||!D.aIn||!D.isPusat)return false;
   D._savingExam=true;
-
   const ex=D.ex.find(e=>e.id===eid);
-
   if(!ex){D._savingExam=false;return false;}
-
-  const targetNpsn=D.isPusat?'PUSAT':D.sch.npsn;
-
-  ld('Auto-save ke Cloud...');
-
+  ld('Menyimpan draf ke Cloud...');
   try{
-
-    await eR(targetNpsn).doc(eid).set({questions:JSON.parse(JSON.stringify(D.editQs)),updatedAt:Date.now()},{merge:true});
-
-    ex.questions=JSON.parse(JSON.stringify(D.editQs));
-
-    if(D.isPusat&&ex.sharedTo&&ex.sharedTo.length>0){
-
-      const gagal=[];
-
-      for(const n of ex.sharedTo){
-
-        try{await eR(n).doc(eid).update({questions:ex.questions,sharedAt:Date.now()});}catch(e){gagal.push(n);}
-
-      }
-
-      hd();
-
-      if(gagal.length===0)tt(msg+' Tersinkron otomatis ke '+ex.sharedTo.length+' sekolah.');
-
-      else{tt(msg+' Sinkron gagal ke '+gagal.length+' sekolah.','er');showSyncRetry(eid,gagal);}
-
-    }else{hd();tt(msg);}
-
-    D._savingExam=false;return true;
-
+    const draft=JSON.parse(JSON.stringify(D.editQs));
+    await eR('PUSAT').doc(eid).set({draftQuestions:draft,draftUpdatedAt:Date.now()},{merge:true});
+    ex.draftQuestions=draft;
+    hd();
+    tt(msg+' Belum mengubah soal siswa.');
+    D._savingExam=false;
+    renderSoal($('aC'));
+    return true;
   }catch(e){
-
     D._savingExam=false;hd();
-
-    tt('Auto-save gagal: '+(e.code||e.message)+' — gunakan tombol "Simpan Permanen ke Cloud".','er');
-
+    tt('Gagal menyimpan draf: '+(e.code||e.message),'er');
     return false;
-
   }
-
 }
 
+async function publishDraft(eid){
+  if(!D.isPusat||D._savingExam)return;
+  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
+  const draft=ex.draftQuestions;
+  if(!Array.isArray(draft))return tt('Belum ada draf. Tambah/ubah soal lalu simpan draf terlebih dahulu.','er');
+  if(draft.length===0)return tt('Draf soal masih kosong.','er');
+
+  const mo=maxOpts(ex.kelas);
+  for(let i=0;i<draft.length;i++){
+    const q=draft[i];
+    if(q.type!=='essay'&&(!q.options||q.options.length<2||q.options.length>mo)){
+      return tt(`Soal ${i+1} memiliki jumlah opsi tidak valid.`,'er');
+    }
+  }
+
+  D._savingExam=true;
+  ld('Mempublikasikan perubahan...');
+  try{
+    const published=JSON.parse(JSON.stringify(draft));
+    const now=Date.now();
+    await eR('PUSAT').doc(eid).set({
+      questions:published,updatedAt:now,publishedAt:now,
+      draftQuestions:firebase.firestore.FieldValue.delete(),
+      draftUpdatedAt:firebase.firestore.FieldValue.delete()
+    },{merge:true});
+
+    ex.questions=published;
+    delete ex.draftQuestions;
+    delete ex.draftUpdatedAt;
+
+    await syncOnePusatExam(ex);
+
+    hd();D._savingExam=false;
+    tt('Perubahan berhasil dipublikasikan dan disinkronkan ke sekolah.');
+    renderSoal($('aC'));
+  }catch(e){
+    D._savingExam=false;hd();
+    tt('Publikasi gagal: '+(e.code||e.message),'er');
+  }
+}
+
+async function syncOnePusatExam(ex){
+  if(!D.isPusat||!ex)return;
+  await loadAllSchools();
+  const gagal=[];
+  const daftar=D.allSchools||[];
+  for(const s of daftar){
+    try{
+      await eR(s.npsn).doc(ex.id).set({
+        id:ex.id,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,
+        startAt:ex.startAt||null,endAt:ex.endAt||null,
+        forceOpen:!!ex.forceOpen,forceClosed:!!ex.forceClosed,
+        questions:JSON.parse(JSON.stringify(ex.questions)),
+        fromPusat:true,createdAt:ex.createdAt||Date.now(),sharedAt:Date.now()
+      },{merge:true});
+    }catch(e){gagal.push(s.npsn);}
+  }
+  ex.sharedTo=daftar.map(s=>s.npsn);
+  await eR('PUSAT').doc(ex.id).update({sharedTo:ex.sharedTo});
+  if(gagal.length)showSyncRetry(ex.id,gagal);
+}
+
+async function autoSaveExam(eid,msg){
+  if(D._savingExam||!D.aIn)return false;
+  D._savingExam=true;
+  const ex=D.ex.find(e=>e.id===eid);
+  if(!ex){D._savingExam=false;return false;}
+  const targetNpsn=D.isPusat?'PUSAT':D.sch.npsn;
+  ld('Menyimpan ke Cloud...');
+  try{
+    await eR(targetNpsn).doc(eid).set({questions:JSON.parse(JSON.stringify(D.editQs)),updatedAt:Date.now()},{merge:true});
+    ex.questions=JSON.parse(JSON.stringify(D.editQs));
+    if(D.isPusat&&ex.sharedTo&&ex.sharedTo.length>0){
+      const gagal=[];
+      for(const n of ex.sharedTo){
+        try{await eR(n).doc(eid).update({questions:ex.questions,sharedAt:Date.now()});}catch(e){gagal.push(n);}
+      }
+      hd();
+      if(gagal.length===0)tt(msg+' Tersinkron otomatis ke '+ex.sharedTo.length+' sekolah.');
+      else{tt(msg+' Sinkron gagal ke '+gagal.length+' sekolah.','er');showSyncRetry(eid,gagal);}
+    }else{hd();tt(msg);}
+    D._savingExam=false;return true;
+  }catch(e){
+    D._savingExam=false;hd();
+    tt('Penyimpanan gagal: '+(e.code||e.message),'er');
+    return false;
+  }
+}
 
 
 /* Hapus file gambar (base64) dari Realtime Database */
@@ -4531,8 +4592,8 @@ async function hapusSoalDariList(eid,idx){
   D.editQs.splice(idx,1);D.editIdx=-1;
 
   renderEditSoal(D.ex.find(e=>e.id===eid));
-
-  autoSaveExam(eid,'Soal dihapus & otomatis tersimpan di Cloud!');
+  if(D.isPusat)autoSaveDraft(eid,'Soal dihapus dari draf.');
+  else autoSaveExam(eid,'Soal dihapus & otomatis tersimpan di Cloud!');
 
 }
 
@@ -4699,7 +4760,7 @@ function validateAndImport(){
 async function doImportJSON(){ 
   const data=window._pendingImport;if(!data)return;const mo=maxOpts(data.kelas); 
   const questions=data.questions.map(q=>{const obj={id:uid(),text:q.text,image:q.image||'',type:q.type||'pg'};if(obj.type==='essay'){obj.key=q.key||'';}else{obj.options=q.options.map(o=>typeof o==='object'&&o.image?{text:o.text||'',image:o.image}:typeof o==='object'?o.text||'':String(o));obj.answer=parseInt(q.answer)||0;if(obj.answer>=obj.options.length)obj.answer=0;}return obj;}); 
-  const id=uid();const exam={id,mapel:data.mapel,kelas:data.kelas,timeLimit:data.timeLimit||60,questions,createdAt:Date.now(),sharedTo:[]}; 
+  const id=uid();const now=Date.now();const exam={id,mapel:data.mapel,kelas:data.kelas,timeLimit:data.timeLimit||60,questions,createdAt:now,publishedAt:now,sharedTo:[]}; 
    
   ld('Mengimport & Menyimpan Permanen...'); 
   try { 
@@ -4707,7 +4768,7 @@ async function doImportJSON(){
     await eR(targetNpsn).doc(id).set(exam); 
     D.ex.push(exam); 
     hd();cMo();tt(questions.length+' soal diimport & disimpan!');renderSoal($('aC')); 
-    if(D.isPusat)syncAllPusatExams(); 
+    if(D.isPusat)await syncOnePusatExam(exam); 
   } catch(e) { 
     hd();tt('Gagal menyimpan: '+e.message,'er'); 
   } 
