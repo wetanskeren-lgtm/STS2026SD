@@ -728,6 +728,13 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 
 /* Animasi umum */
 
+/* Kontras nama siswa + tombol soal selalu terlihat */
+#pEX .student-name{color:#0b1f44!important;background:#fff3b0;border:2px solid #f59e0b;border-radius:10px;padding:4px 10px;font-weight:900!important;text-shadow:none!important;display:inline-block}
+#pEX .exam-school{font-weight:700;color:#183b72}
+#pEX #eI{color:#17345f!important;font-weight:700}
+#pEX .oc{color:#172554!important;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#pEX .oc .lt{color:#172554!important;background:#f3f6fb;border-color:#cbd5e1}
+#pEX .oc.sl .lt{color:#fff!important;background:var(--ac);border-color:var(--ac)}
 @keyframes modernGrid{
 
   from{transform:translate3d(0,0,0) rotate(-8deg)}
@@ -1522,9 +1529,12 @@ function attachLiveListeners(npsn){
 
   addUnsub(eR(npsn).onSnapshot(snap=>{
 
-    D.ex=snap.docs.map(d=>({id:d.id,...d.data()}));
-
-    liveExamUpdate();refreshAdminUI();refreshStudentUI();
+    const fresh=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Saat ujian berlangsung, D.cEx tetap menjadi snapshot lokal siswa.
+    if($('pEX') && $('pEX').classList.contains('on') && D.cEx){
+      D.ex=fresh; refreshAdminUI(); return;
+    }
+    D.ex=fresh; refreshAdminUI();refreshStudentUI();
 
   }));
 
@@ -1853,100 +1863,59 @@ function examStatus(ex){
 /* ===== UJIAN MODE OFFLINE HYBRID ===== */
 
 async function startEx(id){
+  const ex=D.ex.find(e=>e.id===id);
+  if(!ex||!ex.questions||!ex.questions.length)return tt('Ujian belum punya soal!','er');
 
-  const ex=D.ex.find(e=>e.id===id);if(!ex||!ex.questions.length)return tt('Ujian belum punya soal!','er');
-
-  // KUNCI UJIAN: cek jadwal sebelum siswa masuk
   const gate=examGate(ex);
-  if(!gate.allowed){
-    showExamLocked(ex,gate);
-    return;
-  }
-
-  
+  if(!gate.allowed){showExamLocked(ex,gate);return;}
 
   ld('Memverifikasi data ujian...');
-
-  try {
-
-    const snap = await rR(D.sch.npsn).where('nis','==',D.st.nis).where('examId','==',id).get();
-
+  try{
+    const snap=await rR(D.sch.npsn).where('nis','==',D.st.nis).where('examId','==',id).get();
     if(!snap.empty){
-
-      hd(); 
-
-      tt('Anda sudah mengerjakan ujian ini. Hubungi Admin untuk reset nilai.', 'er');
-
+      hd();
+      tt('Anda sudah mengerjakan ujian ini. Hubungi Admin untuk reset nilai.','er');
       oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px;color:var(--er)"><i class="fas fa-lock"></i></div><h3 style="margin-bottom:10px">Sudah Pernah Mengerjakan</h3><p style="color:var(--mt);font-size:.85rem;margin-bottom:16px">Anda telah menyelesaikan ujian ini. Jika ingin mengulang, minta Admin Sekolah untuk menghapus nilai Anda terlebih dahulu di menu Hasil Ujian.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo();outS()">Kembali ke Beranda</button></div></div>`);
-
       return;
-
     }
+  }catch(e){hd();tt('Gagal cek riwayat ujian: '+e.message,'er');return;}
 
-  } catch(e){
+  // Kunci snapshot soal di perangkat. Setelah ini perubahan Firestore tidak mengubah ujian.
+  const lockedExam=JSON.parse(JSON.stringify(ex));
+  D.cEx=lockedExam;D.cQ=0;D.tL=lockedExam.timeLimit*60;D.an={};
 
-    hd(); tt('Gagal cek riwayat ujian: '+e.message, 'er'); return;
-
-  }
-
-
-
-  D.cEx=ex;D.cQ=0;D.tL=ex.timeLimit*60;go('pEX');
-
-  warmImgCache(ex);
-
-  try{ex.questions.forEach(q=>{
-
-    if(q.image){const im=new Image();im.referrerPolicy='no-referrer';im.src=q.image;}
-
-    (q.options||[]).forEach(o=>{if(o&&typeof o==='object'&&o.image){const im=new Image();im.referrerPolicy='no-referrer';im.src=o.image;}});
-
-  });}catch(e){}
-
-  $('eT').textContent=ex.mapel;$('eI').textContent=`${D.sch.nama} · Kelas ${D.st.kelas} · ${D.st.nama} · ${ex.questions.length} soal`;
-
-  
-
-  const savedData = localStorage.getItem('ujian_'+D.st.nis+'_'+ex.id);
-
+  const examKey='ujian_'+D.st.nis+'_'+lockedExam.id;
+  const savedData=localStorage.getItem(examKey);
   if(savedData){
-
-    const parsed = JSON.parse(savedData);
-
-    D.an = parsed.an || {};
-
-    D.tL = parsed.tL || (ex.timeLimit*60);
-
-    D.cQ = parsed.cQ || 0;
-
-    tt('Jawaban Anda sebelumnya telah dipulihkan!','in');
-
-  } else {
-
-    D.an={};
-
+    try{
+      const parsed=JSON.parse(savedData);
+      if(parsed.exam && parsed.exam.questions && parsed.exam.id===lockedExam.id) D.cEx=parsed.exam;
+      D.an=parsed.an||{};
+      D.tL=Number.isFinite(parsed.tL)?parsed.tL:(D.cEx.timeLimit*60);
+      D.cQ=Math.max(0,Math.min(Number(parsed.cQ)||0,D.cEx.questions.length-1));
+      tt('Ujian offline dipulihkan dari perangkat.','in');
+    }catch(e){D.an={};D.cQ=0;}
   }
 
+  go('pEX');
+  $('eT').textContent=D.cEx.mapel;
+  $('eI').innerHTML=`<span class="exam-school">${D.sch.nama}</span> · Kelas ${D.st.kelas} · <strong class="student-name">👤 ${D.st.nama}</strong> · ${D.cEx.questions.length} soal`;
+  warmImgCache(D.cEx);
+  autoSaveLocal();
   hd();
-
   rQ();sT();
-
 }
-
-
 
 function autoSaveLocal(){
 
   if(!D.cEx || !D.st) return;
 
   const data = {
-
+    exam: D.cEx,
     an: D.an,
-
     tL: D.tL,
-
-    cQ: D.cQ
-
+    cQ: D.cQ,
+    savedAt: Date.now()
   };
 
   localStorage.setItem('ujian_'+D.st.nis+'_'+D.cEx.id, JSON.stringify(data));
@@ -2225,100 +2194,38 @@ function imgSrcFor(url){
 
 
 
-async function rQ(){
-
+function rQ(){
   const ex=D.cEx,i=D.cQ,q=ex.questions[i],t=ex.questions.length;
-
+  if(!q||!t)return;
   $('eP').style.width=((i+1)/t*100)+'%';
 
-  let h=`<div class="asu"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p><h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:4px">${q.text}</h3>`;
-
-  
-
-  if(q.image){
-
-    const bu=await loadImgBlob(q.image);
-
-    h+=`<img src="${bu||''}" referrerpolicy="no-referrer" class="q-img" alt="Gambar Soal" onerror="imgErr(this)">`;
-
-  }
-
-  
-
+  let h=`<div class="asu"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p><h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:4px">${q.text||''}</h3>`;
+  if(q.image)h+=`<img src="${imgSrcFor(q.image)}" referrerpolicy="no-referrer" class="q-img" alt="Gambar Soal" onerror="imgErr(this)">`;
   h+=`<div class="grid gap-3" style="margin-top:12px">`;
 
   if(q.type==='essay'){
-
-    h+=`<textarea class="ip" id="ansEss" rows="5" placeholder="Tulis jawaban uraian..." oninput="D.an[${i}]=$('ansEss').value;autoSaveLocal()">${D.an[i]||''}</textarea>`;
-
+    const val=String(D.an[i]||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    h+=`<textarea class="ip" id="ansEss" rows="5" placeholder="Tulis jawaban uraian..." oninput="D.an[${i}]=this.value;autoSaveLocal()">${val}</textarea>`;
   }else{
-
-    for(let j=0;j<q.options.length;j++){
-
-      const o=q.options[j];
-
-      let optText='',optImg='';
-
-      if(typeof o==='object'&&o!==null){optText=o.text||'';optImg=o.image||'';}else{optText=String(o);}
-
+    for(let j=0;j<(q.options||[]).length;j++){
+      const o=q.options[j];let optText='',optImg='';
+      if(typeof o==='object'&&o!==null){optText=o.text||'';optImg=o.image||'';}else optText=String(o);
       let inner='';
-
-      if(optImg){const bu2=await loadImgBlob(optImg);inner+=`<img src="${bu2||''}" referrerpolicy="no-referrer" style="display:block;width:auto;max-width:100%;max-height:130px;object-fit:contain;border-radius:10px;border:2px solid var(--bd);background:#faf6f1;margin:0 auto 8px" alt="Opsi ${OL_FULL[j]}" onerror="imgErr(this)">`;}
-
+      if(optImg)inner+=`<img src="${imgSrcFor(optImg)}" referrerpolicy="no-referrer" style="display:block;width:auto;max-width:100%;max-height:130px;object-fit:contain;border-radius:10px;border:2px solid var(--bd);background:#faf6f1;margin:0 auto 8px" alt="Opsi ${OL_FULL[j]}" onerror="imgErr(this)">`;
       inner+=`<span class="lt">${OL_FULL[j]}</span><span style="flex:1">${optText}</span>`;
-
-      h+=`<div class="oc ${D.an[i]===j?'sl':''}" onclick="pA(${j})">${inner}</div>`;
-
+      h+=`<button type="button" class="oc ${D.an[i]===j?'sl':''}" onclick="pA(${j})" style="width:100%;text-align:left">${inner}</button>`;
     }
-
   }
-
   h+=`</div></div>`;$('eA').innerHTML=h;
 
-  
-
-  $('eN').innerHTML = `
-
-    <div class="flex items-center justify-between gap-2 mt-4">
-
-      <button class="bt bt3" style="padding:10px 14px;flex-shrink:0;${i===0?'opacity:.4;pointer-events:none':''}" onclick="pvQ()">
-
-        <i class="fas fa-chevron-left"></i>
-
-      </button>
-
-
-
-      <div style="flex:1; min-width:0;">
-
-        <div class="flex flex-wrap items-center justify-center gap-1.5">
-
-          ${ex.questions.map((_,j)=>`
-
-            <div onclick="jQ(${j})" style="width:30px; height:30px; flex-shrink:0; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:.75rem; cursor:pointer; transition:all .2s; border:1.5px solid transparent; ${j===i?'background:var(--ac);color:#fff;box-shadow:0 4px 10px rgba(255,107,53,.3)':D.an[j]!==undefined?'background:rgba(34,197,94,.15);color:#16a34a;border-color:rgba(34,197,94,.3)':'background:var(--cd);border-color:var(--bd);color:var(--mt)'}">${j+1}</div>
-
-          `).join('')}
-
-        </div>
-
-      </div>
-
-
-
-      ${i===t-1 ? 
-
-        `<button class="bt bt1" style="padding:10px 18px;flex-shrink:0;" onclick="cfF()"><i class="fas fa-check mr-1"></i> Selesai</button>` : 
-
-        `<button class="bt bt1" style="padding:10px 14px;flex-shrink:0;" onclick="nxQ()"><i class="fas fa-chevron-right"></i></button>`
-
-      }
-
-    </div>
-
-  `;
-
+  $('eN').innerHTML=`<div class="flex items-center justify-between gap-2 mt-4">
+    <button type="button" class="bt bt3" style="padding:10px 14px;flex-shrink:0;${i===0?'opacity:.4;pointer-events:none':''}" onclick="pvQ()"><i class="fas fa-chevron-left"></i></button>
+    <div style="flex:1;min-width:0"><div class="flex flex-wrap items-center justify-center gap-1.5">
+      ${ex.questions.map((_,j)=>`<button type="button" onclick="jQ(${j})" aria-label="Buka soal ${j+1}" style="width:30px;height:30px;flex-shrink:0;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.75rem;cursor:pointer;border:1.5px solid transparent;${j===i?'background:var(--ac);color:#fff;box-shadow:0 4px 10px rgba(255,107,53,.3)':D.an[j]!==undefined?'background:rgba(34,197,94,.15);color:#16a34a;border-color:rgba(34,197,94,.3)':'background:var(--cd);border-color:var(--bd);color:var(--mt)'}">${j+1}</button>`).join('')}
+    </div></div>
+    ${i===t-1?`<button type="button" class="bt bt1" style="padding:10px 18px;flex-shrink:0" onclick="cfF()"><i class="fas fa-check mr-1"></i> Selesai</button>`:`<button type="button" class="bt bt1" style="padding:10px 14px;flex-shrink:0" onclick="nxQ()"><i class="fas fa-chevron-right"></i></button>`}
+  </div>`;
 }
-
 function pA(j){D.an[D.cQ]=j;rQ();autoSaveLocal();}
 
 function pvQ(){if(D.cQ>0){D.cQ--;rQ()}}
