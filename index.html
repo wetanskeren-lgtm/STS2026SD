@@ -216,7 +216,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 
 /* Essay box */
 
-.essay-box{border:1px solid #000;height:40px;margin-top:3px;border-radius:2px;display:block}
+.essay-box{border:1px solid #000;min-height:90px;height:auto;margin-top:3px;border-radius:2px;display:block;page-break-inside:avoid;overflow:visible}
 
 
 
@@ -245,6 +245,9 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .step-num.done{background:var(--ok)}
 
 .q-img{max-width:100%;max-height:280px;border-radius:12px;border:2px solid var(--bd);margin:8px 0;display:block;object-fit:contain;background:#f9f6f2}
+
+/* Kotak jawaban uraian siswa: tidak terpotong dan dapat diperbesar */
+#pEX textarea#ansEss{display:block;width:100%;min-height:180px;height:auto;max-height:none;resize:vertical;overflow-y:auto;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;padding:14px;box-sizing:border-box;}
 
 .json-ta{width:100%;min-height:220px;padding:14px;border:2.5px solid var(--bd);border-radius:12px;font-family:'Courier New',monospace;font-size:.78rem;line-height:1.5;background:#1e1e1e;color:#d4d4d4;resize:vertical;tab-size:2}
 
@@ -2227,7 +2230,7 @@ function rQ(){
 
   if(q.type==='essay'){
     const val=String(D.an[i]||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    h+=`<textarea class="ip" id="ansEss" rows="5" placeholder="Tulis jawaban uraian..." oninput="D.an[${i}]=this.value;autoSaveLocal()">${val}</textarea>`;
+    h+=`<textarea class="ip" id="ansEss" rows="8" placeholder="Tulis jawaban uraian..." autocomplete="off" oninput="D.an[${i}]=this.value;autoSaveLocal()">${val}</textarea>`;
   }else{
     for(let j=0;j<(q.options||[]).length;j++){
       const o=q.options[j];let optText='',optImg='';
@@ -2248,13 +2251,36 @@ function rQ(){
     ${i===t-1?`<button type="button" class="bt bt1" style="padding:10px 18px;flex-shrink:0" onclick="cfF()"><i class="fas fa-check mr-1"></i> Selesai</button>`:`<button type="button" class="bt bt1" style="padding:10px 14px;flex-shrink:0" onclick="nxQ()"><i class="fas fa-chevron-right"></i></button>`}
   </div>`;
 }
-function pA(j){D.an[D.cQ]=j;rQ();autoSaveLocal();}
+function pA(j){
+  const ex=D.cEx;
+  if(!ex||!Array.isArray(ex.questions))return;
+  const q=ex.questions[D.cQ];
+  if(!q||q.type==='essay')return;
+  const max=(q.options||[]).length;
+  if(!Number.isInteger(j)||j<0||j>=max)return;
+  D.an[D.cQ]=j;
+  autoSaveLocal();
+  rQ();
+}
 
-function pvQ(){if(D.cQ>0){D.cQ--;rQ()}}
+function pvQ(){
+  if(!D.cEx||!Array.isArray(D.cEx.questions))return;
+  if(D.cQ>0){D.cQ--;rQ();window.scrollTo({top:0,behavior:'smooth'});}
+}
 
-function nxQ(){if(D.cQ<D.cEx.questions.length-1){D.cQ++;rQ()}}
+function nxQ(){
+  if(!D.cEx||!Array.isArray(D.cEx.questions))return;
+  if(D.cQ<D.cEx.questions.length-1){D.cQ++;rQ();window.scrollTo({top:0,behavior:'smooth'});}
+}
 
-function jQ(j){D.cQ=j;rQ()}
+function jQ(j){
+  if(!D.cEx||!Array.isArray(D.cEx.questions))return;
+  const total=D.cEx.questions.length;
+  if(!Number.isInteger(j)||j<0||j>=total)return;
+  D.cQ=j;
+  rQ();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 
 function cfF(){const a=Object.keys(D.an).length,t=D.cEx.questions.length;oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px">⚠️</div><h3 style="margin-bottom:6px">Selesaikan Ujian?</h3><p style="color:var(--mt);margin-bottom:16px">Dijawab ${a} dari ${t} soal. Pastikan Anda memiliki koneksi internet untuk mengirim.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt1 bts" onclick="cMo();finEx()">Ya, Kirim Jawaban</button></div></div>`)}
 
@@ -5189,4 +5215,4 @@ function renderSD(){
 })(); 
 </script> 
 </body> 
-</html> dijadwal terkunci tapi masih bisa di buka di login sisw gimana
+</html> 
