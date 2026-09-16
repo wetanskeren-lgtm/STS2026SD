@@ -3246,6 +3246,98 @@ async function cSoalPDF(exId, npsn){
 
 }
 
+
+/* ===== PERBAIKAN KETERBACAAN TEKS AREA ADMIN ===== */
+/* Penyebab teks Data Siswa sebelumnya tampak pudar:
+   #pAD #aC memakai warna teks terang, sementara kartu/tabel berwarna putih.
+   Aturan berikut memberi kontras tinggi khusus area kerja. */
+
+#pAD #aC,
+#pAD #aC p,
+#pAD #aC h1,
+#pAD #aC h2,
+#pAD #aC h3,
+#pAD #aC h4,
+#pAD #aC label {
+  color:#14213d;
+}
+
+#pAD #aC .cd {
+  color:#14213d !important;
+}
+
+#pAD #aC table {
+  color:#14213d !important;
+  background:#ffffff;
+  font-size:.9rem !important;
+}
+
+#pAD #aC table th {
+  color:#0b1f44 !important;
+  background:#eaf2ff !important;
+  font-weight:800 !important;
+  font-size:.9rem !important;
+  padding:9px 10px !important;
+  border-bottom:2px solid #b9c9e6 !important;
+}
+
+#pAD #aC table td {
+  color:#172554 !important;
+  font-weight:500;
+  font-size:.9rem !important;
+  line-height:1.45;
+  padding:8px 10px !important;
+  border-bottom:1px solid #dbe4f0 !important;
+}
+
+#pAD #aC table tbody tr:nth-child(even) {
+  background:#f8fbff;
+}
+
+#pAD #aC table tbody tr:hover {
+  background:#eef6ff;
+}
+
+#pAD #aC table td:nth-child(2) {
+  font-weight:800 !important;
+  color:#0b1f44 !important;
+}
+
+#pAD #aC table td:first-child {
+  color:#24416f !important;
+  font-weight:700 !important;
+}
+
+#pAD #aC .ip {
+  color:#14213d !important;
+  background:#ffffff !important;
+}
+
+#pAD #aC .ip::placeholder {
+  color:#64748b !important;
+  opacity:1;
+}
+
+#pAD #aC .bt {
+  font-weight:700;
+}
+
+#pAD #aC .fa-filter,
+#pAD #aC .fa-graduation-cap {
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.08));
+}
+
+@media(max-width:768px){
+  #pAD #aC table {
+    font-size:.82rem !important;
+  }
+  #pAD #aC table th,
+  #pAD #aC table td {
+    font-size:.82rem !important;
+    padding:7px 8px !important;
+  }
+}
+
 </style>
 
       <!-- KOP SURAT DENGAN LOGO -->
