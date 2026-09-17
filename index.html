@@ -1341,7 +1341,8 @@ const MP=[
 
   {v:'Bahasa Inggris',l:'B. Inggris',ic:'fa-language',c:'#EC4899'},
 
-  {v:'Bahasa Sunda',l:'B. Sunda',ic:'fa-comment-dots',c:'#14B8A6'}
+  {v:'Bahasa Sunda',l:'B. Sunda',ic:'fa-comment-dots',c:'#14B8A6'},
+  {v:'Simulasi',l:'Simulasi',ic:'fa-laptop-code',c:'#7C3AED'}
 
 ];
 
@@ -1646,7 +1647,7 @@ function attachPusatLiveListeners(){
 
         for(const sch of D.allSchools){
 
-          try{await eR(sch.npsn).doc(ex.id).set({id:ex.id,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,startAt:ex.startAt||null,endAt:ex.endAt||null,forceOpen:!!ex.forceOpen,forceClosed:!!ex.forceClosed,questions:ex.questions,fromPusat:true,createdAt:ex.createdAt||Date.now(),sharedAt:Date.now()},{merge:true});}catch(e){}
+          try{await eR(sch.npsn).doc(ex.id).set({id:ex.id,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,scheduleDate:ex.scheduleDate||null,startAt:ex.startAt||null,endAt:ex.endAt||null,forceOpen:!!ex.forceOpen,forceClosed:!!ex.forceClosed,questions:ex.questions,fromPusat:true,createdAt:ex.createdAt||Date.now(),sharedAt:Date.now()},{merge:true});}catch(e){}
 
         }
 
@@ -1678,7 +1679,7 @@ async function syncAllPusatExams(){
 
       for(const s of D.allSchools){
 
-        try{await eR(s.npsn).doc(ex.id).set({id:ex.id,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,startAt:ex.startAt||null,endAt:ex.endAt||null,forceOpen:!!ex.forceOpen,forceClosed:!!ex.forceClosed,questions:ex.questions,fromPusat:true,createdAt:ex.createdAt||Date.now(),sharedAt:Date.now()});}catch(e){}
+        try{await eR(s.npsn).doc(ex.id).set({id:ex.id,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,scheduleDate:ex.scheduleDate||null,startAt:ex.startAt||null,endAt:ex.endAt||null,forceOpen:!!ex.forceOpen,forceClosed:!!ex.forceClosed,questions:ex.questions,fromPusat:true,createdAt:ex.createdAt||Date.now(),sharedAt:Date.now()});}catch(e){}
 
       }
 
@@ -1853,21 +1854,50 @@ function outS(){clearUnsub();D.st=null;D.sch=null;['sN','sK','sR','sI','sM','sW'
 
 
 /* ===== JADWAL & KUNCI UJIAN ===== */
+/* Jadwal berbasis tanggal saja. Ujian aktif 00:00-23:59 pada tanggal tersebut. */
 
-function fmtJadwal(ts){if(!ts)return 'Tidak dibatasi';const d=new Date(ts);return d.toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});}
-
+function localDateBounds(dateStr){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(dateStr||'')))return {start:null,end:null};
+  const [y,m,d]=String(dateStr).split('-').map(Number);
+  return {
+    start:new Date(y,m-1,d,0,0,0,0).getTime(),
+    end:new Date(y,m-1,d,23,59,59,999).getTime()
+  };
+}
+function scheduleDateFromTs(ts){
+  if(!ts)return '';
+  const d=new Date(ts);
+  return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+}
+function getExamScheduleDate(ex){
+  return ex&&ex.scheduleDate ? ex.scheduleDate : scheduleDateFromTs(ex&&ex.startAt);
+}
+function fmtTanggalHari(dateStr){
+  if(!dateStr)return 'Tidak dijadwalkan';
+  const b=localDateBounds(dateStr);
+  if(b.start===null)return 'Tanggal tidak valid';
+  return new Date(b.start).toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+function fmtJadwal(ts){
+  if(!ts)return 'Tidak dibatasi';
+  const d=new Date(ts);
+  return d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+function scheduleBounds(ex){
+  const date=getExamScheduleDate(ex);
+  if(date){
+    const b=localDateBounds(date);
+    if(b.start!==null)return b;
+  }
+  return {start:ex&&ex.startAt||null,end:ex&&ex.endAt||null};
+}
 function examGate(ex,now=Date.now()){
-
   if(ex.forceClosed)return {allowed:false,reason:'closed',message:'Ujian ditutup paksa oleh Admin.'};
-
   if(ex.forceOpen)return {allowed:true,reason:'open'};
-
-  if(ex.startAt&&now<ex.startAt)return {allowed:false,reason:'early',message:'Ujian belum dimulai.',when:fmtJadwal(ex.startAt)};
-
-  if(ex.endAt&&now>ex.endAt)return {allowed:false,reason:'late',message:'Waktu ujian sudah berakhir.',when:fmtJadwal(ex.endAt)};
-
+  const b=scheduleBounds(ex);
+  if(b.start&&now<b.start)return {allowed:false,reason:'early',message:'Ujian belum dimulai.',when:fmtJadwal(b.start)};
+  if(b.end&&now>b.end)return {allowed:false,reason:'late',message:'Tanggal ujian sudah berakhir.',when:fmtJadwal(b.end)};
   return {allowed:true,reason:'schedule'};
-
 }
 
 function showExamLocked(ex,gate){
@@ -3565,7 +3595,7 @@ function renderDash(c){
 
     D.ex.forEach(ex=>{const m=gm(ex.mapel);const done=D.rs.filter(r=>r.examId===ex.id).length;const mo=maxOpts(ex.kelas);
 
-      h+=`<div class="cd" style="padding:14px 18px;cursor:pointer;border-left:5px solid ${m.c}" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(${mo} opsi)</span></p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${done}x dikerjakan · ${fmtJadwal(ex.startAt)} → ${fmtJadwal(ex.endAt)}</p></div></div></div>`;});
+      h+=`<div class="cd" style="padding:14px 18px;cursor:pointer;border-left:5px solid ${m.c}" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(${mo} opsi)</span></p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${done}x dikerjakan · ${fmtTanggalHari(getExamScheduleDate(ex))}</p></div></div></div>`;});
 
     h+=`</div>`;
 
@@ -3605,7 +3635,7 @@ async function lihatSoalSekolah(npsn,nama){
 
   else{h+=`<div class="grid gap-3">`;exs.forEach(ex=>{const m=gm(ex.mapel);const mo=maxOpts(ex.kelas);
 
-    h+=`<div class="cd" style="padding:14px 18px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt)">(${mo} opsi)</span>${ex.fromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Pusat</span>':''}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${fmtJadwal(ex.startAt)} → ${fmtJadwal(ex.endAt)}</p></div></div><div class="flex gap-2"><button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}','${npsn}')"><i class="fas fa-file-pdf"></i> Cetak</button><button class="bt bt4 btx" onclick="doHapusSoalSch('${ex.id}','${npsn}','${nama.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button></div></div></div>`;});h+=`</div>`;}
+    h+=`<div class="cd" style="padding:14px 18px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt)">(${mo} opsi)</span>${ex.fromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Pusat</span>':''}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${fmtTanggalHari(getExamScheduleDate(ex))}</p></div></div><div class="flex gap-2"><button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}','${npsn}')"><i class="fas fa-file-pdf"></i> Cetak</button><button class="bt bt4 btx" onclick="doHapusSoalSch('${ex.id}','${npsn}','${nama.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button></div></div></div>`;});h+=`</div>`;}
 
   h+=`</div>`;c.innerHTML=h;
 
@@ -3647,11 +3677,12 @@ function renderJadwal(c){
 
       <div><p style="font-weight:800;font-size:1rem">${ex.mapel} — Kelas ${ex.kelas}</p>
 
-      <p style="font-size:.78rem;color:var(--mt)"><i class="fas fa-calendar mr-1"></i>${fmtJadwal(ex.startAt)} → ${fmtJadwal(ex.endAt)} · ${ex.timeLimit} menit</p>
+      <p style="font-size:.78rem;color:var(--mt)"><i class="fas fa-calendar mr-1"></i>${fmtTanggalHari(getExamScheduleDate(ex))} · ${ex.timeLimit} menit</p>
 
       <p style="font-size:.76rem;color:${st[1]};font-weight:800;margin-top:4px"><i class="fas ${st[2]} mr-1"></i>${st[0]}</p></div>
 
-      <div class="flex gap-2 flex-wrap">${D.isPusat?`<button class="bt bt2 btx" onclick="editJadwal('${ex.id}')"><i class="fas fa-calendar-pen"></i> Atur Jadwal</button>
+      <div class="flex gap-2 flex-wrap">${D.isPusat?`<button class="bt bt2 btx" onclick="editJadwal('${ex.id}')"><i class="fas fa-calendar-pen"></i> Edit Jadwal</button>
+      <button class="bt bt4 btx" onclick="hapusJadwal('${ex.id}')"><i class="fas fa-calendar-xmark"></i> Hapus Jadwal</button>
 
       ${ex.forceOpen?`<button class="bt bt4 btx" onclick="setForceExam('${ex.id}','close')"><i class="fas fa-lock"></i> Tutup Paksa</button>`:`<button class="bt bt5 btx" onclick="setForceExam('${ex.id}','open')"><i class="fas fa-unlock"></i> Buka Paksa</button>`}`:`<span class="tag-pusat"><i class="fas fa-cloud-arrow-down"></i> Sinkron Pusat</span>`}</div>
 
@@ -3785,7 +3816,7 @@ function renderSoal(c){
 
             <p style="font-weight:800;font-size:1rem">${ex.mapel} ${hasImg?'<span class="tag-img"><i class="fas fa-image"></i></span>':''}${isFromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Dari Pusat</span>':''}${D.isPusat&&ex.draftQuestions?`<span class="tag-pusat" style="background:rgba(245,158,11,.12);color:#b45309"><i class="fas fa-file-pen"></i> Ada Draf — belum dipublikasikan</span>`:''}${D.isPusat&&ex.sharedTo&&ex.sharedTo.length>0?`<span class="tag-pusat" style="background:rgba(34,197,94,.1);color:#16a34a"><i class="fas fa-arrows-rotate"></i> Auto-sync ke ${ex.sharedTo.length} sekolah</span>`:''}</p>
 
-            <p style="font-size:.78rem;color:var(--mt)">Kelas ${ex.kelas} · ${mo} opsi · ${ex.questions.length} soal · ${ex.timeLimit}m</p><p style="font-size:.7rem;font-weight:800;color:${examStatus(ex)[1]};margin-top:3px"><i class="fas ${examStatus(ex)[2]} mr-1"></i>${examStatus(ex)[0]} · ${fmtJadwal(ex.startAt)} → ${fmtJadwal(ex.endAt)}</p>
+            <p style="font-size:.78rem;color:var(--mt)">Kelas ${ex.kelas} · ${mo} opsi · ${ex.questions.length} soal · ${ex.timeLimit}m</p><p style="font-size:.7rem;font-weight:800;color:${examStatus(ex)[1]};margin-top:3px"><i class="fas ${examStatus(ex)[2]} mr-1"></i>${examStatus(ex)[0]} · ${fmtTanggalHari(getExamScheduleDate(ex))}</p>
 
           </div>
 
@@ -3916,59 +3947,106 @@ async function doSebarKeSekolah(exId){
 
 
 function showQuickSchedulePicker(){
-
   if(!D.isPusat)return tt('Hanya Admin Pusat yang dapat mengubah jadwal.','er');
-
   const exs=D.ex||[];if(!exs.length)return tt('Belum ada paket ujian.','er');
-
-  const opts=exs.slice().sort((a,b)=>(a.startAt||0)-(b.startAt||0)).map(ex=>`<option value="${ex.id}">${ex.mapel} — Kelas ${ex.kelas}</option>`).join('');
-
-  oMo(`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-calendar-pen mr-2" style="color:var(--pr)"></i>Ubah Jadwal Langsung</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem">&times;</button></div><label class="block mb-1 font-bold" style="font-size:.82rem">Paket Ujian</label><select id="qExam" class="ip mb-3">${opts}</select><div id="qScheduleFields"></div><button class="bt bt1 w-full justify-center mt-3" onclick="saveQuickSchedule()"><i class="fas fa-save"></i> Simpan & Sinkron</button></div>`);
-
-  $('qExam').addEventListener('change',renderQuickScheduleFields);renderQuickScheduleFields();
-
+  const opts=exs.slice().sort((a,b)=>(a.startAt||0)-(b.startAt||0))
+    .map(ex=>`<option value="${ex.id}">${ex.mapel} — Kelas ${ex.kelas}</option>`).join('');
+  oMo(`<div>
+    <div class="flex items-center justify-between mb-4">
+      <h3 style="font-size:1.15rem"><i class="fas fa-calendar-pen mr-2" style="color:var(--pr)"></i>Atur Jadwal Ulangan</h3>
+      <button onclick="cMo()" style="background:none;border:none;font-size:1.3rem">&times;</button>
+    </div>
+    <p style="font-size:.78rem;color:var(--mt);margin-bottom:12px">Pilih tanggal saja. Ujian aktif sepanjang hari, tanpa pengaturan jam.</p>
+    <label class="block mb-1 font-bold" style="font-size:.82rem">Paket Ujian</label>
+    <select id="qExam" class="ip mb-3">${opts}</select>
+    <div id="qScheduleFields"></div>
+    <button class="bt bt1 w-full justify-center mt-3" onclick="saveQuickSchedule()"><i class="fas fa-save"></i> Simpan & Sinkron</button>
+  </div>`);
+  $('qExam').addEventListener('change',renderQuickScheduleFields);
+  renderQuickScheduleFields();
 }
 
-function renderQuickScheduleFields(){const ex=D.ex.find(e=>e.id===$('qExam').value);if(!ex)return;const toLocal=ts=>ts?new Date(ts-Date.now()%60000).toISOString().slice(0,16):'';$('qScheduleFields').innerHTML=`<div class="grid gap-3"><div><label class="block mb-1 font-bold" style="font-size:.82rem">Mulai</label><input id="qStart" class="ip" type="datetime-local" value="${toLocal(ex.startAt)}"></div><div><label class="block mb-1 font-bold" style="font-size:.82rem">Selesai</label><input id="qEnd" class="ip" type="datetime-local" value="${toLocal(ex.endAt)}"></div></div>`;}
+function renderQuickScheduleFields(){
+  const ex=D.ex.find(e=>e.id===$('qExam').value);if(!ex)return;
+  const date=getExamScheduleDate(ex);
+  $('qScheduleFields').innerHTML=`<div>
+    <label class="block mb-1 font-bold" style="font-size:.82rem">Tanggal Ujian</label>
+    <input id="qDate" class="ip" type="date" value="${date}">
+    <p id="qDay" style="font-size:.75rem;color:var(--pr);font-weight:800;margin-top:6px">${date?fmtTanggalHari(date):'Pilih tanggal ujian'}</p>
+  </div>`;
+  $('qDate').addEventListener('change',()=>{$('qDay').textContent=$('qDate').value?fmtTanggalHari($('qDate').value):'Pilih tanggal ujian';});
+}
 
-async function saveQuickSchedule(){const eid=$('qExam').value;if(!eid)return;const ex=D.ex.find(e=>e.id===eid);const start=$('qStart').value?new Date($('qStart').value).getTime():null,end=$('qEnd').value?new Date($('qEnd').value).getTime():null;if(start&&end&&end<=start)return tt('Waktu selesai harus setelah mulai!','er');ld('Menyimpan jadwal...');try{await eR('PUSAT').doc(eid).update({startAt:start,endAt:end,updatedAt:Date.now()});ex.startAt=start;ex.endAt=end;cMo();hd();tt('Jadwal berhasil diubah dan disinkronkan otomatis.');renderDash($('aC'));}catch(e){hd();tt('Gagal menyimpan jadwal: '+e.message,'er');}}
-
-
+async function saveQuickSchedule(){
+  const eid=$('qExam').value;if(!eid)return;
+  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
+  const date=$('qDate').value;
+  if(!date)return tt('Tanggal ujian wajib dipilih!','er');
+  const b=localDateBounds(date);
+  ld('Menyimpan jadwal...');
+  try{
+    await eR('PUSAT').doc(eid).update({scheduleDate:date,startAt:b.start,endAt:b.end,updatedAt:Date.now()});
+    ex.scheduleDate=date;ex.startAt=b.start;ex.endAt=b.end;
+    cMo();hd();tt('Jadwal berhasil diubah dan disinkronkan otomatis.');renderDash($('aC'));
+  }catch(e){hd();tt('Gagal menyimpan jadwal: '+e.message,'er');}
+}
 
 async function editJadwal(eid){
-
+  if(!D.isPusat)return tt('Hanya Admin Pusat yang dapat mengubah jadwal.','er');
   const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
-
-  const toLocal=ts=>ts?new Date(ts-Date.now()%60000).toISOString().slice(0,16):'';
-
-  oMo(`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-calendar-pen mr-2" style="color:var(--pr)"></i>Atur Jadwal — ${ex.mapel} Kelas ${ex.kelas}</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem">&times;</button></div>
-
-    <div class="grid gap-3 mb-4"><div><label class="block mb-1 font-bold" style="font-size:.82rem">Mulai</label><input id="jStart" class="ip" type="datetime-local" value="${toLocal(ex.startAt)}"></div>
-
-    <div><label class="block mb-1 font-bold" style="font-size:.82rem">Selesai</label><input id="jEnd" class="ip" type="datetime-local" value="${toLocal(ex.endAt)}"></div></div>
-
-    <button class="bt bt1 w-full justify-center" onclick="simpanJadwal('${eid}')"><i class="fas fa-save"></i> Simpan & Sinkron</button></div>`);
-
+  const date=getExamScheduleDate(ex);
+  oMo(`<div>
+    <div class="flex items-center justify-between mb-4">
+      <h3 style="font-size:1.15rem"><i class="fas fa-calendar-pen mr-2" style="color:var(--pr)"></i>Edit Jadwal — ${ex.mapel} Kelas ${ex.kelas}</h3>
+      <button onclick="cMo()" style="background:none;border:none;font-size:1.3rem">&times;</button>
+    </div>
+    <p style="font-size:.78rem;color:var(--mt);margin-bottom:12px">Jadwal hanya menggunakan tanggal, tanpa jam. Ujian aktif sepanjang hari.</p>
+    <label class="block mb-1 font-bold" style="font-size:.82rem">Tanggal Ujian</label>
+    <input id="jDate" class="ip" type="date" value="${date}">
+    <p id="jDay" style="font-size:.75rem;color:var(--pr);font-weight:800;margin-top:6px;margin-bottom:16px">${date?fmtTanggalHari(date):'Belum dijadwalkan'}</p>
+    <div class="flex gap-2">
+      <button class="bt bt1 flex-1 justify-center" onclick="simpanJadwal('${eid}')"><i class="fas fa-save"></i> Simpan</button>
+      <button class="bt bt4 flex-1 justify-center" onclick="hapusJadwal('${eid}')"><i class="fas fa-calendar-xmark"></i> Hapus</button>
+    </div>
+  </div>`);
+  $('jDate').addEventListener('change',()=>{$('jDay').textContent=$('jDate').value?fmtTanggalHari($('jDate').value):'Belum dijadwalkan';});
 }
 
 async function simpanJadwal(eid){
-
   const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
-
-  const start=$('jStart').value?new Date($('jStart').value).getTime():null,end=$('jEnd').value?new Date($('jEnd').value).getTime():null;
-
-  if(start&&end&&end<=start)return tt('Waktu selesai harus setelah mulai!','er');
-
+  const date=$('jDate')&&$('jDate').value;
+  if(!date)return tt('Tanggal ujian wajib dipilih!','er');
+  const b=localDateBounds(date);
   ld('Menyimpan jadwal...');
-
   try{
+    await eR('PUSAT').doc(eid).update({scheduleDate:date,startAt:b.start,endAt:b.end,updatedAt:Date.now()});
+    ex.scheduleDate=date;ex.startAt=b.start;ex.endAt=b.end;
+    cMo();hd();tt('Jadwal pusat diperbarui dan akan tersinkron otomatis.');renderJadwal($('aC'));
+  }catch(e){hd();tt('Gagal menyimpan jadwal: '+e.message,'er');}
+}
 
-    await eR('PUSAT').doc(eid).update({startAt:start,endAt:end,updatedAt:Date.now()});
+async function hapusJadwal(eid){
+  if(!D.isPusat)return tt('Hanya Admin Pusat yang dapat menghapus jadwal.','er');
+  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
+  oMo(`<div class="text-center">
+    <div style="font-size:2.6rem;color:var(--er);margin-bottom:10px"><i class="fas fa-calendar-xmark"></i></div>
+    <h3 style="margin-bottom:8px">Hapus jadwal ${ex.mapel} Kelas ${ex.kelas}?</h3>
+    <p style="font-size:.8rem;color:var(--mt);margin-bottom:18px">Paket soal tetap ada. Hanya tanggal jadwal yang dihapus.</p>
+    <div class="flex gap-2 justify-center">
+      <button class="bt bt3 bts" onclick="cMo()">Batal</button>
+      <button class="bt bt4 bts" onclick="konfirmasiHapusJadwal('${eid}')"><i class="fas fa-trash"></i> Hapus Jadwal</button>
+    </div>
+  </div>`);
+}
 
-    ex.startAt=start;ex.endAt=end;cMo();hd();tt('Jadwal pusat diperbarui dan akan tersinkron otomatis.');renderJadwal($('aC'));
-
-  }catch(e){hd();tt('Gagal menyimpan jadwal: '+e.message,'er')}
-
+async function konfirmasiHapusJadwal(eid){
+  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
+  ld('Menghapus jadwal...');
+  try{
+    await eR('PUSAT').doc(eid).update({scheduleDate:null,startAt:null,endAt:null,updatedAt:Date.now()});
+    ex.scheduleDate=null;ex.startAt=null;ex.endAt=null;
+    cMo();hd();tt('Jadwal dihapus. Paket soal tetap tersimpan.');renderJadwal($('aC'));
+  }catch(e){hd();tt('Gagal menghapus jadwal: '+e.message,'er');}
 }
 
 async function setForceExam(eid,mode){
