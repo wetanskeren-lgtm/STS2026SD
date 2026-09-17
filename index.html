@@ -245,6 +245,29 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .step-num.done{background:var(--ok)}
 
 .q-img{max-width:100%;max-height:280px;border-radius:12px;border:2px solid var(--bd);margin:8px 0;display:block;object-fit:contain;background:#f9f6f2}
+/* ===== SOAL PERNYATAAN: khusus tipe soal dengan beberapa pernyataan bernomor ===== */
+/* Tidak mengubah tampilan soal biasa. */
+#pEX .statement-question .statement-line{
+  display:block;
+  width:100%;
+  margin:3px 0;
+  line-height:1.55;
+}
+#pEX .statement-question .statement-intro{
+  display:block;
+  margin-bottom:4px;
+}
+#pEX .statement-question .statement-options{
+  display:block;
+  width:100%;
+}
+#pdSoal .statement-question .statement-line{
+  display:block;
+  width:100%;
+  margin:1px 0;
+  line-height:1.35;
+}
+
 
 /* Kotak jawaban uraian siswa: tidak terpotong dan dapat diperbesar */
 #pEX textarea#ansEss{display:block;width:100%;min-height:180px;height:auto;max-height:none;resize:vertical;overflow-y:auto;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;padding:14px;box-sizing:border-box;}
@@ -2219,12 +2242,40 @@ function imgSrcFor(url){
 
 
 
+
+/* Deteksi KHUSUS soal pernyataan.
+   Soal biasa tidak disentuh agar template tetap seperti semula. */
+function isStatementQuestion(q){
+  const s=String(q&&q.text||'');
+  if(!/pernyataan/i.test(s)) return false;
+  const nums=s.match(/(?:^|[\s<])(?:pernyataan\s*)?\d+\s*[\.\)]/gi)||[];
+  return nums.length>=2;
+}
+
+/* Hanya untuk soal pernyataan: setiap nomor pernyataan dibuat satu baris. */
+function formatStatementText(q){
+  const raw=String(q&&q.text||'');
+  if(!isStatementQuestion(q)) return raw;
+  let s=raw.replace(/\r\n|\r|\n/g,'<br>');
+  let first=true;
+  s=s.replace(/(?:pernyataan\s*)?\d+\s*[\.\)]/gi,m=>{
+    const out=first
+      ? `<span class="statement-line">${m}</span>`
+      : `<br><span class="statement-line">${m}</span>`;
+    first=false;
+    return out;
+  });
+  return s;
+}
+
 function rQ(){
   const ex=D.cEx,i=D.cQ,q=ex.questions[i],t=ex.questions.length;
   if(!q||!t)return;
   $('eP').style.width=((i+1)/t*100)+'%';
 
-  let h=`<div class="asu"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p><h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:4px">${q.text||''}</h3>`;
+  const statementMode=isStatementQuestion(q);
+  const qTextHtml=statementMode?formatStatementText(q):(q.text||'');
+  let h=`<div class="asu ${statementMode?'statement-question':''}"><p style="color:var(--mt);font-size:.78rem;font-weight:700;margin-bottom:6px">Soal ${i+1} dari ${t}</p><h3 style="font-size:1.08rem;line-height:1.5;margin-bottom:4px">${qTextHtml}</h3>`;
   if(q.image)h+=`<img src="${imgSrcFor(q.image)}" referrerpolicy="no-referrer" class="q-img" alt="Gambar Soal" onerror="imgErr(this)">`;
   h+=`<div class="grid gap-3" style="margin-top:12px">`;
 
@@ -2948,9 +2999,12 @@ async function cSoalPDF(exId, npsn){
 
     if(q.image) imageHtml = `<div class="soal-img-wrap"><img class="pdf-img" data-hide="wrap" src="${q.image}" crossorigin="anonymous" referrerpolicy="no-referrer"></div>`;
 
-    pgHtml += `<div class="soal-block" id="soal-pg-${i}">
+    const statementMode=isStatementQuestion(q);
+    const qTextHtml=statementMode?formatStatementText(q):capFirst(q.text);
 
-      <div class="soal-row"><span class="sn">${i + 1}.</span><span class="sc2"><span class="soal-text">${capFirst(q.text)}</span>${imageHtml}${opsiHtml}</span></div>
+    pgHtml += `<div class="soal-block ${statementMode?'statement-question':''}" id="soal-pg-${i}">
+
+      <div class="soal-row"><span class="sn">${i + 1}.</span><span class="sc2"><span class="soal-text">${qTextHtml}</span>${imageHtml}${opsiHtml}</span></div>
 
     </div>`;
 
