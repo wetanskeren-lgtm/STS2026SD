@@ -3673,6 +3673,8 @@ async function doHapusSoalSch(exId,npsn,nama){oMo(`<div class="text-center"><h3 
 
 function renderJadwal(c){
 
+  const quickScheduleHtml=D.isPusat?`<div class="cd" style="margin-bottom:18px;border:2px solid #C7D2FE;background:linear-gradient(135deg,#fff,#f5f3ff)"><div class="flex items-center justify-between gap-3 flex-wrap"><div><h3 style="font-size:1.05rem;margin-bottom:3px"><i class="fas fa-calendar-pen mr-2" style="color:var(--pr)"></i>Atur Jadwal Ulangan</h3><p style="font-size:.75rem;color:var(--mt)">Ubah jadwal langsung dari Dashboard Admin Pusat.</p></div><button class="bt bt5 bts" onclick="showQuickSchedulePicker()"><i class="fas fa-calendar-plus"></i> Ubah Jadwal Sekarang</button></div></div>`:'';
+
   let h=`<div class="asu"><div class="flex items-center justify-between flex-wrap gap-3 mb-5">
 
     <div><h2 style="font-size:1.5rem;margin-bottom:2px"><i class="fas fa-calendar-days mr-2" style="color:var(--pr)"></i>Jadwal Ulangan</h2>
