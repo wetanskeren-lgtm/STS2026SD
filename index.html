@@ -1646,21 +1646,59 @@ function refreshStudentUI(){
 
 }
 
-/* Listener real-time utk admin sekolah & siswa (soal, hasil, data siswa) */
+/* Listener real-time utk admin sekolah & siswa.
+   Paket dari Admin Pusat juga dipantau langsung sehingga tidak bergantung
+   pada halaman Admin Pusat tetap terbuka. Salinan pusat di sekolah tetap
+   menjadi cache, sedangkan sumber pusat menjadi sumber kebenaran utama. */
+function applyMergedExamSources(){
+  const lokal=Array.isArray(D._schoolExams)?D._schoolExams:[];
+  const pusat=Array.isArray(D._pusatExams)?D._pusatExams:[];
+  const map=new Map();
+  lokal.forEach(ex=>{ if(ex&&!ex.fromPusat) map.set(ex.id,ex); });
+  pusat.forEach(ex=>{ if(ex) map.set(ex.id,{...ex,fromPusat:true}); });
+  D.ex=Array.from(map.values());
+}
+
+async function syncPusatExamsToSchool(npsn){
+  if(!npsn||npsn==='PUSAT')return {ok:0,fail:0};
+  try{
+    const snap=await eR('PUSAT').get();
+    const pusat=snap.docs.map(d=>({id:d.id,...d.data()}));
+    let ok=0,fail=0;
+    for(const ex of pusat){
+      try{
+        await eR(npsn).doc(ex.id).set({
+          id:ex.id,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,
+          scheduleDate:ex.scheduleDate||null,startAt:ex.startAt||null,endAt:ex.endAt||null,
+          forceOpen:!!ex.forceOpen,forceClosed:!!ex.forceClosed,
+          questions:JSON.parse(JSON.stringify(ex.questions||[])),
+          fromPusat:true,createdAt:ex.createdAt||Date.now(),sharedAt:Date.now()
+        },{merge:true}); ok++;
+      }catch(_e){fail++;}
+    }
+    return {ok,fail};
+  }catch(_e){ return {ok:0,fail:0}; }
+}
 
 function attachLiveListeners(npsn){
 
   clearUnsub();
+  D._schoolExams=[];D._pusatExams=[];
 
   addUnsub(eR(npsn).onSnapshot(snap=>{
-
     const fresh=snap.docs.map(d=>({id:d.id,...d.data()}));
-    // Saat ujian berlangsung, D.cEx tetap menjadi snapshot lokal siswa.
+    D._schoolExams=fresh;
+    // Saat ujian berlangsung, snapshot soal yang sudah dikunci tetap dipakai.
     if($('pEX') && $('pEX').classList.contains('on') && D.cEx){
-      D.ex=fresh; refreshAdminUI(); return;
+      applyMergedExamSources(); refreshAdminUI(); return;
     }
-    D.ex=fresh; refreshAdminUI();refreshStudentUI();
+    applyMergedExamSources(); refreshAdminUI();refreshStudentUI();
+  }));
 
+  if(npsn!=='PUSAT') addUnsub(eR('PUSAT').onSnapshot(snap=>{
+    D._pusatExams=snap.docs.map(d=>({id:d.id,...d.data(),fromPusat:true}));
+    applyMergedExamSources();
+    refreshAdminUI();refreshStudentUI();
   }));
 
   addUnsub(rR(npsn).onSnapshot(snap=>{
@@ -1807,7 +1845,9 @@ async function logA(){
 
     if(sch.adminUser!==user||sch.adminPass!==pass){hd();return tt('Username atau password salah!','er')}
 
-    D.sch=sch;D.aIn=true;D.isPusat=false;await loadD(npsn);
+    D.sch=sch;D.aIn=true;D.isPusat=false;
+    await syncPusatExamsToSchool(npsn);
+    await loadD(npsn);
     const cleaned=await dedupeExamCollection(npsn);
     if(cleaned.removed>0){await loadD(npsn);tt(`${cleaned.removed} paket soal duplikat lama dihapus otomatis.`,'in');}
     attachLiveListeners(npsn);hd();go('pAD');
@@ -1849,7 +1889,10 @@ async function loadSiswaInit(){
 
     const sd=await sR(npsn).get();if(!sd.exists){hd();$('sLKA').style.display='none';$('sLError').style.display='block';$('sLError').textContent='Sekolah tidak ditemukan.';return;}
 
-    D.sch=sd.data();await loadD(npsn);attachLiveListeners(npsn);
+    D.sch=sd.data();
+    await syncPusatExamsToSchool(npsn);
+    await loadD(npsn);
+    attachLiveListeners(npsn);
 
     if(D.ss.length===0){hd();$('sLKA').style.display='none';$('sLError').style.display='block';$('sLError').textContent='Belum ada data siswa.';return;}
 
@@ -4280,8 +4323,12 @@ async function buatUjian(){
     await eR(targetNpsn).doc(id).set(exam);
 
     D.ex.push(exam);
+    if(D.isPusat){
+      await syncOnePusatExam(exam);
+      D.ex=D.ex.map(x=>x.id===exam.id?exam:x);
+    }
 
-    hd();cMo();tt('Paket ujian dibuat & disimpan permanen!');editUjian(id);
+    hd();cMo();tt(D.isPusat?'Paket ujian dibuat & otomatis masuk ke semua sekolah!':'Paket ujian dibuat & disimpan permanen!');editUjian(id);
 
   } catch(e) {
 
@@ -4794,7 +4841,7 @@ async function syncOnePusatExam(ex){
     try{
       await eR(s.npsn).doc(ex.id).set({
         id:ex.id,mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,
-        startAt:ex.startAt||null,endAt:ex.endAt||null,
+        scheduleDate:ex.scheduleDate||null,startAt:ex.startAt||null,endAt:ex.endAt||null,
         forceOpen:!!ex.forceOpen,forceClosed:!!ex.forceClosed,
         questions:JSON.parse(JSON.stringify(ex.questions)),
         fromPusat:true,createdAt:ex.createdAt||Date.now(),sharedAt:Date.now()
