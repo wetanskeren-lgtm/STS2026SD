@@ -248,11 +248,12 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 /* ===== SOAL PERNYATAAN: khusus tipe soal dengan beberapa pernyataan bernomor ===== */
 /* Tidak mengubah tampilan soal biasa. */
 #pEX .statement-question .statement-line{
-  display:inline;
+  display:block;
   width:100%;
-  margin:3px 0;
-  line-height:1.55;
+  margin:0 0 3px 0;
+  line-height:1.35;
 }
+#pEX .statement-question .statement-line:last-child{margin-bottom:0}
 #pEX .statement-question .statement-intro{
   display:block;
   margin-bottom:4px;
@@ -262,11 +263,12 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
   width:100%;
 }
 #pdSoal .statement-question .statement-line{
-  display:inline;
+  display:block;
   width:100%;
-  margin:1px 0;
-  line-height:1.35;
+  margin:0 0 1px 0;
+  line-height:1.2;
 }
+#pdSoal .statement-question .statement-line:last-child{margin-bottom:0}
 
 
 /* Kotak jawaban uraian siswa: tidak terpotong dan dapat diperbesar */
@@ -2257,22 +2259,26 @@ function formatStatementText(q){
   const raw=String(q&&q.text||'');
   if(!isStatementQuestion(q)) return raw;
 
-  // Pertahankan tiap pernyataan sebagai baris tersendiri, tetapi
-  // nomor (1., 2., dst.) tetap berada di samping isi pernyataannya.
-  let s=raw.replace(/\r\n|\r|\n/g,'<br>');
-  let first=true;
-  s=s.replace(/(?:pernyataan\s*)?\d+\s*[\.\)]/gi,m=>{
-    const out=first
-      ? `<span class="statement-line">${m}</span>`
-      : `<br><span class="statement-line">${m}</span>`;
-    first=false;
-    return out;
-  });
+  // Normalisasi jarak: setiap pernyataan menjadi satu blok baris,
+  // tanpa <br> ganda dari baris kosong pada sumber soal.
+  let s=raw.replace(/\r\n|\r/g,'\n');
+  s=s.replace(/(?:<br\s*\/?>\s*)+/gi,'\n');
+  const lines=s.split('\n').map(x=>x.trim()).filter(Boolean);
 
-  // Jika sumber soal menaruh <br> setelah nomor, hapus hanya <br> tersebut
-  // agar "1." dan isi pernyataan tetap sejajar.
-  s=s.replace(/(<span class="statement-line">[^<]*<\/span>)\s*<br\s*\/?>/gi,'$1 ');
-  return s;
+  let out=[];
+  let current='';
+  lines.forEach(line=>{
+    const m=line.match(/^(?:(?:pernyataan\s*)?)(\d+)\s*[\.\)]\s*(.*)$/i);
+    if(m){
+      if(current) out.push(current);
+      current=`<span class="statement-line"><b>${m[1]}.</b> ${m[2]}</span>`;
+    }else{
+      if(current) current+=` ${line}`;
+      else out.push(line);
+    }
+  });
+  if(current) out.push(current);
+  return out.join('');
 }
 
 function rQ(){
