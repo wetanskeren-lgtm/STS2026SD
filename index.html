@@ -248,7 +248,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 /* ===== SOAL PERNYATAAN: khusus tipe soal dengan beberapa pernyataan bernomor ===== */
 /* Tidak mengubah tampilan soal biasa. */
 #pEX .statement-question .statement-line{
-  display:block;
+  display:inline;
   width:100%;
   margin:3px 0;
   line-height:1.55;
@@ -262,7 +262,7 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
   width:100%;
 }
 #pdSoal .statement-question .statement-line{
-  display:block;
+  display:inline;
   width:100%;
   margin:1px 0;
   line-height:1.35;
@@ -2252,10 +2252,13 @@ function isStatementQuestion(q){
   return nums.length>=2;
 }
 
-/* Hanya untuk soal pernyataan: setiap nomor pernyataan dibuat satu baris. */
+/* Hanya untuk soal pernyataan: nomor dan isi pernyataan tetap satu baris. */
 function formatStatementText(q){
   const raw=String(q&&q.text||'');
   if(!isStatementQuestion(q)) return raw;
+
+  // Pertahankan tiap pernyataan sebagai baris tersendiri, tetapi
+  // nomor (1., 2., dst.) tetap berada di samping isi pernyataannya.
   let s=raw.replace(/\r\n|\r|\n/g,'<br>');
   let first=true;
   s=s.replace(/(?:pernyataan\s*)?\d+\s*[\.\)]/gi,m=>{
@@ -2265,6 +2268,10 @@ function formatStatementText(q){
     first=false;
     return out;
   });
+
+  // Jika sumber soal menaruh <br> setelah nomor, hapus hanya <br> tersebut
+  // agar "1." dan isi pernyataan tetap sejajar.
+  s=s.replace(/(<span class="statement-line">[^<]*<\/span>)\s*<br\s*\/?>/gi,'$1 ');
   return s;
 }
 
