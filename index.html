@@ -1527,6 +1527,39 @@ async function dedupeExamCollection(npsn){
   return {removed:duplicates.length,kept:docs.length-duplicates.length};
 }
 
+async function hapusSemuaGambarSoal(questions){
+  const urls=[];
+  (Array.isArray(questions)?questions:[]).forEach(q=>{
+    if(q&&q.image)urls.push(q.image);
+    (q&&Array.isArray(q.options)?q.options:[]).forEach(o=>{if(o&&typeof o==='object'&&o.image)urls.push(o.image);});
+  });
+  for(const u of [...new Set(urls)]){try{await hapusRTDBGambar(u);}catch(_e){}}
+}
+
+/* Pembersihan satu kali untuk paket Muatan Lokal/Pengetahuan Umum yang diminta pengguna.
+   Menghapus paket dari Pusat + seluruh sekolah, termasuk gambar soal yang tersimpan di RTDB. */
+async function hapusPaketMuatanLokal(){
+  if(!D.isPusat)return 0;
+  let removed=0;
+  const targetNames=['muatan lokal','muatan lokal / pengetahuan umum kabupaten majalengka'];
+  const collections=['PUSAT',...(D.allSchools||[]).map(s=>s.npsn)];
+  for(const npsn of collections){
+    try{
+      const snap=await eR(npsn).get();
+      const matches=snap.docs.map(d=>({id:d.id,...d.data()})).filter(ex=>{
+        const m=normalizeImportText(ex.mapel).toLowerCase();
+        return targetNames.includes(m) || (m.includes('muatan lokal') && m.includes('pengetahuan umum'));
+      });
+      for(const ex of matches){
+        await eR(npsn).doc(ex.id).delete();
+        await hapusSemuaGambarSoal(ex.questions);
+        removed++;
+      }
+    }catch(_e){}
+  }
+  return removed;
+}
+
 async function bersihkanDuplikatPusatDanSekolah(){
   if(!D.isPusat)return 0;
   let removed=0;
@@ -1749,8 +1782,9 @@ async function logP(){
     D.sch={npsn:'PUSAT',nama:'Admin Pusat',kota:'Majalengka',prov:'Jawa Barat',isPusat:true};
 
     D.aIn=true;D.isPusat=true;D.rs=[];D.ss=[];await loadAllSchools(); await loadAllResults(); await loadPusatExams();
+    const muatanRemoved=await hapusPaketMuatanLokal();
     const cleaned=await bersihkanDuplikatPusatDanSekolah();
-    if(cleaned>0){await loadPusatExams();tt(`${cleaned} paket soal duplikat lama dihapus otomatis.`,'in');}
+    if(muatanRemoved>0||cleaned>0){await loadPusatExams();tt(`${muatanRemoved?muatanRemoved+' paket Muatan Lokal dihapus. ':''}${cleaned?cleaned+' paket soal duplikat lama dihapus otomatis.':''}`,'in');}
     attachPusatLiveListeners();
 
     hd();go('pAD');$('aSN2').textContent='Admin Pusat';$('navSch').style.display='';
@@ -4931,7 +4965,17 @@ async function doHapusUjian(eid){
 
     }
 
-    if(D.isPusat&&ex&&ex.sharedTo&&ex.sharedTo.length){for(const n of ex.sharedTo){try{await eR(n).doc(eid).delete();}catch(e){}}}
+    if(D.isPusat&&ex){
+      await hapusSemuaGambarSoal(ex.questions);
+      const key=examDedupKey(ex);
+      for(const n of (D.allSchools||[]).map(s=>s.npsn)){
+        try{
+          const snap=await eR(n).get();
+          const related=snap.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.id===eid||examDedupKey(x)===key);
+          for(const item of related){await eR(n).doc(item.id).delete();}
+        }catch(_e){}
+      }
+    }
 
     D.ex=D.ex.filter(e=>e.id!==eid);hd();renderSoal($('aC'));tt('Dihapus!');
 
@@ -5044,6 +5088,12 @@ function validateAndImport(){
 
 async function doImportJSON(){
   const data=window._pendingImport;if(!data)return;
+  /* Bersihkan duplikat lama terlebih dahulu agar paket yang benar-benar sudah dihapus
+     tidak tertahan oleh salinan lama yang masih tersisa. */
+  try{
+    const clean=await dedupeExamCollection(D.isPusat?'PUSAT':D.sch.npsn);
+    if(clean.removed>0){await loadD(D.isPusat?'PUSAT':D.sch.npsn);if(D.isPusat)await loadPusatExams();}
+  }catch(_e){}
   const kelas=normalizeImportKelas(data.mapel,data.kelas);if(!kelas)return tt('Kelas JSON tidak valid!','er');
   const questions=data.questions.map(q=>{
     const obj={id:uid(),text:q.text,image:q.image||'',type:q.type||'pg'};
