@@ -1745,6 +1745,19 @@ function outA(e){if(e)e.preventDefault();clearUnsub();D.aIn=false;D.sch=null;D.i
 
 
 
+function isSimulasiMapel(mapel){ return String(mapel||'').trim().toLowerCase()==='simulasi'; }
+function isSimulasiExam(ex){ return !!ex && isSimulasiMapel(ex.mapel); }
+function isStudentEligibleForExam(stu,ex){
+  if(!stu||!ex)return false;
+  if(isSimulasiExam(ex)){
+    const k=parseInt(stu.kelas,10);
+    return [3,4,5,6].includes(k);
+  }
+  return String(ex.kelas)===String(stu.kelas);
+}
+function examKelasLabel(ex){ return isSimulasiExam(ex)?'Simulasi (Kelas 3–6)':`Kelas ${ex.kelas}`; }
+function examKelasShort(ex){ return isSimulasiExam(ex)?'Simulasi 3–6':String(ex.kelas); }
+
 async function loadSiswaInit(){
 
   const npsn=$v('sN');$('sLError').style.display='none';
@@ -1945,6 +1958,7 @@ function examStatus(ex){
 async function startEx(id){
   const ex=D.ex.find(e=>e.id===id);
   if(!ex||!ex.questions||!ex.questions.length)return tt('Ujian belum punya soal!','er');
+  if(!isStudentEligibleForExam(D.st,ex))return tt(isSimulasiExam(ex)?'Ujian Simulasi hanya untuk siswa Kelas 3, 4, 5, atau 6.':'Ujian ini bukan untuk kelas Anda.','er');
 
   const gate=examGate(ex);
   if(!gate.allowed){showExamLocked(ex,gate);return;}
@@ -3419,7 +3433,7 @@ async function cSoalPDF(exId, npsn){
 
       <table class="info-block" style="width:100%;border-collapse:collapse;margin-bottom:6px">
 
-        <tr><td style="width:90px;border:none;padding:1px 0">Mapel</td><td style="width:6px;border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0"><b>${ex.mapel}</b></td><td style="width:40px;border:none;padding:1px 0;text-align:right">Kelas</td><td style="width:6px;border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0"><b>${ex.kelas}</b></td></tr>
+        <tr><td style="width:90px;border:none;padding:1px 0">Mapel</td><td style="width:6px;border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0"><b>${ex.mapel}</b></td><td style="width:40px;border:none;padding:1px 0;text-align:right">Kelas</td><td style="width:6px;border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0"><b>${examKelasShort(ex)}</b></td></tr>
 
         <tr><td style="border:none;padding:1px 0">Hari/Tgl</td><td style="border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0">...................</td><td style="border:none;padding:1px 0;text-align:right">Waktu</td><td style="border:none;padding:1px 0">:</td><td style="border:none;padding:1px 0">${ex.timeLimit} Menit</td></tr>
 
@@ -3499,7 +3513,7 @@ async function cSoalPDF(exId, npsn){
 
       margin: [8, 8, 8, 8],
 
-      filename: `Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`,
+      filename: `Soal_${ex.mapel}_Kelas${examKelasShort(ex)}.pdf`,
 
       image: { type: 'jpeg', quality: 0.98 },
 
@@ -3513,7 +3527,7 @@ async function cSoalPDF(exId, npsn){
 
     hd();
 
-    previewPDF(pdfBlob, `Soal_${ex.mapel}_Kelas${ex.kelas}.pdf`);
+    previewPDF(pdfBlob, `Soal_${ex.mapel}_Kelas${examKelasShort(ex)}.pdf`);
 
     tt('PDF siap — periksa pratinjau dulu!');
 
@@ -3595,7 +3609,7 @@ function renderDash(c){
 
     D.ex.forEach(ex=>{const m=gm(ex.mapel);const done=D.rs.filter(r=>r.examId===ex.id).length;const mo=maxOpts(ex.kelas);
 
-      h+=`<div class="cd" style="padding:14px 18px;cursor:pointer;border-left:5px solid ${m.c}" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(${mo} opsi)</span></p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${done}x dikerjakan · ${fmtTanggalHari(getExamScheduleDate(ex))}</p></div></div></div>`;});
+      h+=`<div class="cd" style="padding:14px 18px;cursor:pointer;border-left:5px solid ${m.c}" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — ${examKelasLabel(ex)} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(${mo} opsi)</span></p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${done}x dikerjakan · ${fmtTanggalHari(getExamScheduleDate(ex))}</p></div></div></div>`;});
 
     h+=`</div>`;
 
@@ -3635,7 +3649,7 @@ async function lihatSoalSekolah(npsn,nama){
 
   else{h+=`<div class="grid gap-3">`;exs.forEach(ex=>{const m=gm(ex.mapel);const mo=maxOpts(ex.kelas);
 
-    h+=`<div class="cd" style="padding:14px 18px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas} <span style="font-size:.72rem;color:var(--mt)">(${mo} opsi)</span>${ex.fromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Pusat</span>':''}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${fmtTanggalHari(getExamScheduleDate(ex))}</p></div></div><div class="flex gap-2"><button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}','${npsn}')"><i class="fas fa-file-pdf"></i> Cetak</button><button class="bt bt4 btx" onclick="doHapusSoalSch('${ex.id}','${npsn}','${nama.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button></div></div></div>`;});h+=`</div>`;}
+    h+=`<div class="cd" style="padding:14px 18px"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel} — ${examKelasLabel(ex)} <span style="font-size:.72rem;color:var(--mt)">(${mo} opsi)</span>${ex.fromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Pusat</span>':''}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${fmtTanggalHari(getExamScheduleDate(ex))}</p></div></div><div class="flex gap-2"><button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}','${npsn}')"><i class="fas fa-file-pdf"></i> Cetak</button><button class="bt bt4 btx" onclick="doHapusSoalSch('${ex.id}','${npsn}','${nama.replace(/'/g, "\\'")}')"><i class="fas fa-trash"></i></button></div></div></div>`;});h+=`</div>`;}
 
   h+=`</div>`;c.innerHTML=h;
 
@@ -3675,7 +3689,7 @@ function renderJadwal(c){
 
     h+=`<div class="cd" style="padding:16px 20px;border-left:5px solid ${st[1]}"><div class="flex items-center justify-between gap-3 flex-wrap">
 
-      <div><p style="font-weight:800;font-size:1rem">${ex.mapel} — Kelas ${ex.kelas}</p>
+      <div><p style="font-weight:800;font-size:1rem">${ex.mapel} — ${examKelasLabel(ex)}</p>
 
       <p style="font-size:.78rem;color:var(--mt)"><i class="fas fa-calendar mr-1"></i>${fmtTanggalHari(getExamScheduleDate(ex))} · ${ex.timeLimit} menit</p>
 
@@ -3738,7 +3752,7 @@ function renderSoal(c){
 
           <option value="">-- Pilih Kelas --</option>
 
-          ${KL.map(k=>`<option value="${k.v}" ${String(fk)===String(k.v)?'selected':''}>Kelas ${k.l}</option>`).join('')}
+          ${KL.map(k=>`<option value="${k.v}" ${String(fk)===String(k.v)?'selected':''}>Kelas ${k.l}</option>`).join('')}<option value="SIMULASI" ${String(fk)==='SIMULASI'?'selected':''}>Simulasi (Kelas 3–6)</option>
 
         </select>
 
@@ -3784,7 +3798,7 @@ function renderSoal(c){
 
 
 
-  const filtered=D.ex.filter(ex=>String(ex.kelas)===String(fk)&&ex.mapel===fm);
+  const filtered=D.ex.filter(ex=>(String(fk)==='SIMULASI'?isSimulasiExam(ex):String(ex.kelas)===String(fk))&&ex.mapel===fm);
 
   const mF=gm(fm);
 
@@ -3816,7 +3830,7 @@ function renderSoal(c){
 
             <p style="font-weight:800;font-size:1rem">${ex.mapel} ${hasImg?'<span class="tag-img"><i class="fas fa-image"></i></span>':''}${isFromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Dari Pusat</span>':''}${D.isPusat&&ex.draftQuestions?`<span class="tag-pusat" style="background:rgba(245,158,11,.12);color:#b45309"><i class="fas fa-file-pen"></i> Ada Draf — belum dipublikasikan</span>`:''}${D.isPusat&&ex.sharedTo&&ex.sharedTo.length>0?`<span class="tag-pusat" style="background:rgba(34,197,94,.1);color:#16a34a"><i class="fas fa-arrows-rotate"></i> Auto-sync ke ${ex.sharedTo.length} sekolah</span>`:''}</p>
 
-            <p style="font-size:.78rem;color:var(--mt)">Kelas ${ex.kelas} · ${mo} opsi · ${ex.questions.length} soal · ${ex.timeLimit}m</p><p style="font-size:.7rem;font-weight:800;color:${examStatus(ex)[1]};margin-top:3px"><i class="fas ${examStatus(ex)[2]} mr-1"></i>${examStatus(ex)[0]} · ${fmtTanggalHari(getExamScheduleDate(ex))}</p>
+            <p style="font-size:.78rem;color:var(--mt)">${examKelasLabel(ex)} · ${mo} opsi · ${ex.questions.length} soal · ${ex.timeLimit}m</p><p style="font-size:.7rem;font-weight:800;color:${examStatus(ex)[1]};margin-top:3px"><i class="fas ${examStatus(ex)[2]} mr-1"></i>${examStatus(ex)[0]} · ${fmtTanggalHari(getExamScheduleDate(ex))}</p>
 
           </div>
 
@@ -3886,7 +3900,7 @@ function sebarKeSekolah(exId){
 
   let h=`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-share-alt mr-2" style="color:var(--ac)"></i>Sebar ke Sekolah</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
 
-    <div class="cd mb-4" style="background:var(--bg);border-color:var(--ac)"><p style="font-weight:800">${ex.mapel} — Kelas ${ex.kelas}</p><p style="font-size:.82rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${mo} opsi per soal</p></div>
+    <div class="cd mb-4" style="background:var(--bg);border-color:var(--ac)"><p style="font-weight:800">${ex.mapel} — ${examKelasLabel(ex)}</p><p style="font-size:.82rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m · ${mo} opsi per soal</p></div>
 
     <p class="mb-3 font-bold" style="font-size:.88rem">Pilih Sekolah Tujuan:</p>
 
@@ -3997,7 +4011,7 @@ async function editJadwal(eid){
   const date=getExamScheduleDate(ex);
   oMo(`<div>
     <div class="flex items-center justify-between mb-4">
-      <h3 style="font-size:1.15rem"><i class="fas fa-calendar-pen mr-2" style="color:var(--pr)"></i>Edit Jadwal — ${ex.mapel} Kelas ${ex.kelas}</h3>
+      <h3 style="font-size:1.15rem"><i class="fas fa-calendar-pen mr-2" style="color:var(--pr)"></i>Edit Jadwal — ${ex.mapel} ${examKelasLabel(ex)}</h3>
       <button onclick="cMo()" style="background:none;border:none;font-size:1.3rem">&times;</button>
     </div>
     <p style="font-size:.78rem;color:var(--mt);margin-bottom:12px">Jadwal hanya menggunakan tanggal, tanpa jam. Ujian aktif sepanjang hari.</p>
@@ -4030,7 +4044,7 @@ async function hapusJadwal(eid){
   const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
   oMo(`<div class="text-center">
     <div style="font-size:2.6rem;color:var(--er);margin-bottom:10px"><i class="fas fa-calendar-xmark"></i></div>
-    <h3 style="margin-bottom:8px">Hapus jadwal ${ex.mapel} Kelas ${ex.kelas}?</h3>
+    <h3 style="margin-bottom:8px">Hapus jadwal ${ex.mapel} ${examKelasLabel(ex)}?</h3>
     <p style="font-size:.8rem;color:var(--mt);margin-bottom:18px">Paket soal tetap ada. Hanya tanggal jadwal yang dihapus.</p>
     <div class="flex gap-2 justify-center">
       <button class="bt bt3 bts" onclick="cMo()">Batal</button>
@@ -4077,9 +4091,9 @@ function showBuatUjian(){
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
 
-      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Mata Pelajaran</label><select id="bM" class="ip">${MP.map(m=>`<option value="${m.v}">${m.l}</option>`).join('')}</select></div>
+      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Mata Pelajaran</label><select id="bM" class="ip" onchange="updateOpsiInfo()">${MP.map(m=>`<option value="${m.v}">${m.l}</option>`).join('')}</select></div>
 
-      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas</label><select id="bK" class="ip" onchange="updateOpsiInfo()">${KL.map(k=>`<option value="${k.v}">Kelas ${k.l}</option>`).join('')}</select></div>
+      <div><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas</label><select id="bK" class="ip" onchange="updateOpsiInfo()">${KL.map(k=>`<option value="${k.v}">Kelas ${k.l}</option>`).join('')}<option value="SIMULASI">Simulasi — otomatis Kelas 3, 4, 5, 6</option></select></div>
 
       <div><label class="block mb-1 font-bold" style="font-size:.82rem">Waktu (menit)</label><input id="bT" class="ip" type="number" value="60" min="10" max="300"></div>
 
@@ -4109,11 +4123,11 @@ function showBuatUjian(){
 
 function updateOpsiInfo(){
 
-  const k=parseInt($('bK')?.value)||3;const mo=maxOpts(k);
+  const mapelNow=$('bM')?.value||'';const isSim=isSimulasiMapel(mapelNow);const raw=$('bK')?.value||'3';const k=isSim?3:parseInt(raw,10)||3;const mo=maxOpts(k);if($('bK')){if(isSim)$('bK').value='SIMULASI';$('bK').disabled=isSim;}
 
   const el=$('opsiInfo');if(!el)return;
 
-  el.innerHTML=`<p style="font-weight:800;color:var(--inf);font-size:.9rem"><i class="fas fa-list-ol mr-1"></i> Kelas ${k}: Maksimal ${mo} opsi jawaban (${OL_FULL.slice(0,mo).join(', ')})</p>`;
+  el.innerHTML=isSim?`<p style="font-weight:800;color:var(--pr);font-size:.9rem"><i class="fas fa-laptop-code mr-1"></i> Simulasi: otomatis untuk siswa Kelas 3, 4, 5, dan 6 · Maksimal ${mo} opsi jawaban (${OL_FULL.slice(0,mo).join(', ')})</p>`:`<p style="font-weight:800;color:var(--inf);font-size:.9rem"><i class="fas fa-list-ol mr-1"></i> Kelas ${k}: Maksimal ${mo} opsi jawaban (${OL_FULL.slice(0,mo).join(', ')})</p>`;
 
 }
 
@@ -4121,9 +4135,11 @@ function updateOpsiInfo(){
 
 async function buatUjian(){
 
-  const mapel=$v('bM'),kelas=parseInt($('bK').value),timeLimit=parseInt($('bT').value)||60;
+  const mapel=$v('bM'),kelasRaw=$('bK').value,timeLimit=parseInt($('bT').value)||60;
+  const isSim=isSimulasiMapel(mapel);
+  const kelas=isSim?'SIMULASI':parseInt(kelasRaw,10);
 
-  if(!mapel||!kelas)return tt('Lengkapi semua field!','er');
+  if(!mapel||(!isSim&&!kelas))return tt('Lengkapi semua field!','er');
 
   const startAt=$('bStart').value?new Date($('bStart').value).getTime():null,endAt=$('bEnd').value?new Date($('bEnd').value).getTime():null;if(startAt&&endAt&&endAt<=startAt)return tt('Waktu selesai harus setelah waktu mulai!','er');const id=uid();const exam={id,mapel,kelas,timeLimit,startAt,endAt,forceOpen:false,forceClosed:false,questions:[],createdAt:Date.now(),sharedTo:[]};
 
@@ -4854,7 +4870,7 @@ function exportExamJSON(eid){
 
   const data={mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,questions:ex.questions.map(q=>{const obj={text:q.text,type:q.type||'pg'};if(q.image)obj.image=q.image;if(q.type==='essay'){obj.key=q.key||'';}else{obj.options=q.options.map(o=>typeof o==='object'?{text:o.text||'',image:o.image||''}:o);obj.answer=q.answer;}return obj;})};
 
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`Soal_${ex.mapel}_K${ex.kelas}.json`;a.click();URL.revokeObjectURL(url);tt('JSON diunduh!');
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`Soal_${ex.mapel}_K${examKelasShort(ex)}.json`;a.click();URL.revokeObjectURL(url);tt('JSON diunduh!');
 
 }
 
