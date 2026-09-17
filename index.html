@@ -3720,45 +3720,67 @@ async function doHapusSoalSch(exId,npsn,nama){oMo(`<div class="text-center"><h3 
 
 function renderJadwal(c){
 
-  const quickScheduleHtml=D.isPusat?`<div class="cd" style="margin-bottom:18px;border:2px solid #C7D2FE;background:linear-gradient(135deg,#fff,#f5f3ff)"><div class="flex items-center justify-between gap-3 flex-wrap"><div><h3 style="font-size:1.05rem;margin-bottom:3px"><i class="fas fa-calendar-pen mr-2" style="color:var(--pr)"></i>Atur Jadwal Ulangan</h3><p style="font-size:.75rem;color:var(--mt)">Ubah jadwal langsung dari Dashboard Admin Pusat.</p></div><button class="bt bt5 bts" onclick="showQuickSchedulePicker()"><i class="fas fa-calendar-plus"></i> Ubah Jadwal Sekarang</button></div></div>`:'';
+  const quickScheduleHtml=D.isPusat?`<div class="cd" style="margin-bottom:18px;border:2px solid #C7D2FE;background:linear-gradient(135deg,#fff,#f5f3ff)"><div class="flex items-center justify-between gap-3 flex-wrap"><div><h3 style="font-size:1.05rem;margin-bottom:3px"><i class="fas fa-calendar-pen mr-2" style="color:var(--pr)"></i>Atur Jadwal Ulangan</h3><p style="font-size:.75rem;color:var(--mt)">Atur tanggal ujian dari Admin Pusat. Jadwal hanya tampil setelah memilih filter kelas.</p></div><button class="bt bt5 bts" onclick="showQuickSchedulePicker()"><i class="fas fa-calendar-plus"></i> Atur Jadwal</button></div></div>`:'';
+
+  if(!D.jadwalFilter)D.jadwalFilter={kelas:''};
+  const fk=String(D.jadwalFilter.kelas||'');
 
   let h=`<div class="asu"><div class="flex items-center justify-between flex-wrap gap-3 mb-5">
-
     <div><h2 style="font-size:1.5rem;margin-bottom:2px"><i class="fas fa-calendar-days mr-2" style="color:var(--pr)"></i>Jadwal Ulangan</h2>
+    <p style="color:var(--mt);font-size:.85rem">Pilih kelas terlebih dahulu. Jadwal tidak ditampilkan pada tampilan umum agar tidak membingungkan.</p></div>
+  </div>`;
 
-    <p style="color:var(--mt);font-size:.85rem">${D.isPusat?'Jadwal dari pusat otomatis masuk ke seluruh Admin Sekolah & login siswa.':'Jadwal diterima dari Admin Pusat dan berlaku otomatis.'}</p></div>
+  h+=`<div class="cd mb-5" style="padding:16px 20px;border:2px solid var(--ac);border-style:dashed">
+    <div class="flex gap-3 flex-wrap items-end">
+      <div style="flex:1;min-width:210px;max-width:320px">
+        <label class="block mb-1 font-bold" style="font-size:.82rem"><i class="fas fa-filter mr-1" style="color:var(--ac)"></i>Filter Kelas</label>
+        <select id="jadwalKelasFilter" class="ip" onchange="D.jadwalFilter.kelas=this.value;renderJadwal($('aC'))">
+          <option value="">-- Pilih Kelas --</option>
+          ${KL.map(k=>`<option value="${k.v}" ${fk===String(k.v)?'selected':''}>Kelas ${k.l}</option>`).join('')}
+        </select>
+      </div>
+      ${fk?`<div style="display:flex;align-items:flex-end"><button class="bt bt3 bts" onclick="D.jadwalFilter={kelas:''};renderJadwal($('aC'))"><i class="fas fa-times"></i> Reset Filter</button></div>`:''}
+    </div>
+  </div>`;
 
-  </div><div class="grid gap-3">`;
-
-  const scheduledExams=D.ex.filter(ex=>!!getExamScheduleDate(ex));
-  if(!scheduledExams.length)h+=`<div class="cd text-center" style="padding:40px;color:var(--mt)"><i class="fas fa-calendar-xmark" style="font-size:2.2rem;opacity:.35;margin-bottom:10px"></i><p style="font-weight:800">Belum ada jadwal ujian.</p><p style="font-size:.8rem;margin-top:5px">Paket soal tanpa tanggal tidak ditampilkan di menu Jadwal. Gunakan menu Kelola Soal untuk melihat paket tersebut.</p></div>`;
-
-  scheduledExams.slice().sort((a,b)=>(a.startAt||0)-(b.startAt||0)).forEach(ex=>{
-
-    const st=examStatus(ex),m=gm(ex.mapel);
-
-    h+=`<div class="cd" style="padding:16px 20px;border-left:5px solid ${st[1]}"><div class="flex items-center justify-between gap-3 flex-wrap">
-
-      <div><p style="font-weight:800;font-size:1rem">${ex.mapel} — ${examKelasLabel(ex)}</p>
-
-      <p style="font-size:.78rem;color:var(--mt)"><i class="fas fa-calendar mr-1"></i>${fmtTanggalHari(getExamScheduleDate(ex))} · ${ex.timeLimit} menit</p>
-
-      <p style="font-size:.76rem;color:${st[1]};font-weight:800;margin-top:4px"><i class="fas ${st[2]} mr-1"></i>${st[0]}</p></div>
-
-      <div class="flex gap-2 flex-wrap">${D.isPusat?`<button class="bt bt2 btx" onclick="editJadwal('${ex.id}')"><i class="fas fa-calendar-pen"></i> Edit Jadwal</button>
-      <button class="bt bt4 btx" onclick="hapusJadwal('${ex.id}')"><i class="fas fa-calendar-xmark"></i> Hapus Jadwal</button>
-
-      ${ex.forceOpen?`<button class="bt bt4 btx" onclick="setForceExam('${ex.id}','close')"><i class="fas fa-lock"></i> Tutup Paksa</button>`:`<button class="bt bt5 btx" onclick="setForceExam('${ex.id}','open')"><i class="fas fa-unlock"></i> Buka Paksa</button>`}`:`<span class="tag-pusat"><i class="fas fa-cloud-arrow-down"></i> Sinkron Pusat</span>`}</div>
-
+  if(!fk){
+    h+=`<div class="cd" style="text-align:center;padding:46px 20px">
+      <div style="font-size:3rem;margin-bottom:12px;opacity:.3"><i class="fas fa-filter"></i></div>
+      <p style="font-weight:800;margin-bottom:6px">Pilih Kelas untuk Melihat Jadwal</p>
+      <p style="font-size:.85rem;color:var(--mt);max-width:480px;margin:0 auto">Jadwal seperti <b>PJOK Kelas 6 — Kamis, 24</b> hanya akan muncul ketika <b>Kelas 6</b> dipilih. Dengan begitu daftar jadwal tidak memenuhi halaman dan tidak membingungkan.</p>
     </div></div>`;
+    c.innerHTML=h;
+    if(D.isPusat)c.insertAdjacentHTML('afterbegin',quickScheduleHtml);
+    return;
+  }
 
-  });
+  const targetKelas=parseInt(fk,10);
+  const scheduledExams=(D.ex||[]).filter(ex=>{
+    if(!getExamScheduleDate(ex))return false;
+    return isSimulasiExam(ex)?[3,4,5,6].includes(targetKelas):String(ex.kelas)===fk;
+  }).sort((a,b)=>(scheduleBounds(a).start||0)-(scheduleBounds(b).start||0));
 
-  h+=`</div></div>`;c.innerHTML=h;
+  h+=`<div class="flex items-center justify-between gap-3 flex-wrap mb-3"><div><p style="font-weight:800;font-size:1rem">Jadwal Kelas ${targetKelas}</p><p style="font-size:.78rem;color:var(--mt)">${scheduledExams.length?`${scheduledExams.length} jadwal ditemukan.`:'Belum ada jadwal pada kelas ini.'}</p></div></div>`;
 
+  if(!scheduledExams.length){
+    h+=`<div class="cd text-center" style="padding:40px;color:var(--mt)"><i class="fas fa-calendar-xmark" style="font-size:2.2rem;opacity:.35;margin-bottom:10px"></i><p style="font-weight:800">Belum ada jadwal untuk Kelas ${targetKelas}.</p><p style="font-size:.8rem;margin-top:5px">Atur jadwal dari Admin Pusat, lalu jadwal akan otomatis masuk ke filter kelas yang sesuai.</p></div>`;
+  }else{
+    h+=`<div class="grid gap-3">`;
+    scheduledExams.forEach(ex=>{
+      const st=examStatus(ex);
+      h+=`<div class="cd" style="padding:16px 20px;border-left:5px solid ${st[1]}"><div class="flex items-center justify-between gap-3 flex-wrap">
+        <div><p style="font-weight:800;font-size:1rem">${ex.mapel} — ${examKelasLabel(ex)}</p>
+        <p style="font-size:.82rem;color:var(--mt);font-weight:700"><i class="fas fa-calendar-day mr-1"></i>${fmtTanggalHari(getExamScheduleDate(ex))}</p>
+        <p style="font-size:.76rem;color:${st[1]};font-weight:800;margin-top:4px"><i class="fas ${st[2]} mr-1"></i>${st[0]}</p></div>
+        <div class="flex gap-2 flex-wrap">${D.isPusat?`<button class="bt bt2 btx" onclick="editJadwal('${ex.id}')"><i class="fas fa-calendar-pen"></i> Edit Jadwal</button><button class="bt bt4 btx" onclick="hapusJadwal('${ex.id}')"><i class="fas fa-calendar-xmark"></i> Hapus Jadwal</button>${ex.forceOpen?`<button class="bt bt4 btx" onclick="setForceExam('${ex.id}','close')"><i class="fas fa-lock"></i> Tutup Paksa</button>`:`<button class="bt bt5 btx" onclick="setForceExam('${ex.id}','open')"><i class="fas fa-unlock"></i> Buka Paksa</button>`}`:`<span class="tag-pusat"><i class="fas fa-cloud-arrow-down"></i> Sinkron Pusat</span>`}</div>
+      </div></div>`;
+    });
+    h+=`</div>`;
+  }
 
-
-  if(D.isPusat){c.insertAdjacentHTML('afterbegin',quickScheduleHtml);}
+  h+=`</div>`;
+  c.innerHTML=h;
+  if(D.isPusat)c.insertAdjacentHTML('afterbegin',quickScheduleHtml);
 
 }
 
