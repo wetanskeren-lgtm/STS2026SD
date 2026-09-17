@@ -1388,7 +1388,18 @@ function oMo(h){$('moC').innerHTML=h;$('moO').classList.add('on')}
 
 function cMo(){$('moO').classList.remove('on')}
 
-function gm(v){return MP.find(m=>m.v===v)||{ic:'fa-file',c:'#666',l:v}}
+function canonicalMapel(v){
+  const x=String(v??'').replace(/\s+/g,' ').trim();
+  if(/^pai(\s+dan\s+bp)?$/i.test(x))return 'PAI';
+  if(/^simulasi$/i.test(x))return 'Simulasi';
+  return x;
+}
+function normalizeExamRecord(ex){
+  if(!ex)return ex;
+  const m=canonicalMapel(ex.mapel);
+  return m===ex.mapel?ex:{...ex,mapel:m};
+}
+function gm(v){const m=canonicalMapel(v);return MP.find(x=>x.v===m)||{ic:'fa-file',c:'#666',l:m}}
 
 function sR(n){return db.collection('schools').doc(n)}
 
@@ -1500,7 +1511,7 @@ async function loadAllResults(){
 
 function examDedupKey(ex){
   if(!ex)return '';
-  const mapel=normalizeImportText(ex.mapel).toLowerCase();
+  const mapel=canonicalMapel(ex.mapel).toLowerCase();
   const kelas=isSimulasiExam(ex)?'SIMULASI':normalizeImportKelas(ex.mapel,ex.kelas);
   return mapel+'|'+String(kelas)+'|'+examQuestionsFingerprint(ex.questions||[]);
 }
@@ -1577,10 +1588,33 @@ async function bersihkanDuplikatPusatDanSekolah(){
 
 async function loadPusatExams(){
   const snap = await db.collection('schools').doc('PUSAT').collection('exams').get();
-  D.ex = snap.docs.map(d=>({id:d.id,...d.data()}));
+  D.ex = snap.docs.map(d=>normalizeExamRecord({id:d.id,...d.data()}));
 }
 
-async function loadD(npsn){const[a,b,c]=await Promise.all([eR(npsn).get(),rR(npsn).get(),wR(npsn).get()]);D.ex=a.docs.map(d=>({id:d.id,...d.data()}));D.rs=b.docs.map(d=>({id:d.id,...d.data()}));D.ss=c.docs.map(d=>({id:d.id,...d.data()}));}
+async function loadD(npsn){
+  const[a,b,c]=await Promise.all([eR(npsn).get(),rR(npsn).get(),wR(npsn).get()]);
+  D.ex=a.docs.map(d=>normalizeExamRecord({id:d.id,...d.data()}));
+  D.rs=b.docs.map(d=>({id:d.id,...d.data()}));
+  D.ss=c.docs.map(d=>({id:d.id,...d.data()}));
+}
+
+/* Sekolah hanya boleh memakai paket yang berasal dari Admin Pusat.
+   Paket lokal lama dibersihkan. Paket pusat dikenali dari ID yang sama dengan
+   dokumen pada koleksi PUSAT sehingga tidak bergantung pada flag fromPusat lama. */
+async function enforcePusatOnlySchoolExams(npsn){
+  if(!npsn||npsn==='PUSAT')return 0;
+  try{
+    const [ps,ss]=await Promise.all([eR('PUSAT').get(),eR(npsn).get()]);
+    const pusatIds=new Set(ps.docs.map(d=>d.id));
+    const remove=ss.docs.filter(d=>!pusatIds.has(d.id));
+    for(let i=0;i<remove.length;i+=400){
+      const batch=db.batch();
+      remove.slice(i,i+400).forEach(d=>batch.delete(eR(npsn).doc(d.id)));
+      await batch.commit();
+    }
+    return remove.length;
+  }catch(_e){return 0;}
+}
 
 
 
@@ -1654,8 +1688,12 @@ function applyMergedExamSources(){
   const lokal=Array.isArray(D._schoolExams)?D._schoolExams:[];
   const pusat=Array.isArray(D._pusatExams)?D._pusatExams:[];
   const map=new Map();
-  lokal.forEach(ex=>{ if(ex&&!ex.fromPusat) map.set(ex.id,ex); });
-  pusat.forEach(ex=>{ if(ex) map.set(ex.id,{...ex,fromPusat:true}); });
+  /* Sekolah sekarang read-only: hanya paket yang ada di Pusat yang dipakai. */
+  if(pusat.length){
+    pusat.forEach(ex=>{if(ex)map.set(ex.id,normalizeExamRecord({...ex,fromPusat:true}));});
+  }else{
+    lokal.filter(ex=>ex&&ex.fromPusat).forEach(ex=>map.set(ex.id,normalizeExamRecord(ex)));
+  }
   D.ex=Array.from(map.values());
 }
 
@@ -1687,7 +1725,7 @@ function attachLiveListeners(npsn){
 
   addUnsub(eR(npsn).onSnapshot(snap=>{
     const fresh=snap.docs.map(d=>({id:d.id,...d.data()}));
-    D._schoolExams=fresh;
+    D._schoolExams=fresh.map(normalizeExamRecord);
     // Saat ujian berlangsung, snapshot soal yang sudah dikunci tetap dipakai.
     if($('pEX') && $('pEX').classList.contains('on') && D.cEx){
       applyMergedExamSources(); refreshAdminUI(); return;
@@ -1696,7 +1734,7 @@ function attachLiveListeners(npsn){
   }));
 
   if(npsn!=='PUSAT') addUnsub(eR('PUSAT').onSnapshot(snap=>{
-    D._pusatExams=snap.docs.map(d=>({id:d.id,...d.data(),fromPusat:true}));
+    D._pusatExams=snap.docs.map(d=>normalizeExamRecord({id:d.id,...d.data(),fromPusat:true}));
     applyMergedExamSources();
     refreshAdminUI();refreshStudentUI();
   }));
@@ -1749,7 +1787,7 @@ function attachPusatLiveListeners(){
 
   addUnsub(eR('PUSAT').onSnapshot(async snap=>{
 
-    D.ex=snap.docs.map(d=>({id:d.id,...d.data()}));
+    D.ex=snap.docs.map(d=>normalizeExamRecord({id:d.id,...d.data()}));
 
     /* Semua perubahan pusat (soal, jadwal, buka/tutup paksa) langsung disalin ke sekolah. */
 
@@ -1847,6 +1885,7 @@ async function logA(){
 
     D.sch=sch;D.aIn=true;D.isPusat=false;
     await syncPusatExamsToSchool(npsn);
+    await enforcePusatOnlySchoolExams(npsn);
     await loadD(npsn);
     const cleaned=await dedupeExamCollection(npsn);
     if(cleaned.removed>0){await loadD(npsn);tt(`${cleaned.removed} paket soal duplikat lama dihapus otomatis.`,'in');}
@@ -1962,11 +2001,24 @@ function updNamaList(){
 
 }
 
+function todayLocalDateString(){
+  const d=new Date();
+  return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+}
+function isExamScheduledTodayForStudent(ex,stu){
+  if(!isStudentEligibleForExam(stu,ex))return false;
+  const date=getExamScheduleDate(ex);
+  return !!date && date===todayLocalDateString();
+}
+function getStudentTodayExams(stu){
+  return (D.ex||[]).filter(ex=>isExamScheduledTodayForStudent(ex,stu));
+}
+
 function updMapelList(){
 
   const nis=$('sI').value;if(!nis){$('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;return;}
 
-  const stu=D.ss.find(s=>s.nis===nis);const exs=D.ex.filter(e=>e.kelas===stu.kelas);
+  const stu=D.ss.find(s=>s.nis===nis);const exs=getStudentTodayExams(stu);
 
   if(exs.length===0){$('sM').innerHTML='<option value="">-- Belum ada mapel --</option>';$('sM').disabled=true;return;}
 
@@ -2083,6 +2135,7 @@ async function startEx(id){
   const ex=D.ex.find(e=>e.id===id);
   if(!ex||!ex.questions||!ex.questions.length)return tt('Ujian belum punya soal!','er');
   if(!isStudentEligibleForExam(D.st,ex))return tt(isSimulasiExam(ex)?'Ujian Simulasi hanya untuk siswa Kelas 3, 4, 5, atau 6.':'Ujian ini bukan untuk kelas Anda.','er');
+  if(D.st&&!isExamScheduledTodayForStudent(ex,D.st))return tt('Mapel ini belum dijadwalkan untuk hari ini.','er');
 
   const gate=examGate(ex);
   if(!gate.allowed){showExamLocked(ex,gate);return;}
@@ -3869,17 +3922,14 @@ function renderSoal(c){
 
   let h=`<div class="asu"><div class="flex items-center justify-between flex-wrap gap-3 mb-6">
 
-    <div><h2 style="font-size:1.5rem;margin-bottom:2px">Kelola Soal</h2><p style="color:var(--mt);font-size:.85rem">${D.isPusat?'Buat soal lalu sebar ke sekolah':'Buat soal mandiri atau terima dari Admin Pusat'}</p></div>
+    <div><h2 style="font-size:1.5rem;margin-bottom:2px">Kelola Soal</h2><p style="color:var(--mt);font-size:.85rem">${D.isPusat?'Buat dan kelola semua soal dari Admin Pusat.':'Soal sepenuhnya dikelola Admin Pusat dan diterima otomatis.'}</p></div>
 
     <div class="flex gap-2 flex-wrap">
 
-      <button class="bt bt2 bts" onclick="showImportJSON()"><i class="fas fa-file-import"></i> Import JSON</button>
-
+      ${D.isPusat?`<button class="bt bt2 bts" onclick="showImportJSON()"><i class="fas fa-file-import"></i> Import JSON</button>
       <button class="bt bt5 bts" onclick="showContohJSON()"><i class="fas fa-code"></i> Contoh JSON</button>
-
-      ${D.isPusat?'<button class="bt bt1 bts" onclick="syncAllPusatExams()"><i class="fas fa-rotate"></i> Sinkron Semua Sekolah</button>':''}
-
-      <button class="bt bt1 bts" onclick="showBuatUjian()"><i class="fas fa-plus"></i> Buat Ujian</button>
+      <button class="bt bt1 bts" onclick="syncAllPusatExams()"><i class="fas fa-rotate"></i> Sinkron Semua Sekolah</button>
+      <button class="bt bt1 bts" onclick="showBuatUjian()"><i class="fas fa-plus"></i> Buat Ujian</button>`:`<span class="tag-pusat"><i class="fas fa-lock"></i> Admin Sekolah: lihat saja</span>`}
 
     </div>
 
@@ -4015,21 +4065,8 @@ function renderSoal(c){
       }else{
 
         if(isFromPusat){
-
-          h+=`<span style="font-size:.72rem;color:var(--pr);font-weight:700;background:rgba(99,102,241,.08);padding:4px 10px;border-radius:8px"><i class="fas fa-lock mr-1"></i>Tidak bisa diedit</span>
-
-            <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button>
-
-            <button class="bt bt4 btx" onclick="hapusUjian('${ex.id}')"><i class="fas fa-trash"></i> Hapus</button>`;
-
-        }else{
-
-          h+=`<button class="bt bt2 btx" onclick="editUjian('${ex.id}')"><i class="fas fa-edit"></i> Edit</button>
-
-            <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button>
-
-            <button class="bt bt4 btx" onclick="hapusUjian('${ex.id}')"><i class="fas fa-trash"></i> Hapus</button>`;
-
+          h+=`<span style="font-size:.72rem;color:var(--pr);font-weight:700;background:rgba(99,102,241,.08);padding:4px 10px;border-radius:8px"><i class="fas fa-lock mr-1"></i>Dari Admin Pusat</span>
+            <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button>`;
         }
 
       }
@@ -4049,6 +4086,7 @@ function renderSoal(c){
 /* ===== SEBAR KE SEKOLAH ===== */
 
 function sebarKeSekolah(exId){
+  if(!D.isPusat)return tt('Hanya Admin Pusat yang dapat menyebarkan soal.','er');
 
   const ex=D.ex.find(e=>e.id===exId);if(!ex)return;
 
@@ -4258,6 +4296,7 @@ async function setForceExam(eid,mode){
 }
 
 function showBuatUjian(){
+  if(!D.isPusat)return tt('Paket soal hanya dibuat di Admin Pusat. Admin Sekolah hanya menerima soal dari Pusat.','er');
 
   oMo(`<div><div class="flex items-center justify-between mb-5"><h3 style="font-size:1.2rem"><i class="fas fa-plus-circle mr-2" style="color:var(--ac)"></i>Buat Paket Ujian</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>
 
@@ -4305,8 +4344,9 @@ function updateOpsiInfo(){
 
 
 async function buatUjian(){
+  if(!D.isPusat)return tt('Paket soal hanya dibuat di Admin Pusat.','er');
 
-  const mapel=$v('bM'),kelasRaw=$('bK').value,timeLimit=parseInt($('bT').value)||60;
+  const mapel=canonicalMapel($v('bM')),kelasRaw=$('bK').value,timeLimit=parseInt($('bT').value)||60;
   const isSim=isSimulasiMapel(mapel);
   const kelas=isSim?'SIMULASI':parseInt(kelasRaw,10);
 
@@ -4343,6 +4383,7 @@ async function buatUjian(){
 /* ===== EDIT SOAL ===== */
 
 function editUjian(eid){
+  if(!D.isPusat)return tt('Soal dari Admin Pusat tidak dapat diedit di Admin Sekolah.','er');
   const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
   /* Admin Pusat mengedit DRAF. Soal yang tampil ke siswa tetap ex.questions. */
   D.editQs=JSON.parse(JSON.stringify(ex.draftQuestions||ex.questions||[]));D.editIdx=-1;D.editKelas=ex.kelas;
@@ -4352,6 +4393,7 @@ function editUjian(eid){
 
 
 function renderEditSoal(ex){
+  if(!D.isPusat)return tt('Soal hanya dapat dikelola dari Admin Pusat.','er');
 
   const c=$('aC');const m=gm(ex.mapel);const mo=maxOpts(ex.kelas);
 
@@ -4677,6 +4719,7 @@ function uploadOptImg(inp){
 /* ===== SIMPAN SOAL: auto-save otomatis ke Firestore setiap Tambah/Update ===== */
 
 async function simpanSoal(eid){
+  if(!D.isPusat)return tt('Soal hanya dapat dibuat/diubah di Admin Pusat.','er');
 
   if(D._savingExam)return;
 
@@ -4738,6 +4781,7 @@ async function simpanSoal(eid){
 
 
 async function simpanAllSoal(eid){
+  if(!D.isPusat)return tt('Soal hanya dapat dibuat/diubah di Admin Pusat.','er');
 
   if(D.editQs.length===0)return tt('Belum ada soal!','er');
 
@@ -4994,12 +5038,14 @@ async function retrySync(){
 
 
 async function hapusUjian(eid){
+  if(!D.isPusat)return tt('Paket soal dikelola Admin Pusat.','er');
 
   oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus Paket Ujian?</h3><p style="color:var(--mt);font-size:.85rem;margin-bottom:16px">Hasil terkait ikut terhapus!</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();doHapusUjian('${eid}')">Hapus</button></div></div>`);
 
 }
 
 async function doHapusUjian(eid){
+  if(!D.isPusat)return tt('Paket soal hanya dapat dihapus dari Admin Pusat.','er');
 
   ld('Menghapus...');try{
 
@@ -5040,6 +5086,7 @@ async function doHapusUjian(eid){
 }
 
 async function hapusUjianPusat(eid){
+  if(!D.isPusat)return tt('Paket soal hanya dapat dikelola Admin Pusat.','er');
 
   oMo(`<div class="text-center"><h3 style="margin-bottom:10px">Hapus Soal Pusat?</h3><p style="color:var(--mt);font-size:.85rem;margin-bottom:16px">Soal akan dihapus dari database Pusat (tidak berdampak pada soal yang sudah disebarkan ke sekolah).</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();doHapusUjian('${eid}')">Hapus</button></div></div>`);
 
@@ -5077,6 +5124,7 @@ function showContohJSON(){
 } 
  
 function showImportJSON(){ 
+  if(!D.isPusat)return tt('Import JSON hanya dapat dilakukan di Admin Pusat.','er');
   oMo(`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-file-import mr-2" style="color:var(--ac2)"></i>Import Soal JSON</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div> 
     <div class="mb-3"><input type="file" id="jsonFile" accept=".json" onchange="const r=new FileReader();r.onload=e=>{$('jsonTA').value=e.target.result;tt('Dimuat!')};r.readAsText(this.files[0])" class="ip" style="padding:10px"></div> 
     <textarea id="jsonTA" class="json-ta" placeholder='Paste JSON...'></textarea> 
@@ -5111,6 +5159,7 @@ function findDuplicateExam(data,questions,kelas){
 }
 
 function validateAndImport(){
+  if(!D.isPusat)return tt('Import JSON hanya dapat dilakukan di Admin Pusat.','er');
   let raw=$('jsonTA').value.trim();if(!raw)return tt('Paste/upload JSON!','er');
   let data;try{data=JSON.parse(raw);}catch(e){return tt('JSON tidak valid!','er');}
   const errors=[];
@@ -5143,6 +5192,7 @@ function validateAndImport(){
 }
 
 async function doImportJSON(){
+  if(!D.isPusat)return tt('Import JSON hanya dapat dilakukan di Admin Pusat.','er');
   const data=window._pendingImport;if(!data)return;
   /* Bersihkan duplikat lama terlebih dahulu agar paket yang benar-benar sudah dihapus
      tidak tertahan oleh salinan lama yang masih tersisa. */
@@ -5166,7 +5216,7 @@ async function doImportJSON(){
     if(freshEx.some(ex=>examDedupKey(ex)===key))return tt('Import dibatalkan: paket soal yang sama sudah ada.','in');
   }catch(_e){}
   const id=uid(),now=Date.now();
-  const exam={id,mapel:data.mapel,kelas,timeLimit:data.timeLimit||60,questions,createdAt:now,publishedAt:now,sharedTo:[]};
+  const exam={id,mapel:canonicalMapel(data.mapel),kelas,timeLimit:data.timeLimit||60,questions,createdAt:now,publishedAt:now,sharedTo:[]};
   ld('Mengimport & Menyimpan Permanen...');
   try{
     const targetNpsn=D.isPusat?'PUSAT':D.sch.npsn;
@@ -5659,10 +5709,10 @@ function countdownText(ts){const diff=Math.max(0,ts-Date.now());const total=Math
 function refreshSDCountdowns(){document.querySelectorAll('[data-countdown-start]').forEach(el=>{const ts=Number(el.dataset.countdownStart);if(!ts)return;el.textContent=ts>Date.now()?'Ujian dimulai '+countdownText(ts)+' lagi':'Ujian sudah dimulai';});} 
 function renderSD(){ 
   if(sdCountdownTimer)clearInterval(sdCountdownTimer); 
-  const s=D.st;const exs=D.ex.filter(e=>e.kelas===s.kelas);const done=D.rs.filter(r=>r.nis===s.nis); 
+  const s=D.st;const exs=getStudentTodayExams(s);const done=D.rs.filter(r=>r.nis===s.nis); 
   $('sdN').textContent=D.sch.nama;$('sdI').textContent=`Kelas ${s.kelas} Rombel ${s.rombel||'-'} · ${s.nama}`; 
   let h=`<h3 style="font-size:1.15rem;margin-bottom:16px">Halo, ${s.nama}!</h3>`; 
-  if(exs.length===0){h+=`<div class="cd" style="text-align:center;padding:30px"><p style="color:var(--mt)">Belum ada ujian untuk kelas ${s.kelas}.</p></div>`;} 
+  if(exs.length===0){h+=`<div class="cd" style="text-align:center;padding:30px"><p style="color:var(--mt)">Belum ada ujian yang dijadwalkan untuk Kelas ${s.kelas} hari ini.</p></div>`;} 
   else{h+=`<div class="grid gap-3">`;exs.forEach(ex=>{const m=gm(ex.mapel);const rd=done.find(r=>r.examId===ex.id); 
     const gate=examGate(ex),stx=examStatus(ex); 
     h+=`<div class="cd" style="padding:16px 20px;${gate.allowed?'':'opacity:.82'}"><div class="flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><div style="width:44px;height:44px;border-radius:12px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center;font-size:1.1rem"><i class="fas ${m.ic}"></i></div><div><p style="font-weight:800">${ex.mapel}</p><p style="font-size:.78rem;color:var(--mt)">${ex.questions.length} soal · ${ex.timeLimit}m</p></div></div>${rd?`<p style="font-weight:800;color:${rd.score>=70?'var(--ok)':'var(--er)'}">${rd.essays&&rd.essays.length>0?'Menunggu':rd.score}</p>`:`<div class="text-right"><p style="font-size:.68rem;color:${stx[1]};font-weight:800;margin-bottom:5px"><i class="fas ${stx[2]} mr-1"></i>${stx[0]}</p>${!gate.allowed&&gate.reason==='early'&&ex.startAt?`<p data-countdown-start="${ex.startAt}" style="font-size:.74rem;font-weight:800;color:var(--pr);margin-bottom:7px">Ujian dimulai ${countdownText(ex.startAt)} lagi</p>`:''}<button class="bt ${gate.allowed?'bt2':'bt3'} bts" onclick="startEx('${ex.id}')"><i class="fas ${gate.allowed?'fa-play':'fa-lock'}"></i> ${gate.allowed?'Mulai':'Cek Jadwal'}</button></div>`}</div></div>`;});h+=`</div>`;} 
