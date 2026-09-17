@@ -3904,11 +3904,20 @@ function renderSoal(c){
 
 
 
-  const filtered=D.ex.filter(ex=>(String(fk)==='SIMULASI'?isSimulasiExam(ex):String(ex.kelas)===String(fk))&&ex.mapel===fm);
+  /* Filter paket soal dibuat toleran terhadap huruf besar/kecil.
+     Sebelumnya paket `simulasi` (huruf kecil) tidak tampil ketika filter memilih
+     `Simulasi`, tetapi sistem import tetap menemukannya sebagai paket yang sama.
+     Akibatnya layar terlihat kosong sementara import mengatakan duplikat. */
+  const filtered=D.ex.filter(ex=>{
+    const sameMapel=normalizeImportText(ex.mapel).toLowerCase()===normalizeImportText(fm).toLowerCase();
+    const sameKelas=String(fk)==='SIMULASI'?isSimulasiExam(ex):String(ex.kelas)===String(fk);
+    return sameKelas&&sameMapel;
+  });
 
   const mF=gm(fm);
 
-  h+=`<p style="font-size:.85rem;color:var(--mt);margin-bottom:12px"><i class="fas ${mF.ic} mr-1" style="color:${mF.c}"></i><b style="color:var(--fg)">${mF.l} — Kelas ${fk}</b> · ${filtered.length} paket soal</p>`;
+  const filterLabel=String(fk)==='SIMULASI'?'Simulasi (Kelas 3–6)':`Kelas ${fk}`;
+  h+=`<p style="font-size:.85rem;color:var(--mt);margin-bottom:12px"><i class="fas ${mF.ic} mr-1" style="color:${mF.c}"></i><b style="color:var(--fg)">${mF.l} — ${filterLabel}</b> · ${filtered.length} paket soal</p>`;
 
 
 
