@@ -40,9 +40,13 @@ const backupFirebaseConfig={
   measurementId:"G-63LB4BPRWY"
 };
 const backupApp=firebase.initializeApp(backupFirebaseConfig,"BACKUP");
-const db=firebase.firestore(backupApp);
-const dbBackup=db;
+const backupDb=firebase.firestore(backupApp);
+/* Server aktif aplikasi: pilihan pengguna. Default tetap Server Cadangan. */
+let db=backupDb;
+const dbBackup=backupDb;
 const BACKUP_RTDB_URL=backupFirebaseConfig.databaseURL;
+let RTDB_URL=BACKUP_RTDB_URL;
+let ACTIVE_SERVER=localStorage.getItem('uts_active_server')==='utama'?'utama':'cadangan';
 
 
 /* ====== KONFIGURASI WAJIB ======
@@ -53,11 +57,11 @@ const BACKUP_RTDB_URL=backupFirebaseConfig.databaseURL;
 
    (bentuknya: https://<project>-default-rtdb.<region>.firebasedatabase.app) */
 
-const RTDB_URL=BACKUP_RTDB_URL;
+/* RTDB_URL dikendalikan oleh pilihan server aktif. */
 /* ================================================================
    MIGRASI SATU KALI: SERVER UTAMA -> SERVER CADANGAN
    Yang dipindahkan: schools, students, exams, mail dan RTDB.
-   Yang SENGAJA TIDAK dipindahkan: results (hasil ujian/jawaban).
+   Hasil ujian/jawaban lama ikut dipindahkan ke Server Cadangan.
    Server utama hanya dipakai oleh tombol migrasi, bukan oleh aplikasi.
 ================================================================ */
 const MIGRATION_PRIMARY_CONFIG={
@@ -82,7 +86,7 @@ async function migrationWriteDocs(dstCol, docs, report){
     let ok=false,lastErr=null;
     for(let attempt=1;attempt<=4 && !ok;attempt++){
       try{
-        const batch=db.batch();
+        const batch=backupDb.batch();
         part.forEach(d=>batch.set(dstCol.doc(d.id),d.data,{merge:true}));
         await batch.commit();
         ok=true;
@@ -116,31 +120,31 @@ async function migrationCopyCollection(srcCol,dstCol,report,label='data'){
 async function migrateExamCollection(srcCol,dstCol,report,label){
   return migrationCopyCollection(srcCol,dstCol,report,label);
 }
-async function migrateAllExceptResults(){
+async function migrateAllData(){
   if(!D.isPusat) throw new Error('Migrasi hanya boleh dijalankan oleh Admin Pusat.');
-  const report={read:0,written:0,skippedResults:0,errors:[]};
+  const report={read:0,written:0,errors:[]};
   const status=(m)=>{const el=document.getElementById('migrationStatus');if(el)el.innerHTML=m;};
   status('Memeriksa dan memperbaiki data Server Cadangan...');
 
   // Top-level mail.
-  try{await migrationCopyCollection(dbMigrationPrimary.collection('mail'),db.collection('mail'),report,'mail');}
+  try{await migrationCopyCollection(dbMigrationPrimary.collection('mail'),backupDb.collection('mail'),report,'mail');}
   catch(e){report.errors.push('mail: '+e.message);}
 
   let schools=[];
   try{
     const snap=await dbMigrationPrimary.collection('schools').get();
     schools=snap.docs.map(d=>({id:d.id,data:d.data()}));
-    await migrationWriteDocs(db.collection('schools'),schools,report);
+    await migrationWriteDocs(backupDb.collection('schools'),schools,report);
     report.read+=schools.length;
   }catch(e){report.errors.push('schools: '+e.message);}
 
-  // Salin data sekolah yang diperlukan. results sengaja TIDAK disentuh.
+  // Salin data sekolah yang diperlukan. Hasil ujian lama ikut disalin pada langkah berikutnya.
   for(const school of schools){
     const n=school.id;
     for(const sub of ['students','exams']){
       try{
         const src=dbMigrationPrimary.collection('schools').doc(n).collection(sub);
-        const dst=db.collection('schools').doc(n).collection(sub);
+        const dst=backupDb.collection('schools').doc(n).collection(sub);
         const count=await migrationCopyCollection(src,dst,report,`schools/${n}/${sub}`);
         if(sub==='exams') status(`Soal ${n}: ${count} paket diperiksa/dipindahkan`);
       }catch(e){report.errors.push(`schools/${n}/${sub}: ${e.message}`);}
@@ -148,15 +152,26 @@ async function migrateAllExceptResults(){
     // Hanya hitung untuk laporan; TIDAK membaca/menulis hasil jika ingin hemat kuota.
   }
 
+  // Pindahkan hasil ujian lama juga. Data baru nantinya ditulis ke kedua server.
+  for(const school of schools){
+    const n=school.id;
+    try{
+      const src=dbMigrationPrimary.collection('schools').doc(n).collection('results');
+      const dst=backupDb.collection('schools').doc(n).collection('results');
+      const count=await migrationCopyCollection(src,dst,report,`schools/${n}/results`);
+      if(count) status(`Hasil lama ${n}: ${count} data dipindahkan`);
+    }catch(e){report.errors.push(`schools/${n}/results: ${e.message}`);}
+  }
+
   // Koleksi exams tingkat atas bila pernah dipakai versi lama.
   try{
-    await migrationCopyCollection(dbMigrationPrimary.collection('exams'),db.collection('exams'),report,'exams');
+    await migrationCopyCollection(dbMigrationPrimary.collection('exams'),backupDb.collection('exams'),report,'exams');
   }catch(_e){/* tidak wajib */}
 
   // Khusus PUSAT: pastikan paket soal pusat ikut dipindahkan dan diperbaiki.
   try{
     const pusatSrc=dbMigrationPrimary.collection('schools').doc('PUSAT').collection('exams');
-    const pusatDst=db.collection('schools').doc('PUSAT').collection('exams');
+    const pusatDst=backupDb.collection('schools').doc('PUSAT').collection('exams');
     const count=await migrateExamCollection(pusatSrc,pusatDst,report,'PUSAT/exams');
     status(`Soal Admin Pusat: ${count} paket sudah diperiksa dan dipindahkan.`);
   }catch(e){report.errors.push('PUSAT/exams: '+e.message);}
@@ -183,10 +198,10 @@ function showMigrationPanel(){
   if(el) return;
   el=document.createElement('div'); el.id='migrationPanel';
   el.style='position:fixed;right:18px;bottom:18px;z-index:99999;background:#fff;padding:16px;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.22);max-width:420px;border:2px solid #ddd';
-  el.innerHTML='<b>🔄 Pindahkan Data Lama</b><p style="margin:8px 0;font-size:13px">Memindahkan semua data Server Utama ke Server Cadangan, <b>kecuali hasil ujian/jawaban</b>.</p><button id="migrationBtn" style="padding:10px 14px;border:0;border-radius:9px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">MULAI MIGRASI</button><button id="migrationClose" style="margin-left:6px;padding:10px;border:0;border-radius:9px;cursor:pointer">Tutup</button><div id="migrationStatus" style="margin-top:10px;font-size:12px;max-height:220px;overflow:auto"></div>';
+  el.innerHTML='<b>🔄 Sinkronisasi Data Lama</b><p style="margin:8px 0;font-size:13px">Menyalin data Server Utama ke Server Cadangan, termasuk <b>soal, siswa, sekolah, dan hasil ujian/jawaban lama</b>.</p><button id="migrationBtn" style="padding:10px 14px;border:0;border-radius:9px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">MULAI MIGRASI</button><button id="migrationClose" style="margin-left:6px;padding:10px;border:0;border-radius:9px;cursor:pointer">Tutup</button><div id="migrationStatus" style="margin-top:10px;font-size:12px;max-height:220px;overflow:auto"></div>';
   document.body.appendChild(el);
   el.querySelector('#migrationClose').onclick=()=>el.remove();
-  el.querySelector('#migrationBtn').onclick=async()=>{const b=el.querySelector('#migrationBtn');b.disabled=true;b.textContent='MEMINDAHKAN...';try{await migrateAllExceptResults();}catch(e){document.getElementById('migrationStatus').textContent='Gagal: '+e.message;}b.disabled=false;b.textContent='MIGRASI ULANG';};
+  el.querySelector('#migrationBtn').onclick=async()=>{const b=el.querySelector('#migrationBtn');b.disabled=true;b.textContent='MEMINDAHKAN...';try{await migrateAllData();}catch(e){document.getElementById('migrationStatus').textContent='Gagal: '+e.message;}b.disabled=false;b.textContent='SINKRON ULANG';};
 }
 
 
@@ -1215,6 +1230,8 @@ service cloud.firestore {
 
     </div>
 
+    <div id="serverPicker"></div>
+
     <p class="mt-4 daai-tagline"><span>DAAI SCORE</span><span class="tag-arrow">→</span><span>MENUJU I2 SCORE</span></p>
 
   </div>
@@ -1549,6 +1566,47 @@ function normalizeExamRecord(ex){
 }
 function gm(v){const m=canonicalMapel(v);return MP.find(x=>x.v===m)||{ic:'fa-file',c:'#666',l:m}}
 
+function serverLabel(){return ACTIVE_SERVER==='utama'?'Server Utama':'Server Cadangan';}
+function setActiveServer(mode){
+  mode=mode==='utama'?'utama':'cadangan';
+  ACTIVE_SERVER=mode;
+  db=mode==='utama'?dbMigrationPrimary:backupDb;
+  RTDB_URL=mode==='utama'?migrationPrimaryRTDB:BACKUP_RTDB_URL;
+  try{localStorage.setItem('uts_active_server',mode);}catch(_e){}
+  const badge=$('activeServerBadge');
+  if(badge){badge.innerHTML='<i class="fas fa-server"></i> '+serverLabel();badge.style.background=mode==='utama'?'rgba(99,102,241,.12)':'rgba(0,180,216,.12)';badge.style.color=mode==='utama'?'var(--pr)':'var(--ac2)';}
+  document.querySelectorAll('[data-server-choice]').forEach(el=>{el.classList.toggle('active',el.dataset.serverChoice===mode);});
+}
+function otherActiveDb(){return db===backupDb?dbMigrationPrimary:backupDb;}
+function activeServerCode(){return ACTIVE_SERVER==='utama'?'utama':'cadangan';}
+async function dualDocSet(colPath,docId,data,options){
+  const rs=await Promise.allSettled([db.collection(colPath).doc(docId).set(data,options),otherActiveDb().collection(colPath).doc(docId).set(data,options)]);
+  const failed=rs.filter(r=>r.status==='rejected');
+  if(failed.length===2)throw failed[0].reason;
+  if(failed.length)console.warn('[DUAL SERVER] satu server gagal menulis',failed[0].reason);
+}
+async function dualDocUpdate(colPath,docId,data){return dualDocSet(colPath,docId,data,{merge:true});}
+async function dualDocDelete(colPath,docId){
+  const rs=await Promise.allSettled([db.collection(colPath).doc(docId).delete(),otherActiveDb().collection(colPath).doc(docId).delete()]);
+  if(rs.every(r=>r.status==='rejected'))throw rs[0].reason;
+}
+
+function renderServerPicker(){
+  const el=$('serverPicker');if(!el)return;
+  el.innerHTML=`<div class="cd" style="padding:14px 18px;margin-top:18px;border:2px dashed var(--bd);background:rgba(255,255,255,.92)">
+    <div class="flex items-center justify-between gap-3 flex-wrap">
+      <div><p style="font-weight:800;font-size:.9rem"><i class="fas fa-server mr-2" style="color:var(--pr)"></i>Pilih Server Aplikasi</p><p style="font-size:.72rem;color:var(--mt);margin-top:3px">Data ujian mengikuti server yang dipilih. <b>Soal Pusat tetap disinkronkan ke kedua server.</b></p></div>
+      <span id="activeServerBadge" class="schb"><i class="fas fa-server"></i> Server Cadangan</span>
+    </div>
+    <div class="flex gap-2 flex-wrap mt-3">
+      <button type="button" data-server-choice="utama" class="bt bt5 bts" onclick="setActiveServer('utama')"><i class="fas fa-cloud"></i> Server Utama</button>
+      <button type="button" data-server-choice="cadangan" class="bt bt2 bts" onclick="setActiveServer('cadangan')"><i class="fas fa-shield-halved"></i> Server Cadangan</button>
+    </div>
+    <p style="font-size:.68rem;color:var(--mt);margin-top:8px">Pilihan tersimpan di perangkat ini dan dapat diganti sebelum login.</p>
+  </div>`;
+  setActiveServer(ACTIVE_SERVER);
+}
+
 function sR(n){return db.collection('schools').doc(n)}
 
 function eR(n){return db.collection('schools').doc(n).collection('exams')}
@@ -1643,7 +1701,7 @@ async function regSc(){
 
     const doc=await sR(npsn).get();if(doc.exists){hd();return tt('NPSN sudah terdaftar!','er')}
 
-    await sR(npsn).set({npsn,nama,kota,prov,adminUser:user,adminPass:pass,isPusat:false,createdAt:Date.now()});
+    await dualDocSet('schools',npsn,{npsn,nama,kota,prov,adminUser:user,adminPass:pass,isPusat:false,createdAt:Date.now()},{merge:false});
 
     hd();tt('Sekolah berhasil didaftarkan!');$('aSN').value=npsn;$('aSU').value=user;['rN','rS','rK','rP','rU','rW'].forEach(i=>$(i).value='');go('pLSA');
 
@@ -1755,13 +1813,13 @@ async function migratePusatSoalOnce(){return 0;}
    menggabungkan berdasarkan ID soal, lalu memastikan salinan yang
    belum ada di salah satu server ikut ditulis ke server tersebut.
    ================================================================ */
-const PUSAT_EXAM_PATH=()=>db.collection('schools').doc('PUSAT').collection('exams');
+const BACKUP_PUSAT_EXAM_PATH=()=>backupDb.collection('schools').doc('PUSAT').collection('exams');
 const PRIMARY_PUSAT_EXAM_PATH=()=>dbMigrationPrimary.collection('schools').doc('PUSAT').collection('exams');
 
 async function savePusatExamBoth(id,data,options={merge:true}){
   const payload=JSON.parse(JSON.stringify(data));
   const results=await Promise.allSettled([
-    PUSAT_EXAM_PATH().doc(id).set(payload,options),
+    BACKUP_PUSAT_EXAM_PATH().doc(id).set(payload,options),
     PRIMARY_PUSAT_EXAM_PATH().doc(id).set(payload,options)
   ]);
   const failed=results.filter(r=>r.status==='rejected');
@@ -1773,7 +1831,7 @@ async function savePusatExamBoth(id,data,options={merge:true}){
 async function getMergedPusatExams(){
   const [primarySnap,backupSnap]=await Promise.all([
     PRIMARY_PUSAT_EXAM_PATH().get().catch(()=>({docs:[]})),
-    PUSAT_EXAM_PATH().get().catch(()=>({docs:[]}))
+    BACKUP_PUSAT_EXAM_PATH().get().catch(()=>({docs:[]}))
   ]);
   const primaryDocs=primarySnap.docs||[];
   const backupDocs=backupSnap.docs||[];
@@ -1799,11 +1857,11 @@ async function getMergedPusatExams(){
       if(!primaryMap.has(ex.id)){
         await PRIMARY_PUSAT_EXAM_PATH().doc(ex.id).set(ex,{merge:true});
       }else if(!backupMap.has(ex.id)){
-        await PUSAT_EXAM_PATH().doc(ex.id).set(ex,{merge:true});
+        await BACKUP_PUSAT_EXAM_PATH().doc(ex.id).set(ex,{merge:true});
       }else{
         const p=primaryMap.get(ex.id).data(), b=backupMap.get(ex.id).data();
         const pt=Number(p.updatedAt||p.createdAt||0), bt=Number(b.updatedAt||b.createdAt||0);
-        if(pt>bt) await PUSAT_EXAM_PATH().doc(ex.id).set(ex,{merge:true});
+        if(pt>bt) await BACKUP_PUSAT_EXAM_PATH().doc(ex.id).set(ex,{merge:true});
         else if(bt>pt) await PRIMARY_PUSAT_EXAM_PATH().doc(ex.id).set(ex,{merge:true});
       }
     }catch(e){console.warn('[DUAL SERVER] sinkron paket '+ex.id+' gagal',e);}
@@ -2696,6 +2754,18 @@ function cfF(){const a=Object.keys(D.an).length,t=D.cEx.questions.length;oMo(`<d
 
 
 
+async function saveResultBoth(npsn,rid,data){
+  const payload=JSON.parse(JSON.stringify(data));
+  const results=await Promise.allSettled([
+    db.collection('schools').doc(npsn).collection('results').doc(rid).set(payload),
+    (db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).set(payload)
+  ]);
+  const failed=results.filter(r=>r.status==='rejected');
+  if(failed.length===2) throw failed[0].reason;
+  if(failed.length) console.warn('[DUAL SERVER] satu server gagal menyimpan hasil',failed[0].reason);
+  return true;
+}
+
 async function finEx(){
 
   clearInterval(D.tI);
@@ -2736,7 +2806,7 @@ async function finEx(){
 
   try {
 
-    await rR(D.sch.npsn).doc(r.id).set(r);
+    await saveResultBoth(D.sch.npsn,r.id,r);
 
     
 
@@ -4945,7 +5015,7 @@ async function publishDraft(eid){
   try{
     const published=JSON.parse(JSON.stringify(draft));
     const now=Date.now();
-    await soalR().doc(eid).set({
+    await savePusatExamBoth(eid,{
       questions:published,updatedAt:now,publishedAt:now,
       draftQuestions:firebase.firestore.FieldValue.delete(),
       draftUpdatedAt:firebase.firestore.FieldValue.delete()
@@ -5121,11 +5191,15 @@ async function doHapusUjian(eid){
     const ex=D.ex.find(e=>e.id===eid);
 
     if(!D.isPusat)return tt('Hanya Admin Pusat yang dapat menghapus paket soal.','er');
-      await soalR().doc(eid).delete();
+      const deleteResults=await Promise.allSettled([
+        BACKUP_PUSAT_EXAM_PATH().doc(eid).delete(),
+        PRIMARY_PUSAT_EXAM_PATH().doc(eid).delete()
+      ]);
+      if(deleteResults.every(r=>r.status==='rejected')) throw deleteResults[0].reason;
 
     if(!D.isPusat){
 
-      const related=D.rs.filter(r=>r.examId===eid);for(const r of related){await rR(D.sch.npsn).doc(r.id).delete();}
+      const related=D.rs.filter(r=>r.examId===eid);for(const r of related){await Promise.allSettled([rR(D.sch.npsn).doc(r.id).delete(),(db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(D.sch.npsn).collection('results').doc(r.id).delete()]);}
 
       D.rs=D.rs.filter(r=>r.examId!==eid);
 
@@ -5456,7 +5530,7 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
   hd();  
   box.style.left='-9999px';box.style.zIndex='-1'; 
 } 
-async function doHapusHasil(rid,npsn){ld('Menghapus...');try{await rR(npsn).doc(rid).delete();if(!D.isPusat){D.rs=D.rs.filter(r=>r.id!==rid);}else{D.allResults=D.allResults.filter(r=>r.id!==rid);}hd();renderHasil($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}} 
+async function doHapusHasil(rid,npsn){ld('Menghapus...');try{await Promise.allSettled([rR(npsn).doc(rid).delete(),(db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).delete()]);if(!D.isPusat){D.rs=D.rs.filter(r=>r.id!==rid);}else{D.allResults=D.allResults.filter(r=>r.id!==rid);}hd();renderHasil($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}} 
  
 function koreksiEssay(rid, npsn){ 
   let r; 
@@ -5535,7 +5609,7 @@ async function simpanKoreksi(rid, npsn){
   r.score=finalScore; 
   r.essayScore=essayAvg; 
   ld('Menyimpan...'); 
-  await rR(npsn).doc(rid).update({pg:r.pg||[],essays:r.essays||[],correct:r.correct,autoScore:r.autoScore,essayScore:r.essayScore,score:finalScore}); 
+  await Promise.allSettled([rR(npsn).doc(rid).update({pg:r.pg||[],essays:r.essays||[],correct:r.correct,autoScore:r.autoScore,essayScore:r.essayScore,score:finalScore}),(db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).update({pg:r.pg||[],essays:r.essays||[],correct:r.correct,autoScore:r.autoScore,essayScore:r.essayScore,score:finalScore})]); 
   hd();cMo();renderHasil($('aC'));tt('Koreksi disimpan! Nilai akhir: '+finalScore); 
 } 
  
@@ -5586,12 +5660,12 @@ function showTambahSiswa(edit){
 async function simpanSiswa(oldNis){ 
   const nis=$v('swNIS'),kelas=parseInt($('swKelas').value),rombel=$('swRombel').value,nama=$v('swNama'),ortu=$v('swOrtu'),password=$v('swPwd'); 
   if(!nis||!nama||!password)return tt('NIS, Nama, Password wajib!','er');ld('Menyimpan...');try{ 
-    if(oldNis){await wR(D.sch.npsn).doc(oldNis).update({kelas,rombel,nama,ortu,password});const idx=D.ss.findIndex(s=>s.nis===oldNis);if(idx>=0)D.ss[idx]={...D.ss[idx],kelas,rombel,nama,ortu,password};hd();cMo();renderSiswa($('aC'));tt('Diperbarui!');} 
+    if(oldNis){await dualDocUpdate('schools/'+D.sch.npsn+'/students',oldNis,{kelas,rombel,nama,ortu,password});const idx=D.ss.findIndex(s=>s.nis===oldNis);if(idx>=0)D.ss[idx]={...D.ss[idx],kelas,rombel,nama,ortu,password};hd();cMo();renderSiswa($('aC'));tt('Diperbarui!');} 
     else{const existing=await wR(D.sch.npsn).doc(nis).get();if(existing.exists){hd();return tt('NIS sudah ada!','er');} 
-      await wR(D.sch.npsn).doc(nis).set({nis,kelas,rombel,nama,ortu,password,createdAt:Date.now()});D.ss.push({id:nis,nis,kelas,rombel,nama,ortu,password,createdAt:Date.now()});hd();cMo();renderSiswa($('aC'));tt('Ditambahkan!');} 
+      await dualDocSet('schools/'+D.sch.npsn+'/students',nis,{nis,kelas,rombel,nama,ortu,password,createdAt:Date.now()},{merge:false});D.ss.push({id:nis,nis,kelas,rombel,nama,ortu,password,createdAt:Date.now()});hd();cMo();renderSiswa($('aC'));tt('Ditambahkan!');} 
   }catch(e){hd();tt('Gagal: '+e.message,'er')} 
 } 
-async function doHapusSiswa(nis){ld('Menghapus...');try{await wR(D.sch.npsn).doc(nis).delete();D.ss=D.ss.filter(s=>s.nis!==nis);hd();renderSiswa($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}} 
+async function doHapusSiswa(nis){ld('Menghapus...');try{await dualDocDelete('schools/'+D.sch.npsn+'/students',nis);D.ss=D.ss.filter(s=>s.nis!==nis);hd();renderSiswa($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}} 
  
 /* ===== IMPORT SISWA PER KELAS + PER ROMBEL (dengan filter target) ===== */ 
 function showImportSiswaJSON(){ 
@@ -5622,18 +5696,22 @@ async function doImportSiswaJSON(){
   const CHUNK=450; // batas teknis Firestore (max 500 operasi/batch) — LOOP terus sampai semua terimport 
   for(let i=0;i<valid.length;i+=CHUNK){ 
     const slice=valid.slice(i,i+CHUNK); 
-    const batch=db.batch(); 
+    const batch=db.batch();
+    const batchOther=otherActiveDb().batch();
     slice.forEach(s=>{ 
       const pwd=s.password||'siswa123';const ortu=s.ortu||''; 
       const kelas=s.kelas?parseInt(s.kelas):targetKelas; 
       const rombel=s.rombel||targetRombel; 
       const nis=String(s.nis); 
-      batch.set(wR(D.sch.npsn).doc(nis),{nis,kelas,rombel,nama:s.nama,ortu,password:pwd,createdAt:Date.now()}); 
+      const studentData={nis,kelas,rombel,nama:s.nama,ortu,password:pwd,createdAt:Date.now()};
+      batch.set(wR(D.sch.npsn).doc(nis),studentData);
+      batchOther.set(otherActiveDb().collection('schools').doc(D.sch.npsn).collection('students').doc(nis),studentData); 
       const idx=D.ss.findIndex(x=>x.nis===nis); 
       if(idx>=0)D.ss[idx]={...D.ss[idx],kelas,rombel,nama:s.nama,ortu,password:pwd}; 
       else D.ss.push({id:nis,nis,kelas,rombel,nama:s.nama,ortu,password:pwd,createdAt:Date.now()}); 
     }); 
-    await batch.commit(); 
+    const commits=await Promise.allSettled([batch.commit(),batchOther.commit()]);
+    if(commits.every(r=>r.status==='rejected'))throw commits[0].reason;
     count+=slice.length; 
     ld(`Mengimport ${count}/${valid.length} siswa...`); 
     if(prog)prog.textContent=`${count}/${valid.length} tersimpan...`; 
@@ -5683,20 +5761,31 @@ function konfirmasiHapusSekolah(npsn, nama){
 async function doHapusSekolah(npsn, nama){ 
   ld('Menghapus data sekolah & turunannya...'); 
   try { 
-    const batch = db.batch(); 
+    const batch = db.batch();
+    const batchOther = otherActiveDb().batch();
      
-    const exSnap = await eR(npsn).get(); 
-    exSnap.forEach(doc => batch.delete(doc.ref)); 
+    const exSnap = await eR(npsn).get();
+    exSnap.forEach(doc => {
+      batch.delete(doc.ref);
+      batchOther.delete(otherActiveDb().collection('schools').doc(npsn).collection('exams').doc(doc.id));
+    });
      
-    const resSnap = await rR(npsn).get(); 
-    resSnap.forEach(doc => batch.delete(doc.ref)); 
+    const resSnap = await rR(npsn).get();
+    resSnap.forEach(doc => {
+      batch.delete(doc.ref);
+      batchOther.delete(otherActiveDb().collection('schools').doc(npsn).collection('results').doc(doc.id));
+    });
      
-    const stuSnap = await wR(npsn).get(); 
-    stuSnap.forEach(doc => batch.delete(doc.ref)); 
+    const stuSnap = await wR(npsn).get();
+    stuSnap.forEach(doc => {
+      batch.delete(doc.ref);
+      batchOther.delete(otherActiveDb().collection('schools').doc(npsn).collection('students').doc(doc.id));
+    });
      
-    await batch.commit(); 
+    const commits = await Promise.allSettled([batch.commit(),batchOther.commit()]);
+    if(commits.every(r=>r.status==='rejected')) throw commits[0].reason;
      
-    await sR(npsn).delete(); 
+    await dualDocDelete('schools',npsn); 
      
     D.allSchools = D.allSchools.filter(s => s.npsn !== npsn); 
     D.allResults = D.allResults.filter(r => r.schoolNpsn !== npsn); 
@@ -5758,12 +5847,12 @@ async function simpanSetting(){
   for(let k=1;k<=6;k++){ROMBELS.forEach(rb=>{const n=$v('g'+k+rb+'N'),hp=$v('g'+k+rb+'H'),email=$v('g'+k+rb+'E');if(n||hp||email)guruMap[k+'|'+rb]={nama:n,hp,email};});} 
   ['PAI','PJOK'].forEach(key=>{const n=$v('g'+key+'N'),hp=$v('g'+key+'H'),email=$v('g'+key+'E');if(n||hp||email)guruMap[key]={nama:n,hp,email};}); 
   ld('Menyimpan...'); 
-  await sR(D.sch.npsn).update({nama,kota,prov,guruMap}); 
+  await dualDocUpdate('schools',D.sch.npsn,{nama,kota,prov,guruMap}); 
   D.sch.nama=nama;D.sch.kota=kota;D.sch.prov=prov;D.sch.guruMap=guruMap; 
   $('aSN2').textContent=nama;hd();tt('Disimpan!'); 
 } 
  
-async function gantiPwdAdmin(){const old=$v('setOld'),nw=$v('setNew');if(!old||!nw)return tt('Semua field wajib!','er');if(old!==D.sch.adminPass)return tt('Password lama salah!','er');if(nw.length<6)return tt('Min 6 karakter!','er');ld('Mengganti...');await sR(D.sch.npsn).update({adminPass:nw});D.sch.adminPass=nw;hd();tt('Password diganti!');} 
+async function gantiPwdAdmin(){const old=$v('setOld'),nw=$v('setNew');if(!old||!nw)return tt('Semua field wajib!','er');if(old!==D.sch.adminPass)return tt('Password lama salah!','er');if(nw.length<6)return tt('Min 6 karakter!','er');ld('Mengganti...');await dualDocUpdate('schools',D.sch.npsn,{adminPass:nw});D.sch.adminPass=nw;hd();tt('Password diganti!');} 
  
 /* ===== SISWA DASHBOARD ===== */ 
 let sdCountdownTimer=null; 
@@ -5786,8 +5875,11 @@ function renderSD(){
  
 /* ===== INIT ===== */
 (async function init(){
-  hd();go('pH');
-  console.info('[SERVER] Semua data aplikasi menggunakan Server Cadangan stscadangan2026.');
+  hd();
+  setActiveServer(ACTIVE_SERVER);
+  go('pH');
+  renderServerPicker();
+  console.info('[SERVER] Server aktif: '+serverLabel()+'. Soal Pusat disinkronkan ke Server Utama & Server Cadangan.');
 })();
 </script> 
 <script>
