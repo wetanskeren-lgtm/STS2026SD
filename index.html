@@ -26,15 +26,9 @@
 
 <script>
 
-/* ================= FIREBASE UTAMA ================= */
-const firebaseConfig={apiKey:"AIzaSyDUYQzyiCnTn43A78hXb5kO0BUEBHyO0Y4",authDomain:"pts2026-fb4d7.firebaseapp.com",projectId:"pts2026-fb4d7",storageBucket:"pts2026-fb4d7.firebasestorage.app",messagingSenderId:"167251105079",appId:"1:167251105079:web:c652c51458227620f236b2",measurementId:"G-SEF0HCJ5CK"};
-
-const primaryApp=firebase.initializeApp(firebaseConfig,"PRIMARY");
-const db=firebase.firestore(primaryApp);
-
-/* ================= FIREBASE CADANGAN =================
-   Project cadangan: stscadangan2026
-   Sinkronisasi berjalan satu arah: UTAMA -> CADANGAN. */
+/* ================= FIREBASE CADANGAN — SERVER AKTIF =================
+   Seluruh data aplikasi memakai project stscadangan2026.
+   Tidak ada koneksi Firestore ke server utama. */
 const backupFirebaseConfig={
   apiKey:"AIzaSyBFUq9ekVf80pWBVJZM-mmUoVqr5SYYuyk",
   authDomain:"stscadangan2026.firebaseapp.com",
@@ -46,7 +40,8 @@ const backupFirebaseConfig={
   measurementId:"G-63LB4BPRWY"
 };
 const backupApp=firebase.initializeApp(backupFirebaseConfig,"BACKUP");
-const dbBackup=firebase.firestore(backupApp);
+const db=firebase.firestore(backupApp);
+const dbBackup=db;
 const BACKUP_RTDB_URL=backupFirebaseConfig.databaseURL;
 
 
@@ -58,7 +53,7 @@ const BACKUP_RTDB_URL=backupFirebaseConfig.databaseURL;
 
    (bentuknya: https://<project>-default-rtdb.<region>.firebasedatabase.app) */
 
-const RTDB_URL='https://pts2026-fb4d7-default-rtdb.asia-southeast1.firebasedatabase.app';
+const RTDB_URL=BACKUP_RTDB_URL;
 
 </script>
 
@@ -987,13 +982,13 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 
         </div>
 
-        <a href="https://console.firebase.google.com/project/pts2026-fb4d7/database" target="_blank" class="bt bt3" style="padding:9px 16px;font-size:.82rem;justify-content:center;width:100%;margin-top:10px"><i class="fas fa-external-link-alt"></i> Buka Realtime Database</a>
+        <a href="https://console.firebase.google.com/project/stscadangan2026/database" target="_blank" class="bt bt3" style="padding:9px 16px;font-size:.82rem;justify-content:center;width:100%;margin-top:10px"><i class="fas fa-external-link-alt"></i> Buka Realtime Database</a>
 
         <p style="color:var(--mt);font-size:.75rem;margin-top:8px"><i class="fas fa-circle-info mr-1" style="color:var(--ac2)"></i> Terakhir: salin URL database Anda ke konstanta <b>RTDB_URL</b> di dalam kode (langkah ini hanya sekali).</p>
 
       </div>
 
-      <div class="step-box" id="step1"><div class="step-num">1</div><h4 style="font-size:.95rem;margin-bottom:4px">Buka Firebase Console</h4><p style="color:var(--mt);font-size:.82rem;margin-bottom:10px">Login akun Google yang sama</p><a href="https://console.firebase.google.com/project/pts2026-fb4d7/firestore/rules" target="_blank" class="bt bt1" style="padding:10px 20px;font-size:.88rem;justify-content:center;width:100%"><i class="fas fa-external-link-alt"></i> Buka Firebase Console</a></div>
+      <div class="step-box" id="step1"><div class="step-num">1</div><h4 style="font-size:.95rem;margin-bottom:4px">Buka Firebase Console</h4><p style="color:var(--mt);font-size:.82rem;margin-bottom:10px">Login akun Google yang sama</p><a href="https://console.firebase.google.com/project/stscadangan2026/firestore/rules" target="_blank" class="bt bt1" style="padding:10px 20px;font-size:.88rem;justify-content:center;width:100%"><i class="fas fa-external-link-alt"></i> Buka Firebase Console</a></div>
 
       <div class="step-box" id="step2"><div class="step-num">2</div><h4 style="font-size:.95rem;margin-bottom:4px">Ganti Rules</h4><p style="color:var(--mt);font-size:.82rem;margin-bottom:8px">Hapus semua, paste:</p>
 
@@ -1437,200 +1432,23 @@ function $(id){return document.getElementById(id)}
 function $v(id){return $(id).value.trim()}
 
 /* ================================================================
-   BACKUP SYNC ENGINE — UTAMA -> CADANGAN
-   ---------------------------------------------------------------
-   Memantulkan data Firestore utama ke project stscadangan2026.
-   Cakupan:
-   - schools/*
-   - schools/{npsn}/exams
-   - schools/{npsn}/results
-   - schools/{npsn}/students
-   - mail/*
-   - gambar/images pada Realtime Database
-
-   Catatan: karena aplikasi ini berjalan langsung di browser, listener
-   aktif selama halaman aplikasi terbuka. Untuk sinkronisasi 24/7 saat
-   tidak ada browser yang membuka aplikasi, gunakan backend/Cloud
-   Functions sebagai proses sinkronisasi permanen.
+   BACKUP SYNC ENGINE — DINONAKTIFKAN
+   Server Cadangan adalah satu-satunya database aktif aplikasi.
+   Tidak ada listener/copy dari server utama.
    ================================================================ */
 let _backupSyncStarted=false;
 let _backupSchoolUnsubs=new Map();
 let _backupRootUnsubs=[];
 let _backupSyncBusy=false;
-
-function backupSafeData(data){
-  try{return JSON.parse(JSON.stringify(data||{}));}catch(_e){return data||{};}
-}
-
-async function backupMirrorCollection(docRef, data, deleted=false){
-  if(deleted){await docRef.delete();return;}
-  await docRef.set(backupSafeData(data),{merge:false});
-}
-
-async function backupDeleteSubcollection(parentPath, sub){
-  try{
-    const snap=await dbBackup.doc(parentPath).collection(sub).get();
-    if(!snap.size)return;
-    for(let i=0;i<snap.docs.length;i+=400){
-      const b=dbBackup.batch();
-      snap.docs.slice(i,i+400).forEach(d=>b.delete(d.ref));
-      await b.commit();
-    }
-  }catch(e){console.warn('[BACKUP] gagal membersihkan',parentPath,sub,e);}
-}
-
-function stopBackupSchoolListener(schoolId){
-  const arr=_backupSchoolUnsubs.get(schoolId)||[];
-  arr.forEach(u=>{try{u();}catch(_e){}});
-  _backupSchoolUnsubs.delete(schoolId);
-}
-
-function attachBackupSchoolListener(schoolId){
-  if(_backupSchoolUnsubs.has(schoolId))return;
-  const arr=[];
-  const subs=['exams','results','students'];
-  for(const sub of subs){
-    const u=db.collection('schools').doc(schoolId).collection(sub).onSnapshot(async snap=>{
-      try{
-        for(const change of snap.docChanges()){
-          const ref=dbBackup.collection('schools').doc(schoolId).collection(sub).doc(change.doc.id);
-          if(change.type==='removed') await ref.delete();
-          else await ref.set(backupSafeData(change.doc.data()),{merge:false});
-        }
-      }catch(e){console.error('[BACKUP]',sub,schoolId,e);}
-    },e=>console.error('[BACKUP] listener',sub,schoolId,e));
-    arr.push(u);
-  }
-  _backupSchoolUnsubs.set(schoolId,arr);
-}
-
-async function backupFullSchoolSync(schoolId){
-  const root=await db.collection('schools').doc(schoolId).get();
-  if(!root.exists){
-    stopBackupSchoolListener(schoolId);
-    await backupDeleteSubcollection('schools/'+schoolId,'exams');
-    await backupDeleteSubcollection('schools/'+schoolId,'results');
-    await backupDeleteSubcollection('schools/'+schoolId,'students');
-    await dbBackup.collection('schools').doc(schoolId).delete();
-    return;
-  }
-  await dbBackup.collection('schools').doc(schoolId).set(backupSafeData(root.data()),{merge:false});
-  for(const sub of ['exams','results','students']){
-    const snap=await root.ref.collection(sub).get();
-    for(let i=0;i<snap.docs.length;i+=400){
-      const b=dbBackup.batch();
-      snap.docs.slice(i,i+400).forEach(d=>b.set(dbBackup.collection('schools').doc(schoolId).collection(sub).doc(d.id),backupSafeData(d.data()),{merge:false}));
-      await b.commit();
-    }
-  }
-  attachBackupSchoolListener(schoolId);
-}
-
-async function backupSyncAllNow(){
-  if(_backupSyncBusy)return;
-  _backupSyncBusy=true;
-  try{
-    const schools=await db.collection('schools').get();
-    const ids=new Set();
-    for(const d of schools.docs){
-      ids.add(d.id);
-      await backupFullSchoolSync(d.id);
-    }
-    const backupSchools=await dbBackup.collection('schools').get();
-    for(const d of backupSchools.docs){
-      if(!ids.has(d.id)){
-        stopBackupSchoolListener(d.id);
-        await backupDeleteSubcollection('schools/'+d.id,'exams');
-        await backupDeleteSubcollection('schools/'+d.id,'results');
-        await backupDeleteSubcollection('schools/'+d.id,'students');
-        await dbBackup.collection('schools').doc(d.id).delete();
-      }
-    }
-    await backupSyncRtdbImages();
-    return true;
-  }catch(e){
-    console.error('[BACKUP] full sync gagal',e);
-    return false;
-  }finally{_backupSyncBusy=false;}
-}
-
-function attachBackupSync(){
-  if(_backupSyncStarted)return;
-  _backupSyncStarted=true;
-
-  _backupRootUnsubs.push(db.collection('schools').onSnapshot(async snap=>{
-    try{
-      for(const change of snap.docChanges()){
-        if(change.type==='removed'){
-          stopBackupSchoolListener(change.doc.id);
-          await backupDeleteSubcollection('schools/'+change.doc.id,'exams');
-          await backupDeleteSubcollection('schools/'+change.doc.id,'results');
-          await backupDeleteSubcollection('schools/'+change.doc.id,'students');
-          await dbBackup.collection('schools').doc(change.doc.id).delete();
-        }else{
-          await dbBackup.collection('schools').doc(change.doc.id).set(backupSafeData(change.doc.data()),{merge:false});
-          attachBackupSchoolListener(change.doc.id);
-          /* onSnapshot school-level change tidak selalu menjamin child
-             listener sudah pernah menerima kondisi awal; lakukan sync penuh
-             hanya untuk added agar data awal pasti lengkap. */
-          if(change.type==='added') await backupFullSchoolSync(change.doc.id);
-        }
-      }
-    }catch(e){console.error('[BACKUP] schools sync gagal',e);}
-  },e=>console.error('[BACKUP] schools root listener',e)));
-
-  _backupRootUnsubs.push(db.collection('mail').onSnapshot(async snap=>{
-    try{
-      for(const change of snap.docChanges()){
-        const ref=dbBackup.collection('mail').doc(change.doc.id);
-        if(change.type==='removed')await ref.delete();
-        else await ref.set(backupSafeData(change.doc.data()),{merge:false});
-      }
-    }catch(e){console.error('[BACKUP] mail sync gagal',e);}
-  },e=>console.warn('[BACKUP] mail listener',e)));
-
-  /* Full initial copy, lalu listener menjaga perubahan berikutnya. */
-  backupSyncAllNow().then(ok=>{
-    if(ok)console.info('[BACKUP] sinkronisasi utama -> cadangan aktif');
-  });
-}
-
-function stopBackupSync(){
-  _backupRootUnsubs.forEach(u=>{try{u();}catch(_e){}});
-  _backupRootUnsubs=[];
-  _backupSchoolUnsubs.forEach(arr=>arr.forEach(u=>{try{u();}catch(_e){}}));
-  _backupSchoolUnsubs.clear();
-  _backupSyncStarted=false;
-}
-
-async function backupSyncRtdbFolder(folder){
-  try{
-    const primary=await fetch(RTDB_URL+'/'+folder+'.json',{cache:'no-store'});
-    if(!primary.ok)throw new Error('Primary RTDB HTTP '+primary.status);
-    const data=await primary.json();
-    const backup=await fetch(BACKUP_RTDB_URL+'/'+folder+'.json',{
-      method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data===null?null:data)
-    });
-    if(!backup.ok)throw new Error('Backup RTDB HTTP '+backup.status);
-    return true;
-  }catch(e){console.warn('[BACKUP] RTDB '+folder+' gagal',e);return false;}
-}
-
-async function backupSyncRtdbImages(){
-  await Promise.all([backupSyncRtdbFolder('gambar'),backupSyncRtdbFolder('images')]);
-}
-
-/* Sinkron RTDB berkala untuk gambar lama/baru. Tidak menyentuh data utama. */
+function backupSafeData(data){try{return JSON.parse(JSON.stringify(data||{}));}catch(_e){return data||{};}}
+function stopBackupSchoolListener(schoolId){const arr=_backupSchoolUnsubs.get(schoolId)||[];arr.forEach(u=>{try{u();}catch(_e){}});_backupSchoolUnsubs.delete(schoolId);}
+function stopBackupSync(){_backupRootUnsubs.forEach(u=>{try{u();}catch(_e){}});_backupRootUnsubs=[];_backupSchoolUnsubs.forEach(arr=>arr.forEach(u=>{try{u();}catch(_e){}}));_backupSchoolUnsubs.clear();_backupSyncStarted=false;}
+async function backupSyncAllNow(){return {mode:'server-cadangan-only',ok:0,fail:0};}
+function attachBackupSync(){return false;}
+async function backupSyncRtdbFolder(folder){return true;}
+async function backupSyncRtdbImages(){return true;}
 let _backupRtdbTimer=null;
-function startBackupRtdbTimer(){
-  if(_backupRtdbTimer)return;
-  _backupRtdbTimer=setInterval(()=>{if(_backupSyncStarted)backupSyncRtdbImages();},60000);
-}
-
-startBackupRtdbTimer();
-
-
-
+function startBackupRtdbTimer(){return false;}
 
 /* ================================================================
 
@@ -1660,9 +1478,9 @@ async function checkRules(){
 
   let rtdbOk=false;
 
-  try{const r=db.collection('_ct').doc('p');await r.set({t:Date.now()});await r.delete();
+  try{await db.collection('schools').doc('PUSAT').get();
 
-    try{const ru=RTDB_URL+'/_ct_test.json';const pr=await fetch(ru,{method:'PUT',body:'"ok"'});if(pr.ok){await fetch(ru,{method:'DELETE'});rtdbOk=true;}}catch(e){}
+    try{const ru=RTDB_URL+'/.json';const pr=await fetch(ru,{method:'GET',cache:'no-store'});if(pr.ok)rtdbOk=true;}catch(e){}
 
     msg.innerHTML='<div class="text-center" style="padding:16px"><div style="font-size:2.5rem;margin-bottom:8px;color:var(--ok)"><i class="fas fa-check-circle"></i></div><p style="font-weight:800;color:var(--ok);font-size:1.1rem">Koneksi Berhasil!</p>'+(rtdbOk?'<p style="font-size:.8rem;color:var(--ok);margin-top:6px"><i class="fas fa-image mr-1"></i> Realtime Database OK — upload gambar siap dipakai.</p>':'<p style="font-size:.8rem;color:#B45309;margin-top:6px"><i class="fas fa-triangle-exclamation mr-1"></i> Realtime Database belum aktif — gambar tidak bisa diupload. Ikuti langkah 0.</p>')+'</div>';
 
@@ -1792,21 +1610,8 @@ async function bersihkanDuplikatPusatDanSekolah(){
 }
 
 
-let _soalMigrated=false;
-async function migratePusatSoalOnce(){
-  if(_soalMigrated)return;
-  _soalMigrated=true;
-  try{
-    const oldSnap=await db.collection('schools').doc('PUSAT').collection('exams').get();
-    if(oldSnap.empty)return;
-    const newSnap=await soalR().get();
-    const existing=new Set(newSnap.docs.map(d=>d.id));
-    const batch=dbBackup.batch();
-    let count=0;
-    oldSnap.docs.forEach(d=>{if(!existing.has(d.id)){batch.set(soalR().doc(d.id),backupSafeData({id:d.id,...d.data()}),{merge:true});count++;}});
-    if(count){await batch.commit();console.info('[SOAL] migrasi awal ke server cadangan:',count);}
-  }catch(e){console.warn('[SOAL] migrasi awal gagal:',e);}
-}
+let _soalMigrated=true;
+async function migratePusatSoalOnce(){return 0;}
 
 async function loadPusatExams(){
   const snap = await soalR().get();
@@ -1913,47 +1718,25 @@ async function syncPusatExamsToSchool(npsn){
   return {ok:0,fail:0,mode:'direct-backup'};
 }
 
+/* ================================================================
+   MODE HEMAT FIRESTORE
+   ---------------------------------------------------------------
+   Tidak memakai onSnapshot sama sekali untuk data aplikasi. Semua data
+   besar dibaca satu kali saat diperlukan. Ini menghilangkan listener yang
+   terus aktif, reconnect/backoff, dan pembacaan ulang koleksi besar yang
+   menjadi pemicu utama error resource-exhausted.
+   ================================================================ */
 function attachLiveListeners(npsn){
   clearUnsub();
-  if(D.studentOfflineMode || (D.st && $('pEX') && $('pEX').classList.contains('on'))) return;
-  D._schoolExams=[];D._pusatExams=[];
-
-  /* Hanya 1 listener soal: Firestore CADANGAN/PUSAT. */
-  addUnsub(soalR().onSnapshot(snap=>{
-    const fresh=snap.docs.map(d=>normalizeExamRecord({id:d.id,...d.data(),fromPusat:true}));
-    D._pusatExams=fresh;
-    applyMergedExamSources();
-    refreshAdminUI();refreshStudentUI();
-  },e=>console.warn('[SOAL CADANGAN] listener:',e)));
-
-  /* Nilai/jawaban tetap berada di server utama. */
-  addUnsub(rR(npsn).onSnapshot(snap=>{
-    D.rs=snap.docs.map(d=>({id:d.id,...d.data()}));
-    refreshAdminUI();refreshStudentUI();
-  },e=>console.warn('[HASIL] listener:',e)));
-
-  addUnsub(wR(npsn).onSnapshot(snap=>{
-    D.ss=snap.docs.map(d=>({id:d.id,...d.data()}));
-    refreshAdminUI();
-  },e=>console.warn('[SISWA] listener:',e)));
+  D._schoolExams=[];
+  D._pusatExams=[];
+  /* Tidak ada listener realtime. Setelah Admin Pusat menyimpan perubahan,
+     halaman sekolah/siswa mengambil data terbaru pada refresh/login berikutnya. */
 }
 
 function attachPusatLiveListeners(){
   clearUnsub();
-  let prevCount=D.allSchools.length;
-
-  addUnsub(db.collection('schools').where('isPusat','==',false).onSnapshot(snap=>{
-    D.allSchools=snap.docs.map(d=>({id:d.id,...d.data()}));
-    prevCount=D.allSchools.length;
-    refreshAdminUI();
-  },e=>console.warn('[SEKOLAH] listener:',e)));
-
-  /* Perubahan soal/jadwal hanya mengubah dokumen di server cadangan.
-     Tidak ada lagi loop sekolah x paket soal. */
-  addUnsub(soalR().onSnapshot(snap=>{
-    D.ex=snap.docs.map(d=>normalizeExamRecord({id:d.id,...d.data()}));
-    refreshAdminUI();
-  },e=>console.warn('[SOAL CADANGAN] listener:',e)));
+  /* Tidak ada listener realtime di Admin Pusat. */
 }
 
 
@@ -1976,10 +1759,12 @@ async function logP(){
 
     D.sch={npsn:'PUSAT',nama:'Admin Pusat',kota:'Majalengka',prov:'Jawa Barat',isPusat:true};
 
-    D.aIn=true;D.isPusat=true;D.rs=[];D.ss=[];await loadAllSchools(); await loadAllResults(); await migratePusatSoalOnce(); await loadPusatExams();
-    const muatanRemoved=await hapusPaketMuatanLokal();
-    const cleaned=await bersihkanDuplikatPusatDanSekolah();
-    if(muatanRemoved>0||cleaned>0){await loadPusatExams();tt(`${muatanRemoved?muatanRemoved+' paket Muatan Lokal dihapus. ':''}${cleaned?cleaned+' paket soal duplikat lama dihapus otomatis.':''}`,'in');}
+    D.aIn=true;D.isPusat=true;D.rs=[];D.ss=[];
+    /* LOGIN RINGAN: jangan membaca seluruh hasil dan jangan menjalankan
+       migrasi/dedupe otomatis setiap login. Itu membuat Firestore terus
+       membaca koleksi besar dan dapat memicu resource-exhausted. */
+    await loadAllSchools();
+    await loadPusatExams();
     attachPusatLiveListeners();
 
     hd();go('pAD');$('aSN2').textContent='Admin Pusat';$('navSch').style.display='';
@@ -2003,11 +1788,10 @@ async function logA(){
     if(sch.adminUser!==user||sch.adminPass!==pass){hd();return tt('Username atau password salah!','er')}
 
     D.sch=sch;D.aIn=true;D.isPusat=false;
-    await syncPusatExamsToSchool(npsn);
+    /* Tidak ada lagi sinkronisasi soal ke koleksi sekolah dan tidak ada
+       dedupe otomatis saat login. Soal dibaca langsung dari Server Cadangan. */
     await enforcePusatOnlySchoolExams(npsn);
     await loadD(npsn);
-    const cleaned=await dedupeExamCollection(npsn);
-    if(cleaned.removed>0){await loadD(npsn);tt(`${cleaned.removed} paket soal duplikat lama dihapus otomatis.`,'in');}
     attachLiveListeners(npsn);hd();go('pAD');
 
     $('aSN2').textContent=sch.nama;$('navSch').style.display='none';
@@ -4067,7 +3851,7 @@ function renderSoal(c){
 
       ${D.isPusat?`<button class="bt bt2 bts" onclick="showImportJSON()"><i class="fas fa-file-import"></i> Import JSON</button>
       <button class="bt bt5 bts" onclick="showContohJSON()"><i class="fas fa-code"></i> Contoh JSON</button>
-      <button class="bt bt1 bts" onclick="syncAllPusatExams()"><i class="fas fa-rotate"></i> Sinkron Semua Sekolah</button>
+      <button class="bt bt1 bts" onclick="syncAllPusatExams()"><i class="fas fa-rotate"></i> Data Server Cadangan</button>
       <button class="bt bt1 bts" onclick="showBuatUjian()"><i class="fas fa-plus"></i> Buat Ujian</button>`:`<span class="tag-pusat"><i class="fas fa-lock"></i> Admin Sekolah: lihat saja</span>`}
 
     </div>
@@ -4462,7 +4246,6 @@ async function buatUjian(){
 
     D.ex.push(exam);
     if(D.isPusat){
-      await syncOnePusatExam(exam);
       D.ex=D.ex.map(x=>x.id===exam.id?exam:x);
     }
 
@@ -4970,8 +4753,6 @@ async function publishDraft(eid){
     delete ex.draftQuestions;
     delete ex.draftUpdatedAt;
 
-    await syncOnePusatExam(ex);
-
     hd();D._savingExam=false;
     tt('Perubahan berhasil dipublikasikan dan disinkronkan ke sekolah.');
     renderSoal($('aC'));
@@ -5279,12 +5060,6 @@ function validateAndImport(){
 async function doImportJSON(){
   if(!D.isPusat)return tt('Import JSON hanya dapat dilakukan di Admin Pusat.','er');
   const data=window._pendingImport;if(!data)return;
-  /* Bersihkan duplikat lama terlebih dahulu agar paket yang benar-benar sudah dihapus
-     tidak tertahan oleh salinan lama yang masih tersisa. */
-  try{
-    const clean=await dedupeExamCollection(D.isPusat?'PUSAT':D.sch.npsn);
-    if(clean.removed>0){await loadD(D.isPusat?'PUSAT':D.sch.npsn);if(D.isPusat)await loadPusatExams();}
-  }catch(_e){}
   const kelas=normalizeImportKelas(data.mapel,data.kelas);if(!kelas)return tt('Kelas JSON tidak valid!','er');
   const questions=data.questions.map(q=>{
     const obj={id:uid(),text:q.text,image:q.image||'',type:q.type||'pg'};
@@ -5309,7 +5084,6 @@ async function doImportJSON(){
     await soalR().doc(id).set(exam);
     D.ex.push(exam);window._pendingImport=null;
     hd();cMo();tt(questions.length+' soal diimport & disimpan!');renderSoal($('aC'));
-    if(D.isPusat)await syncOnePusatExam(exam);
   }catch(e){hd();tt('Gagal menyimpan: '+e.message,'er');}
 }
 
@@ -5808,16 +5582,11 @@ function renderSD(){
   sdCountdownTimer=setInterval(refreshSDCountdowns,1000); 
 } 
  
-/* ===== INIT ===== */ 
-(async function init(){ 
-  ld('Menguji koneksi...');try{const r=db.collection('_ct').doc('p');await r.set({t:Date.now()});await r.delete();hd();go('pH');
-    /* BACKUP GLOBAL SYNC DINONAKTIFKAN.
-       Paket soal sekarang ditulis langsung ke Firestore CADANGAN oleh Admin Pusat,
-       sehingga browser siswa/sekolah tidak lagi menjalankan listener + copy massal. */
-    console.info('[BACKUP] Mode ringan aktif: soal memakai server cadangan langsung.');
-  } 
-  catch(e){hd();go('pSU');} 
-})(); 
+/* ===== INIT ===== */
+(async function init(){
+  hd();go('pH');
+  console.info('[SERVER] Semua data aplikasi menggunakan Server Cadangan stscadangan2026.');
+})();
 </script> 
 </body> 
 </html> 
