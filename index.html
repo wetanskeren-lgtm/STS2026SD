@@ -118,12 +118,11 @@ async function migrateExamCollection(srcCol,dstCol,report,label){
 }
 async function migrateAllExceptResults(){
   if(!D.isPusat) throw new Error('Migrasi hanya boleh dijalankan oleh Admin Pusat.');
-  const report={read:0,written:0,examRead:0,examWritten:0,skippedResults:0,errors:[],subjects:new Set(),classes:new Set(),examIds:new Set()};
+  const report={read:0,written:0,skippedResults:0,errors:[]};
   const status=(m)=>{const el=document.getElementById('migrationStatus');if(el)el.innerHTML=m;};
-  const safe=()=>({read:report.read,written:report.written,examRead:report.examRead,examWritten:report.examWritten,subjects:[...report.subjects].sort(),classes:[...report.classes].sort(),errors:report.errors});
-  status('🔎 Memindai SEMUA paket soal dari Server Utama...');
+  status('Memeriksa dan memperbaiki data Server Cadangan...');
 
-  // Data umum: mail.
+  // Top-level mail.
   try{await migrationCopyCollection(dbMigrationPrimary.collection('mail'),db.collection('mail'),report,'mail');}
   catch(e){report.errors.push('mail: '+e.message);}
 
@@ -135,107 +134,35 @@ async function migrateAllExceptResults(){
     report.read+=schools.length;
   }catch(e){report.errors.push('schools: '+e.message);}
 
-  // Salin students, tetapi JANGAN menyentuh results.
+  // Salin data sekolah yang diperlukan. results sengaja TIDAK disentuh.
   for(const school of schools){
     const n=school.id;
-    try{
-      const src=dbMigrationPrimary.collection('schools').doc(n).collection('students');
-      const dst=db.collection('schools').doc(n).collection('students');
-      await migrationCopyCollection(src,dst,report,`schools/${n}/students`);
-    }catch(e){report.errors.push(`schools/${n}/students: ${e.message}`);}
+    for(const sub of ['students','exams']){
+      try{
+        const src=dbMigrationPrimary.collection('schools').doc(n).collection(sub);
+        const dst=db.collection('schools').doc(n).collection(sub);
+        const count=await migrationCopyCollection(src,dst,report,`schools/${n}/${sub}`);
+        if(sub==='exams') status(`Soal ${n}: ${count} paket diperiksa/dipindahkan`);
+      }catch(e){report.errors.push(`schools/${n}/${sub}: ${e.message}`);}
+    }
+    // Hanya hitung untuk laporan; TIDAK membaca/menulis hasil jika ingin hemat kuota.
   }
 
-  // ================================================================
-  // MIGRASI SOAL TOTAL
-  // Jangan hanya mengambil PUSAT. Semua exams yang pernah diimpor,
-  // baik berada di PUSAT maupun tersimpan pada sekolah, ikut dicari.
-  // Semua paket dipertahankan dengan ID aslinya.
-  // ================================================================
-  const examTargets=new Map(); // key path/id -> {id,data,source}
-  for(const school of schools){
-    const n=school.id;
-    try{
-      status(`🔎 Memeriksa paket soal: ${n}...`);
-      const snap=await dbMigrationPrimary.collection('schools').doc(n).collection('exams').get();
-      report.examRead+=snap.size; report.read+=snap.size;
-      snap.forEach(d=>{
-        const data=d.data()||{};
-        const mapel=canonicalMapel(data.mapel||data.subject||'');
-        const kelas=data.kelas ?? data.class ?? '';
-        if(mapel) report.subjects.add(mapel);
-        if(kelas!=='' && kelas!=null) report.classes.add(String(kelas));
-        report.examIds.add(d.id);
-        // Simpan salinan per sekolah dengan ID asli.
-        examTargets.set(`${n}/${d.id}`,{school:n,id:d.id,data:{...data,id:d.id},source:`schools/${n}/exams/${d.id}`});
-      });
-    }catch(e){report.errors.push(`schools/${n}/exams: ${e.message}`);}
-  }
-
-  // Koleksi exams lama tingkat atas, bila ada.
+  // Koleksi exams tingkat atas bila pernah dipakai versi lama.
   try{
-    const snap=await dbMigrationPrimary.collection('exams').get();
-    report.examRead+=snap.size; report.read+=snap.size;
-    snap.forEach(d=>{
-      const data=d.data()||{};
-      const mapel=canonicalMapel(data.mapel||data.subject||'');
-      const kelas=data.kelas ?? data.class ?? '';
-      if(mapel) report.subjects.add(mapel);
-      if(kelas!=='' && kelas!=null) report.classes.add(String(kelas));
-      report.examIds.add(d.id);
-      examTargets.set(`__TOP__/${d.id}`,{school:'__TOP__',id:d.id,data:{...data,id:d.id},source:`exams/${d.id}`});
-    });
-  }catch(e){/* koleksi ini opsional */}
+    await migrationCopyCollection(dbMigrationPrimary.collection('exams'),db.collection('exams'),report,'exams');
+  }catch(_e){/* tidak wajib */}
 
-  // Tulis kembali semua paket pada lokasi asalnya di Server Cadangan.
-  const allExamDocs=[...examTargets.values()];
-  for(let i=0;i<allExamDocs.length;i+=80){
-    const part=allExamDocs.slice(i,i+80);
-    let done=false,last=null;
-    for(let attempt=1;attempt<=5&&!done;attempt++){
-      try{
-        const batch=db.batch();
-        for(const item of part){
-          const dst=item.school==='__TOP__'
-            ? db.collection('exams').doc(item.id)
-            : db.collection('schools').doc(item.school).collection('exams').doc(item.id);
-          batch.set(dst,item.data,{merge:true});
-        }
-        await batch.commit(); done=true;
-      }catch(e){last=e;await new Promise(r=>setTimeout(r,1000*attempt));}
-    }
-    if(!done){report.errors.push(`paket soal batch ${i+1}: ${last?.message||'gagal'}`);continue;}
-    report.examWritten+=part.length; report.written+=part.length;
-    status(`📚 Paket soal dipindahkan: ${Math.min(i+part.length,allExamDocs.length)} / ${allExamDocs.length}<br>Mapel: ${[...report.subjects].join(', ')||'-'}<br>Kelas: ${[...report.classes].join(', ')||'-'}`);
-  }
+  // Khusus PUSAT: pastikan paket soal pusat ikut dipindahkan dan diperbaiki.
+  try{
+    const pusatSrc=dbMigrationPrimary.collection('schools').doc('PUSAT').collection('exams');
+    const pusatDst=db.collection('schools').doc('PUSAT').collection('exams');
+    const count=await migrateExamCollection(pusatSrc,pusatDst,report,'PUSAT/exams');
+    status(`Soal Admin Pusat: ${count} paket sudah diperiksa dan dipindahkan.`);
+  }catch(e){report.errors.push('PUSAT/exams: '+e.message);}
 
-  // PENTING: semua paket soal pusat dijadikan sumber utama Admin Pusat di backup.
-  // Paket dari sekolah yang berbeda juga dikumpulkan jika belum ada di PUSAT.
-  const pusatMap=new Map();
-  for(const item of allExamDocs){
-    if(item.school==='PUSAT' || item.school==='__TOP__') pusatMap.set(item.id,item.data);
-  }
-  for(const item of allExamDocs){
-    if(item.school!=='PUSAT' && item.school!=='__TOP__'){
-      // Hanya masukkan sebagai paket pusat jika ID belum ditemukan di pusat.
-      if(!pusatMap.has(item.id)) pusatMap.set(item.id,item.data);
-    }
-  }
-  const pusatItems=[...pusatMap.entries()].map(([id,data])=>({id,data}));
-  for(let i=0;i<pusatItems.length;i+=80){
-    const part=pusatItems.slice(i,i+80); let done=false,last=null;
-    for(let attempt=1;attempt<=5&&!done;attempt++){
-      try{
-        const batch=db.batch();
-        part.forEach(x=>batch.set(db.collection('schools').doc('PUSAT').collection('exams').doc(x.id),x.data,{merge:true}));
-        await batch.commit(); done=true;
-      }catch(e){last=e;await new Promise(r=>setTimeout(r,1000*attempt));}
-    }
-    if(!done) report.errors.push(`PUSAT/exams batch ${i+1}: ${last?.message||'gagal'}`);
-    else {report.examWritten+=part.length;report.written+=part.length;}
-  }
-
-  // RTDB: salin seluruh root primary -> backup. Hasil ujian Firestore tetap tidak disentuh.
-  status('🖼️ Menyalin data RTDB...');
+  // RTDB: salin seluruh root, tetapi jangan menghapus data yang sudah ada di backup.
+  status('Menyalin data RTDB...');
   try{
     const r=await fetch(migrationPrimaryRTDB+'/.json');
     if(!r.ok) throw new Error('HTTP '+r.status);
@@ -246,18 +173,17 @@ async function migrateAllExceptResults(){
     }
   }catch(e){report.errors.push('RTDB: '+e.message);}
 
-  const uniqueSubjects=[...report.subjects].sort();
-  const uniqueClasses=[...report.classes].sort();
-  status(`<b>✅ MIGRASI SEMUA PAKET SOAL SELESAI</b><br>Dokumen dibaca: ${report.read}<br>Dokumen ditulis/diperbarui: ${report.written}<br><b>Paket soal ditemukan: ${report.examRead}</b><br><b>Paket soal ditulis: ${report.examWritten}</b><br><b>Mapel ditemukan (${uniqueSubjects.length}):</b> ${uniqueSubjects.join(', ')||'-'}<br><b>Kelas ditemukan:</b> ${uniqueClasses.join(', ')||'-'}<br>${report.errors.length?'⚠️ Kesalahan:<br>'+report.errors.join('<br>'):'✅ Tidak ada kesalahan yang dilaporkan.'}`);
+  status(`<b>Perbaikan migrasi selesai.</b><br>Dokumen dibaca: ${report.read}<br>Dokumen ditulis/diperbarui: ${report.written}<br>${report.errors.length?'⚠️ Kesalahan:<br>'+report.errors.join('<br>'):'✅ Tidak ada kesalahan yang dilaporkan.'}<br><br><b>Jalankan MIGRASI ULANG</b> jika sebelumnya ada soal yang belum masuk.`);
   return report;
 }
+
 function showMigrationPanel(){
   if(!D.isPusat) return;
   let el=document.getElementById('migrationPanel');
   if(el) return;
   el=document.createElement('div'); el.id='migrationPanel';
   el.style='position:fixed;right:18px;bottom:18px;z-index:99999;background:#fff;padding:16px;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.22);max-width:420px;border:2px solid #ddd';
-  el.innerHTML='<b>🔄 Pindahkan Data Lama</b><p style="margin:8px 0;font-size:13px">Memindahkan semua data Server Utama ke Server Cadangan, <b>kecuali hasil ujian/jawaban</b>.</p><button id="migrationBtn" style="padding:10px 14px;border:0;border-radius:9px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">MULAI MIGRASI SEMUA SOAL</button><button id="migrationClose" style="margin-left:6px;padding:10px;border:0;border-radius:9px;cursor:pointer">Tutup</button><div id="migrationStatus" style="margin-top:10px;font-size:12px;max-height:220px;overflow:auto"></div>';
+  el.innerHTML='<b>🔄 Pindahkan Data Lama</b><p style="margin:8px 0;font-size:13px">Memindahkan semua data Server Utama ke Server Cadangan, <b>kecuali hasil ujian/jawaban</b>.</p><button id="migrationBtn" style="padding:10px 14px;border:0;border-radius:9px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">MULAI MIGRASI</button><button id="migrationClose" style="margin-left:6px;padding:10px;border:0;border-radius:9px;cursor:pointer">Tutup</button><div id="migrationStatus" style="margin-top:10px;font-size:12px;max-height:220px;overflow:auto"></div>';
   document.body.appendChild(el);
   el.querySelector('#migrationClose').onclick=()=>el.remove();
   el.querySelector('#migrationBtn').onclick=async()=>{const b=el.querySelector('#migrationBtn');b.disabled=true;b.textContent='MEMINDAHKAN...';try{await migrateAllExceptResults();}catch(e){document.getElementById('migrationStatus').textContent='Gagal: '+e.message;}b.disabled=false;b.textContent='MIGRASI ULANG';};
@@ -1822,14 +1748,81 @@ async function bersihkanDuplikatPusatDanSekolah(){
 let _soalMigrated=true;
 async function migratePusatSoalOnce(){return 0;}
 
+/* ================================================================
+   PEMULIHAN SOAL LAMA + DUAL SERVER
+   Soal yang sudah pernah diinput di Server Utama tidak hilang.
+   Saat dimuat, aplikasi membaca Server Utama dan Server Cadangan,
+   menggabungkan berdasarkan ID soal, lalu memastikan salinan yang
+   belum ada di salah satu server ikut ditulis ke server tersebut.
+   ================================================================ */
+const PUSAT_EXAM_PATH=()=>db.collection('schools').doc('PUSAT').collection('exams');
+const PRIMARY_PUSAT_EXAM_PATH=()=>dbMigrationPrimary.collection('schools').doc('PUSAT').collection('exams');
+
+async function savePusatExamBoth(id,data,options={merge:true}){
+  const payload=JSON.parse(JSON.stringify(data));
+  const results=await Promise.allSettled([
+    PUSAT_EXAM_PATH().doc(id).set(payload,options),
+    PRIMARY_PUSAT_EXAM_PATH().doc(id).set(payload,options)
+  ]);
+  const failed=results.filter(r=>r.status==='rejected');
+  if(failed.length===2) throw failed[0].reason;
+  if(failed.length) console.warn('[DUAL SERVER] satu server gagal menyimpan',failed[0].reason);
+  return true;
+}
+
+async function getMergedPusatExams(){
+  const [primarySnap,backupSnap]=await Promise.all([
+    PRIMARY_PUSAT_EXAM_PATH().get().catch(()=>({docs:[]})),
+    PUSAT_EXAM_PATH().get().catch(()=>({docs:[]}))
+  ]);
+  const primaryDocs=primarySnap.docs||[];
+  const backupDocs=backupSnap.docs||[];
+  const map=new Map();
+
+  /* Cadangan dimasukkan lebih dulu, lalu Utama menjadi sumber
+     pemulihan bila dokumen Utama lebih baru atau belum ada. */
+  backupDocs.forEach(d=>map.set(d.id,{id:d.id,...d.data()}));
+  primaryDocs.forEach(d=>{
+    const x={id:d.id,...d.data()};
+    const old=map.get(d.id);
+    if(!old || Number(x.updatedAt||x.createdAt||0)>=Number(old.updatedAt||old.createdAt||0)) map.set(d.id,x);
+  });
+
+  const merged=Array.from(map.values());
+
+  /* Pulihkan/samakan paket yang sudah ada di salah satu server.
+     Hanya koleksi PUSAT/exams yang disentuh; hasil ujian tidak disentuh. */
+  const primaryMap=new Map(primaryDocs.map(d=>[d.id,d]));
+  const backupMap=new Map(backupDocs.map(d=>[d.id,d]));
+  for(const ex of merged){
+    try{
+      if(!primaryMap.has(ex.id)){
+        await PRIMARY_PUSAT_EXAM_PATH().doc(ex.id).set(ex,{merge:true});
+      }else if(!backupMap.has(ex.id)){
+        await PUSAT_EXAM_PATH().doc(ex.id).set(ex,{merge:true});
+      }else{
+        const p=primaryMap.get(ex.id).data(), b=backupMap.get(ex.id).data();
+        const pt=Number(p.updatedAt||p.createdAt||0), bt=Number(b.updatedAt||b.createdAt||0);
+        if(pt>bt) await PUSAT_EXAM_PATH().doc(ex.id).set(ex,{merge:true});
+        else if(bt>pt) await PRIMARY_PUSAT_EXAM_PATH().doc(ex.id).set(ex,{merge:true});
+      }
+    }catch(e){console.warn('[DUAL SERVER] sinkron paket '+ex.id+' gagal',e);}
+  }
+  return merged;
+}
+
 async function loadPusatExams(){
-  const snap = await soalR().get();
-  D.ex = snap.docs.map(d=>normalizeExamRecord({id:d.id,...d.data()}));
+  const docs=await getMergedPusatExams();
+  D.ex=docs.map(normalizeExamRecord);
 }
 
 async function loadD(npsn){
-  const[a,b,c]=await Promise.all([soalR().get(),rR(npsn).get(),wR(npsn).get()]);
-  D.ex=a.docs.map(d=>normalizeExamRecord({id:d.id,...d.data()}));
+  const [exDocs,b,c]=await Promise.all([
+    getMergedPusatExams(),
+    rR(npsn).get(),
+    wR(npsn).get()
+  ]);
+  D.ex=exDocs.map(normalizeExamRecord);
   D.rs=b.docs.map(d=>({id:d.id,...d.data()}));
   D.ss=c.docs.map(d=>({id:d.id,...d.data()}));
 }
@@ -4299,7 +4292,7 @@ async function saveQuickSchedule(){
   const b=localDateBounds(date);
   ld('Menyimpan jadwal...');
   try{
-    await soalR().doc(eid).update({scheduleDate:date,startAt:b.start,endAt:b.end,updatedAt:Date.now()});
+    await savePusatExamBoth(eid,{scheduleDate:date,startAt:b.start,endAt:b.end,updatedAt:Date.now()},{merge:true});
     ex.scheduleDate=date;ex.startAt=b.start;ex.endAt=b.end;
     cMo();hd();tt('Jadwal berhasil diubah dan disinkronkan otomatis.');renderDash($('aC'));
   }catch(e){hd();tt('Gagal menyimpan jadwal: '+e.message,'er');}
@@ -4333,7 +4326,7 @@ async function simpanJadwal(eid){
   const b=localDateBounds(date);
   ld('Menyimpan jadwal...');
   try{
-    await soalR().doc(eid).update({scheduleDate:date,startAt:b.start,endAt:b.end,updatedAt:Date.now()});
+    await savePusatExamBoth(eid,{scheduleDate:date,startAt:b.start,endAt:b.end,updatedAt:Date.now()},{merge:true});
     ex.scheduleDate=date;ex.startAt=b.start;ex.endAt=b.end;
     cMo();hd();tt('Jadwal pusat diperbarui dan akan tersinkron otomatis.');renderJadwal($('aC'));
   }catch(e){hd();tt('Gagal menyimpan jadwal: '+e.message,'er');}
@@ -4358,7 +4351,7 @@ async function konfirmasiHapusJadwal(eid){
   ld('Menghapus jadwal...');
   try{
     const stamp=Date.now();
-    await soalR().doc(eid).update({scheduleDate:null,startAt:null,endAt:null,updatedAt:stamp});
+    await savePusatExamBoth(eid,{scheduleDate:null,startAt:null,endAt:null,updatedAt:stamp},{merge:true});
     ex.scheduleDate=null;ex.startAt=null;ex.endAt=null;
     cMo();hd();tt('Jadwal berhasil dihapus. Paket soal tetap tersimpan.');renderJadwal($('aC'));
   }catch(e){hd();tt('Gagal menghapus jadwal: '+e.message,'er');}
@@ -4376,7 +4369,7 @@ async function setForceExam(eid,mode){
 
   try{
 
-    await soalR().doc(eid).update({forceOpen,forceClosed,updatedAt:Date.now()});
+    await savePusatExamBoth(eid,{forceOpen,forceClosed,updatedAt:Date.now()},{merge:true});
 
     ex.forceOpen=forceOpen;ex.forceClosed=forceClosed;hd();tt(forceOpen?'Ujian dibuka paksa.':'Ujian ditutup paksa.');
 
@@ -4451,7 +4444,7 @@ async function buatUjian(){
 
     const targetNpsn = D.isPusat ? 'PUSAT' : D.sch.npsn;
 
-    await soalR().doc(id).set(exam);
+    await savePusatExamBoth(id,exam,{merge:false});
 
     D.ex.push(exam);
     if(D.isPusat){
@@ -4918,7 +4911,7 @@ async function autoSaveDraft(eid,msg){
   ld('Menyimpan draf ke Cloud...');
   try{
     const draft=JSON.parse(JSON.stringify(D.editQs));
-    await soalR().doc(eid).set({draftQuestions:draft,draftUpdatedAt:Date.now()},{merge:true});
+    await savePusatExamBoth(eid,{draftQuestions:draft,draftUpdatedAt:Date.now()},{merge:true});
     ex.draftQuestions=draft;
     hd();
     tt(msg+' Belum mengubah soal siswa.');
@@ -4986,7 +4979,7 @@ async function autoSaveExam(eid,msg){
   if(!D.isPusat)return tt('Admin Sekolah hanya dapat membaca soal dari server cadangan.','er');
   ld('Menyimpan soal ke Server Cadangan...');
   try{
-    await soalR().doc(eid).set({questions:JSON.parse(JSON.stringify(D.editQs)),updatedAt:Date.now()},{merge:true});
+    await savePusatExamBoth(eid,{questions:JSON.parse(JSON.stringify(D.editQs)),updatedAt:Date.now()},{merge:true});
     ex.questions=JSON.parse(JSON.stringify(D.editQs));
     if(D.isPusat){ hd();tt(msg+' Tersimpan di Server Cadangan dan otomatis terbaca Sekolah/Siswa.'); }else{hd();tt(msg);}
     D._savingExam=false;return true;
@@ -5290,7 +5283,7 @@ async function doImportJSON(){
   try{
     const targetNpsn=D.isPusat?'PUSAT':D.sch.npsn;
     if(!D.isPusat)return tt('Paket soal hanya dapat disimpan Admin Pusat.','er');
-    await soalR().doc(id).set(exam);
+    await savePusatExamBoth(id,exam,{merge:false});
     D.ex.push(exam);window._pendingImport=null;
     hd();cMo();tt(questions.length+' soal diimport & disimpan!');renderSoal($('aC'));
   }catch(e){hd();tt('Gagal menyimpan: '+e.message,'er');}
