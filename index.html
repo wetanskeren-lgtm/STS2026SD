@@ -46,7 +46,8 @@ let db=backupDb;
 const dbBackup=backupDb;
 const BACKUP_RTDB_URL=backupFirebaseConfig.databaseURL;
 let RTDB_URL=BACKUP_RTDB_URL;
-let ACTIVE_SERVER=localStorage.getItem('uts_active_server')==='utama'?'utama':'cadangan';
+let ACTIVE_SERVER='cadangan';
+try{localStorage.setItem('uts_active_server','cadangan');}catch(_e){}
 
 
 /* ====== KONFIGURASI WAJIB ======
@@ -1583,41 +1584,34 @@ function gm(v){const m=canonicalMapel(v);return MP.find(x=>x.v===m)||{ic:'fa-fil
 
 function serverLabel(){return ACTIVE_SERVER==='utama'?'Server Utama':'Server Cadangan';}
 function setActiveServer(mode){
-  mode=mode==='utama'?'utama':'cadangan';
-  ACTIVE_SERVER=mode;
-  db=mode==='utama'?dbMigrationPrimary:backupDb;
-  RTDB_URL=mode==='utama'?migrationPrimaryRTDB:BACKUP_RTDB_URL;
-  try{localStorage.setItem('uts_active_server',mode);}catch(_e){}
+  // Server Cadangan menjadi satu-satunya server aplikasi.
+  mode='cadangan';
+  ACTIVE_SERVER='cadangan';
+  db=backupDb;
+  RTDB_URL=BACKUP_RTDB_URL;
+  try{localStorage.setItem('uts_active_server','cadangan');}catch(_e){}
   const badge=$('activeServerBadge');
-  if(badge){badge.innerHTML='<i class="fas fa-server"></i> '+serverLabel();badge.style.background=mode==='utama'?'rgba(99,102,241,.12)':'rgba(0,180,216,.12)';badge.style.color=mode==='utama'?'var(--pr)':'var(--ac2)';}
-  document.querySelectorAll('[data-server-choice]').forEach(el=>{el.classList.toggle('active',el.dataset.serverChoice===mode);});
+  if(badge){badge.innerHTML='<i class="fas fa-shield-halved"></i> Server Cadangan';badge.style.background='rgba(0,180,216,.12)';badge.style.color='var(--ac2)';}
+  document.querySelectorAll('[data-server-choice]').forEach(el=>{el.classList.toggle('active',el.dataset.serverChoice==='cadangan');});
 }
-function otherActiveDb(){return db===backupDb?dbMigrationPrimary:backupDb;}
-function activeServerCode(){return ACTIVE_SERVER==='utama'?'utama':'cadangan';}
+function otherActiveDb(){return backupDb;}
+function activeServerCode(){return 'cadangan';}
 async function dualDocSet(colPath,docId,data,options){
-  const rs=await Promise.allSettled([db.collection(colPath).doc(docId).set(data,options),otherActiveDb().collection(colPath).doc(docId).set(data,options)]);
-  const failed=rs.filter(r=>r.status==='rejected');
-  if(failed.length===2)throw failed[0].reason;
-  if(failed.length)console.warn('[DUAL SERVER] satu server gagal menulis',failed[0].reason);
+  return db.collection(colPath).doc(docId).set(data,options);
 }
 async function dualDocUpdate(colPath,docId,data){return dualDocSet(colPath,docId,data,{merge:true});}
-async function dualDocDelete(colPath,docId){
-  const rs=await Promise.allSettled([db.collection(colPath).doc(docId).delete(),otherActiveDb().collection(colPath).doc(docId).delete()]);
-  if(rs.every(r=>r.status==='rejected'))throw rs[0].reason;
-}
+async function dualDocDelete(colPath,docId){return db.collection(colPath).doc(docId).delete();}
 
 function renderServerPicker(){
   const el=$('serverPicker');if(!el)return;
   el.innerHTML=`<div class="cd" style="padding:14px 18px;margin-top:18px;border:2px dashed var(--bd);background:rgba(255,255,255,.92)">
     <div class="flex items-center justify-between gap-3 flex-wrap">
-      <div><p style="font-weight:800;font-size:.9rem"><i class="fas fa-server mr-2" style="color:var(--pr)"></i>Pilih Server Aplikasi</p><p style="font-size:.72rem;color:var(--mt);margin-top:3px">Data ujian mengikuti server yang dipilih. <b>Soal Pusat tetap disinkronkan ke kedua server.</b></p></div>
+      <div><p style="font-weight:800;font-size:.9rem"><i class="fas fa-server mr-2" style="color:var(--pr)"></i>Pilih Server Aplikasi</p><p style="font-size:.72rem;color:var(--mt);margin-top:3px">Aplikasi menggunakan Server Cadangan sebagai satu-satunya server aktif.</p></div>
       <span id="activeServerBadge" class="schb"><i class="fas fa-server"></i> Server Cadangan</span>
     </div>
     <div class="flex gap-2 flex-wrap mt-3">
-      <button type="button" data-server-choice="utama" class="bt bt5 bts" onclick="setActiveServer('utama')"><i class="fas fa-cloud"></i> Server Utama</button>
-      <button type="button" data-server-choice="cadangan" class="bt bt2 bts" onclick="setActiveServer('cadangan')"><i class="fas fa-shield-halved"></i> Server Cadangan</button>
+      <span class="bt bt2 bts active"><i class="fas fa-shield-halved"></i> Server Cadangan Aktif</span>
     </div>
-    <p style="font-size:.68rem;color:var(--mt);margin-top:8px">Pilihan tersimpan di perangkat ini dan dapat diganti sebelum login.</p>
   </div>`;
   setActiveServer(ACTIVE_SERVER);
 }
@@ -1833,55 +1827,12 @@ const PRIMARY_PUSAT_EXAM_PATH=()=>dbMigrationPrimary.collection('schools').doc('
 
 async function savePusatExamBoth(id,data,options={merge:true}){
   const payload=JSON.parse(JSON.stringify(data));
-  const results=await Promise.allSettled([
-    BACKUP_PUSAT_EXAM_PATH().doc(id).set(payload,options),
-    PRIMARY_PUSAT_EXAM_PATH().doc(id).set(payload,options)
-  ]);
-  const failed=results.filter(r=>r.status==='rejected');
-  if(failed.length===2) throw failed[0].reason;
-  if(failed.length) console.warn('[DUAL SERVER] satu server gagal menyimpan',failed[0].reason);
-  return true;
+  return BACKUP_PUSAT_EXAM_PATH().doc(id).set(payload,options);
 }
 
 async function getMergedPusatExams(){
-  const [primarySnap,backupSnap]=await Promise.all([
-    PRIMARY_PUSAT_EXAM_PATH().get().catch(()=>({docs:[]})),
-    BACKUP_PUSAT_EXAM_PATH().get().catch(()=>({docs:[]}))
-  ]);
-  const primaryDocs=primarySnap.docs||[];
-  const backupDocs=backupSnap.docs||[];
-  const map=new Map();
-
-  /* Cadangan dimasukkan lebih dulu, lalu Utama menjadi sumber
-     pemulihan bila dokumen Utama lebih baru atau belum ada. */
-  backupDocs.forEach(d=>map.set(d.id,{id:d.id,...d.data()}));
-  primaryDocs.forEach(d=>{
-    const x={id:d.id,...d.data()};
-    const old=map.get(d.id);
-    if(!old || Number(x.updatedAt||x.createdAt||0)>=Number(old.updatedAt||old.createdAt||0)) map.set(d.id,x);
-  });
-
-  const merged=Array.from(map.values());
-
-  /* Pulihkan/samakan paket yang sudah ada di salah satu server.
-     Hanya koleksi PUSAT/exams yang disentuh; hasil ujian tidak disentuh. */
-  const primaryMap=new Map(primaryDocs.map(d=>[d.id,d]));
-  const backupMap=new Map(backupDocs.map(d=>[d.id,d]));
-  for(const ex of merged){
-    try{
-      if(!primaryMap.has(ex.id)){
-        await PRIMARY_PUSAT_EXAM_PATH().doc(ex.id).set(ex,{merge:true});
-      }else if(!backupMap.has(ex.id)){
-        await BACKUP_PUSAT_EXAM_PATH().doc(ex.id).set(ex,{merge:true});
-      }else{
-        const p=primaryMap.get(ex.id).data(), b=backupMap.get(ex.id).data();
-        const pt=Number(p.updatedAt||p.createdAt||0), bt=Number(b.updatedAt||b.createdAt||0);
-        if(pt>bt) await BACKUP_PUSAT_EXAM_PATH().doc(ex.id).set(ex,{merge:true});
-        else if(bt>pt) await PRIMARY_PUSAT_EXAM_PATH().doc(ex.id).set(ex,{merge:true});
-      }
-    }catch(e){console.warn('[DUAL SERVER] sinkron paket '+ex.id+' gagal',e);}
-  }
-  return merged;
+  const snap=await BACKUP_PUSAT_EXAM_PATH().get();
+  return (snap.docs||[]).map(d=>({id:d.id,...d.data()}));
 }
 
 async function loadPusatExams(){
