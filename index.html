@@ -1586,10 +1586,29 @@ function canonicalMapel(v){
   if(/^simulasi$/i.test(x))return 'Simulasi';
   return x;
 }
+function normalizeQuestionList(value){
+  if(Array.isArray(value))return value;
+  if(value&&typeof value==='object'){
+    return Object.keys(value).sort((a,b)=>{
+      const na=Number(a),nb=Number(b);
+      if(Number.isFinite(na)&&Number.isFinite(nb))return na-nb;
+      return String(a).localeCompare(String(b));
+    }).map(k=>value[k]).filter(v=>v!=null);
+  }
+  return [];
+}
+function normalizeQuestion(q){
+  if(!q||typeof q!=='object')return q;
+  const out={...q};
+  if(out.options&&!Array.isArray(out.options))out.options=normalizeQuestionList(out.options);
+  return out;
+}
 function normalizeExamRecord(ex){
   if(!ex)return ex;
   const m=canonicalMapel(ex.mapel);
-  return m===ex.mapel?ex:{...ex,mapel:m};
+  const questions=normalizeQuestionList(ex.questions).map(normalizeQuestion);
+  const draft=ex.draftQuestions==null?ex.draftQuestions:normalizeQuestionList(ex.draftQuestions).map(normalizeQuestion);
+  return {...ex,mapel:m,questions,draftQuestions:draft};
 }
 function gm(v){const m=canonicalMapel(v);return MP.find(x=>x.v===m)||{ic:'fa-file',c:'#666',l:m}}
 
@@ -4563,7 +4582,9 @@ function editUjian(eid){
   if(!D.isPusat)return tt('Soal dari Admin Pusat tidak dapat diedit di Admin Sekolah.','er');
   const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
   /* Admin Pusat mengedit DRAF. Soal yang tampil ke siswa tetap ex.questions. */
-  D.editQs=JSON.parse(JSON.stringify(ex.draftQuestions||ex.questions||[]));D.editIdx=-1;D.editKelas=ex.kelas;
+  const sourceQuestions=Array.isArray(ex.draftQuestions)?ex.draftQuestions:normalizeQuestionList(ex.draftQuestions||ex.questions);
+  D.editQs=JSON.parse(JSON.stringify(sourceQuestions.map(normalizeQuestion)));
+  D.editIdx=-1;D.editKelas=ex.kelas;
   renderEditSoal(ex);
 }
 
