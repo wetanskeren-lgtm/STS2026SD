@@ -30,7 +30,7 @@
 const firebaseConfig={apiKey:"AIzaSyDUYQzyiCnTn43A78hXb5kO0BUEBHyO0Y4",authDomain:"pts2026-fb4d7.firebaseapp.com",projectId:"pts2026-fb4d7",storageBucket:"pts2026-fb4d7.firebasestorage.app",messagingSenderId:"167251105079",appId:"1:167251105079:web:c652c51458227620f236b2",measurementId:"G-SEF0HCJ5CK"};
 
 const primaryApp=firebase.initializeApp(firebaseConfig,"PRIMARY");
-const db=firebase.firestore(primaryApp);
+const dbPrimary=firebase.firestore(primaryApp);
 
 /* ================= FIREBASE CADANGAN =================
    Project cadangan: stscadangan2026
@@ -48,6 +48,104 @@ const backupFirebaseConfig={
 const backupApp=firebase.initializeApp(backupFirebaseConfig,"BACKUP");
 const dbBackup=firebase.firestore(backupApp);
 const BACKUP_RTDB_URL=backupFirebaseConfig.databaseURL;
+
+/* MODE DATA SOAL: paket ujian/soal dibaca & ditulis di SERVER CADANGAN.
+   Data siswa dan hasil ujian tetap memakai SERVER UTAMA. */
+const EXAM_DATA_ON_BACKUP=true;
+
+/* ================================================================
+   AUTO FAILOVER UTAMA -> CADANGAN
+   ---------------------------------------------------------------
+   - Normal: aplikasi memakai Firestore UTAMA.
+   - Jika UTAMA gagal/kuota habis beberapa kali berturut-turut,
+     aplikasi menyimpan mode CADANGAN lalu memuat ulang ke CADANGAN.
+   - Saat CADANGAN aktif, aplikasi mencoba mengecek UTAMA secara berkala.
+   - Setelah UTAMA sehat beberapa kali berturut-turut, aplikasi kembali
+     ke UTAMA.
+   - Backup mirror TIDAK dijalankan ketika aplikasi sedang memakai
+     CADANGAN agar tidak terjadi loop CADANGAN -> CADANGAN.
+   ================================================================ */
+const FAILOVER_KEY='uts_digital_db_mode';
+const FAILOVER_PRIMARY='primary';
+const FAILOVER_BACKUP='backup';
+const FAILOVER_MAX_FAILURES=2;
+const FAILOVER_RECOVERY_SUCCESS=3;
+let appDbMode=localStorage.getItem(FAILOVER_KEY)||FAILOVER_PRIMARY;
+let db=(appDbMode===FAILOVER_BACKUP)?dbBackup:dbPrimary;
+let _failoverFailures=0;
+let _failoverRecovery=0;
+let _failoverTimer=null;
+let _failoverBusy=false;
+
+function failoverIsBackup(){return appDbMode===FAILOVER_BACKUP;}
+
+function failoverSetMode(mode,reason){
+  if(mode!==FAILOVER_PRIMARY && mode!==FAILOVER_BACKUP)return;
+  appDbMode=mode;
+  db=(mode===FAILOVER_BACKUP)?dbBackup:dbPrimary;
+  localStorage.setItem(FAILOVER_KEY,mode);
+  console.warn('[FAILOVER] mode = '+mode+(reason?' | '+reason:''));
+}
+
+async function failoverCheckPrimary(){
+  try{
+    /* Read ringan: tidak membuat dokumen baru dan tidak memicu full-sync. */
+    await dbPrimary.collection('_ct').doc('p').get({source:'server'});
+    return true;
+  }catch(e){
+    console.warn('[FAILOVER] pemeriksaan UTAMA gagal:',e&&e.code?e.code:e);
+    return false;
+  }
+}
+
+async function failoverToBackup(reason){
+  if(_failoverBusy || failoverIsBackup())return;
+  _failoverBusy=true;
+  try{
+    failoverSetMode(FAILOVER_BACKUP,reason||'UTAMA tidak tersedia');
+    try{if(typeof stopBackupSync==='function')stopBackupSync();}catch(_e){}
+    try{if(typeof clearUnsub==='function')clearUnsub();}catch(_e){}
+    /* Simpan halaman terakhir agar aplikasi dapat mencoba melanjutkan
+       alur yang sama setelah pindah server. */
+    try{localStorage.setItem('uts_failover_last_page',location.hash||'');}catch(_e){}
+    location.reload();
+  }finally{_failoverBusy=false;}
+}
+
+async function failoverBackToPrimary(reason){
+  if(_failoverBusy || !failoverIsBackup())return;
+  _failoverBusy=true;
+  try{
+    const ok=await failoverCheckPrimary();
+    if(!ok){_failoverRecovery=0;return;}
+    _failoverRecovery++;
+    if(_failoverRecovery<FAILOVER_RECOVERY_SUCCESS)return;
+    failoverSetMode(FAILOVER_PRIMARY,reason||'UTAMA sudah pulih');
+    try{if(typeof clearUnsub==='function')clearUnsub();}catch(_e){}
+    location.reload();
+  }finally{_failoverBusy=false;}
+}
+
+function startFailoverWatchdog(){
+  if(_failoverTimer)return;
+  /* Cek tiap 20 detik. Ini hanya satu read kecil, bukan listener. */
+  _failoverTimer=setInterval(async()=>{
+    if(_failoverBusy)return;
+    if(failoverIsBackup()){
+      await failoverBackToPrimary('UTAMA pulih');
+      return;
+    }
+    const ok=await failoverCheckPrimary();
+    if(ok){_failoverFailures=0;return;}
+    _failoverFailures++;
+    if(_failoverFailures>=FAILOVER_MAX_FAILURES){
+      await failoverToBackup('UTAMA gagal / quota / koneksi terputus');
+    }
+  },20000);
+}
+
+startFailoverWatchdog();
+
 
 
 /* ====== KONFIGURASI WAJIB ======
@@ -1421,7 +1519,8 @@ function gm(v){const m=canonicalMapel(v);return MP.find(x=>x.v===m)||{ic:'fa-fil
 
 function sR(n){return db.collection('schools').doc(n)}
 
-function eR(n){return db.collection('schools').doc(n).collection('exams')}
+function eR(n){return dbBackup.collection('schools').doc(n).collection('exams')}
+function eRPrimary(n){return db.collection('schools').doc(n).collection('exams')}
 
 function rR(n){return db.collection('schools').doc(n).collection('results')}
 
@@ -1466,7 +1565,7 @@ function attachBackupSync(){
   /* BACKUP HANYA BERJALAN DARI SESI ADMIN PUSAT.
      Jangan jalankan backup di browser siswa/admin sekolah karena setiap
      perangkat yang membuka aplikasi akan membuat listener + write sendiri. */
-  if(!D.isPusat)return;
+  if(!D.isPusat || failoverIsBackup())return;
   if(_backupSyncStarted)return;
   _backupSyncStarted=true;
 
@@ -1680,9 +1779,7 @@ async function dedupeExamCollection(npsn){
   });
   if(!duplicates.length)return {removed:0,kept:docs.length};
   for(let i=0;i<duplicates.length;i+=400){
-    const batch=db.batch();
-    duplicates.slice(i,i+400).forEach(ex=>batch.delete(eR(npsn).doc(ex.id)));
-    await batch.commit();
+    for(const ex of duplicates.slice(i,i+400)){ await eR(npsn).doc(ex.id).delete(); }
   }
   return {removed:duplicates.length,kept:docs.length-duplicates.length};
 }
@@ -1736,7 +1833,7 @@ async function bersihkanDuplikatPusatDanSekolah(){
 }
 
 async function loadPusatExams(){
-  const snap = await db.collection('schools').doc('PUSAT').collection('exams').get();
+  const snap = await dbBackup.collection('schools').doc('PUSAT').collection('exams').get();
   D.ex = snap.docs.map(d=>normalizeExamRecord({id:d.id,...d.data()}));
 }
 
@@ -1757,9 +1854,7 @@ async function enforcePusatOnlySchoolExams(npsn){
     const pusatIds=new Set(ps.docs.map(d=>d.id));
     const remove=ss.docs.filter(d=>!pusatIds.has(d.id));
     for(let i=0;i<remove.length;i+=400){
-      const batch=db.batch();
-      remove.slice(i,i+400).forEach(d=>batch.delete(eR(npsn).doc(d.id)));
-      await batch.commit();
+      for(const d of remove.slice(i,i+400)){ await eR(npsn).doc(d.id).delete(); }
     }
     return remove.length;
   }catch(_e){return 0;}
@@ -5801,17 +5896,17 @@ function konfirmasiHapusSekolah(npsn, nama){
 async function doHapusSekolah(npsn, nama){ 
   ld('Menghapus data sekolah & turunannya...'); 
   try { 
-    const batch = db.batch(); 
-     
+    /* Soal/paket ujian berada di SERVER CADANGAN. Hasil dan siswa tetap di UTAMA. */
     const exSnap = await eR(npsn).get(); 
-    exSnap.forEach(doc => batch.delete(doc.ref)); 
-     
+    for(const doc of exSnap.docs){ await doc.ref.delete(); }
+    
+    const batch = db.batch();
     const resSnap = await rR(npsn).get(); 
     resSnap.forEach(doc => batch.delete(doc.ref)); 
-     
+    
     const stuSnap = await wR(npsn).get(); 
     stuSnap.forEach(doc => batch.delete(doc.ref)); 
-     
+    
     await batch.commit(); 
      
     await sR(npsn).delete(); 
