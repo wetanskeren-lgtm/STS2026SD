@@ -1600,8 +1600,66 @@ function normalizeQuestionList(value){
 function normalizeQuestion(q){
   if(!q||typeof q!=='object')return q;
   const out={...q};
+
+  // Kompatibilitas data soal lama/berbagai format JSON.
+  // Format utama aplikasi tetap: {id,text,image,type,options,answer,key}.
+  if(out.text==null||String(out.text).trim()===''){
+    const altText=out.question??out.pertanyaan??out.soal??out.tanya??out.questionText??out.ques;
+    if(altText!=null)out.text=String(altText);
+  }
+  if(out.image==null||out.image===''){
+    const altImg=out.img??out.gambar??out.imageUrl??out.questionImage;
+    if(altImg!=null)out.image=altImg;
+  }
+  if(!out.type){
+    const t=String(out.jenis??out.tipe??out.questionType??'').toLowerCase();
+    out.type=(t==='essay'||t==='uraian'||t==='esay'||t==='isian')?'essay':'pg';
+  }
+
+  if(out.options==null){
+    const altOpts=out.choices??out.opsi??out.pilihan??out.answers??out.option;
+    if(altOpts!=null)out.options=altOpts;
+  }
   if(out.options&&!Array.isArray(out.options))out.options=normalizeQuestionList(out.options);
+  if(Array.isArray(out.options)){
+    out.options=out.options.map(o=>{
+      if(o&&typeof o==='object'){
+        return {text:String(o.text??o.label??o.jawaban??o.value??''),image:String(o.image??o.img??o.gambar??o.imageUrl??'')};
+      }
+      return String(o??'');
+    });
+  }
+
+  if(out.answer==null){
+    const a=out.correctAnswer??out.jawabanBenar??out.kunci??out.correct??out.answerIndex;
+    if(a!=null)out.answer=a;
+  }
+  if(out.type!=='essay' && out.answer!=null){
+    // Terima index 0-based, huruf A/B/C/D, maupun angka 1-based dari data lama.
+    const av=String(out.answer).trim();
+    if(/^[A-Z]$/i.test(av)) out.answer=av.toUpperCase().charCodeAt(0)-65;
+    else if(/^\d+$/.test(av)){
+      const n=Number(av);
+      out.answer=(n>=1 && n<=10 && !out.answerIsZeroBased)?n-1:n;
+    } else out.answer=0;
+  }
+  if(out.key==null){
+    const k=out.answerKey??out.kunciJawaban??out.jawaban??out.jawabanUraian;
+    if(k!=null)out.key=String(k);
+  }
+  if(!out.id)out.id=uid();
   return out;
+}
+
+function questionIsUsable(q){
+  const n=normalizeQuestion(q);
+  if(!n||typeof n!=='object')return false;
+  if(String(n.text??'').trim())return true;
+  // Soal uraian lama kadang hanya memiliki key/field jawaban.
+  return n.type==='essay' && String(n.key??'').trim()!=='';
+}
+function usableQuestionList(value){
+  return normalizeQuestionList(value).map(normalizeQuestion).filter(questionIsUsable);
 }
 function normalizeExamRecord(ex){
   if(!ex)return ex;
@@ -4650,17 +4708,19 @@ async function editUjian(eid){
      kembali isinya ke Server Cadangan. Server Cadangan tetap menjadi server
      aktif untuk seluruh operasi aplikasi.
   */
-  let draftQs=normalizeQuestionList(ex.draftQuestions);
-  let currentQs=normalizeQuestionList(ex.questions);
+  let draftQs=usableQuestionList(ex.draftQuestions);
+  let currentQs=usableQuestionList(ex.questions);
 
+  // Jangan membuka editor dengan kartu "Teks soal kosong". Jika data aktif
+  // kosong/tidak valid, coba pulihkan paket lengkap dari Server Utama.
   if(draftQs.length===0 && currentQs.length===0){
     ld('Memulihkan soal paket...');
     try{
       const oldSnap=await PRIMARY_PUSAT_EXAM_PATH().doc(eid).get();
       if(oldSnap.exists){
         const oldEx=normalizeExamRecord({id:oldSnap.id,...oldSnap.data()});
-        const oldDraft=normalizeQuestionList(oldEx.draftQuestions);
-        const oldQuestions=normalizeQuestionList(oldEx.questions);
+        const oldDraft=usableQuestionList(oldEx.draftQuestions);
+        const oldQuestions=usableQuestionList(oldEx.questions);
         const recovered=oldDraft.length?oldDraft:oldQuestions;
         if(recovered.length){
           await BACKUP_PUSAT_EXAM_PATH().doc(eid).set({
@@ -4779,7 +4839,8 @@ function renderEditSoal(ex){
 function renderSoalList(ex){
   const list=$('eqList');if(!list)return;
   const mo=maxOpts(ex.kelas);
-  const qs=Array.isArray(D.editQs)?D.editQs:[];
+  const qs=Array.isArray(D.editQs)?D.editQs.map(normalizeQuestion).filter(questionIsUsable):[];
+  D.editQs=qs;
   if(qs.length===0){
     list.innerHTML=`<p style="text-align:center;color:var(--mt);font-size:.85rem;padding:20px">Belum ada soal.</p>`;
     return;
@@ -5055,7 +5116,7 @@ async function simpanSoal(eid){
 
   if(D._savingExam)return;
 
-  const text=$v('eqText');if(!text)return tt('Teks soal wajib!','er');
+  const text=$v('eqText').trim();if(!text)return tt('Teks soal wajib!','er');
 
   const image=$v('eqImg')||'';const isEssay=$('eqEssayWrap').style.display!=='none';const mo=maxOpts(D.editKelas);
 
