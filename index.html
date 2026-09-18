@@ -344,6 +344,12 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 
 .soal-text{font-weight:bold;display:block;word-wrap:break-word;overflow-wrap:break-word}
 
+/* Teks bacaan/soal panjang: rata kiri-kanan. Judul yang dipisahkan oleh baris baru dibuat rata tengah. */
+.pd .soal-body-text{font-weight:400;text-align:justify;line-height:1.35;word-wrap:break-word;overflow-wrap:break-word}
+.pd .soal-body-title{display:block;text-align:center;font-weight:700;margin:0 0 4px 0;line-height:1.25}
+.pd .soal-body-paragraph{display:block;text-align:justify;margin:0 0 4px 0}
+
+
 
 
 /* Gambar soal */
@@ -3252,6 +3258,20 @@ function previewPDF(blob, filename){
 
    ================================================================ */
 
+/* Format teks soal untuk PDF: jika ada judul pada baris terpisah,
+   judul dipusatkan dan isi bacaan/pertanyaan diratakan kiri-kanan. */
+function formatPdfQuestionText(raw){
+  const s=String(raw==null?'':raw).replace(/\r\n|\r/g,'\n').trim();
+  if(!s) return '';
+  const lines=s.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  if(lines.length<2){
+    return `<span class="soal-body-paragraph">${s}</span>`;
+  }
+  const title=lines[0];
+  const body=lines.slice(1).join(' ');
+  return `<span class="soal-body-title">${title}</span><span class="soal-body-paragraph">${body}</span>`;
+}
+
 async function cSoalPDF(exId, npsn){
 
   const schBackup=D.sch, ssBackup=D.ss;
@@ -3415,11 +3435,11 @@ async function cSoalPDF(exId, npsn){
     if(q.image) imageHtml = `<div class="soal-img-wrap"><img class="pdf-img" data-hide="wrap" src="${q.image}" crossorigin="anonymous" referrerpolicy="no-referrer"></div>`;
 
     const statementMode=isStatementQuestion(q);
-    const qTextHtml=statementMode?formatStatementText(q):capFirst(q.text);
+    const qTextHtml=statementMode?formatStatementText(q):formatPdfQuestionText(capFirst(q.text));
 
     pgHtml += `<div class="soal-block ${statementMode?'statement-question':''}" id="soal-pg-${i}">
 
-      <div class="soal-row"><span class="sn">${i + 1}.</span><span class="sc2"><span class="soal-text">${qTextHtml}</span>${imageHtml}${opsiHtml}</span></div>
+      <div class="soal-row"><span class="sn">${i + 1}.</span><span class="sc2"><span class="soal-text soal-body-text">${qTextHtml}</span>${imageHtml}${opsiHtml}</span></div>
 
     </div>`;
 
@@ -3437,7 +3457,7 @@ async function cSoalPDF(exId, npsn){
 
       essayHtml += `<div class="soal-block" id="soal-es-${i}">
 
-        <div class="soal-row"><span class="sn">${pgQuestions.length + i + 1}.</span><span class="sc2"><span class="soal-text">${capFirst(q.text)}</span>${imageHtml}<div class="essay-box"></div></span></div>
+        <div class="soal-row"><span class="sn">${pgQuestions.length + i + 1}.</span><span class="sc2"><span class="soal-text soal-body-text">${formatPdfQuestionText(capFirst(q.text))}</span>${imageHtml}<div class="essay-box"></div></span></div>
 
       </div>`;
 
