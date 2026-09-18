@@ -118,11 +118,12 @@ async function migrateExamCollection(srcCol,dstCol,report,label){
 }
 async function migrateAllExceptResults(){
   if(!D.isPusat) throw new Error('Migrasi hanya boleh dijalankan oleh Admin Pusat.');
-  const report={read:0,written:0,skippedResults:0,errors:[]};
+  const report={read:0,written:0,examRead:0,examWritten:0,skippedResults:0,errors:[],subjects:new Set(),classes:new Set(),examIds:new Set()};
   const status=(m)=>{const el=document.getElementById('migrationStatus');if(el)el.innerHTML=m;};
-  status('Memeriksa dan memperbaiki data Server Cadangan...');
+  const safe=()=>({read:report.read,written:report.written,examRead:report.examRead,examWritten:report.examWritten,subjects:[...report.subjects].sort(),classes:[...report.classes].sort(),errors:report.errors});
+  status('🔎 Memindai SEMUA paket soal dari Server Utama...');
 
-  // Top-level mail.
+  // Data umum: mail.
   try{await migrationCopyCollection(dbMigrationPrimary.collection('mail'),db.collection('mail'),report,'mail');}
   catch(e){report.errors.push('mail: '+e.message);}
 
@@ -134,35 +135,107 @@ async function migrateAllExceptResults(){
     report.read+=schools.length;
   }catch(e){report.errors.push('schools: '+e.message);}
 
-  // Salin data sekolah yang diperlukan. results sengaja TIDAK disentuh.
+  // Salin students, tetapi JANGAN menyentuh results.
   for(const school of schools){
     const n=school.id;
-    for(const sub of ['students','exams']){
-      try{
-        const src=dbMigrationPrimary.collection('schools').doc(n).collection(sub);
-        const dst=db.collection('schools').doc(n).collection(sub);
-        const count=await migrationCopyCollection(src,dst,report,`schools/${n}/${sub}`);
-        if(sub==='exams') status(`Soal ${n}: ${count} paket diperiksa/dipindahkan`);
-      }catch(e){report.errors.push(`schools/${n}/${sub}: ${e.message}`);}
-    }
-    // Hanya hitung untuk laporan; TIDAK membaca/menulis hasil jika ingin hemat kuota.
+    try{
+      const src=dbMigrationPrimary.collection('schools').doc(n).collection('students');
+      const dst=db.collection('schools').doc(n).collection('students');
+      await migrationCopyCollection(src,dst,report,`schools/${n}/students`);
+    }catch(e){report.errors.push(`schools/${n}/students: ${e.message}`);}
   }
 
-  // Koleksi exams tingkat atas bila pernah dipakai versi lama.
-  try{
-    await migrationCopyCollection(dbMigrationPrimary.collection('exams'),db.collection('exams'),report,'exams');
-  }catch(_e){/* tidak wajib */}
+  // ================================================================
+  // MIGRASI SOAL TOTAL
+  // Jangan hanya mengambil PUSAT. Semua exams yang pernah diimpor,
+  // baik berada di PUSAT maupun tersimpan pada sekolah, ikut dicari.
+  // Semua paket dipertahankan dengan ID aslinya.
+  // ================================================================
+  const examTargets=new Map(); // key path/id -> {id,data,source}
+  for(const school of schools){
+    const n=school.id;
+    try{
+      status(`🔎 Memeriksa paket soal: ${n}...`);
+      const snap=await dbMigrationPrimary.collection('schools').doc(n).collection('exams').get();
+      report.examRead+=snap.size; report.read+=snap.size;
+      snap.forEach(d=>{
+        const data=d.data()||{};
+        const mapel=canonicalMapel(data.mapel||data.subject||'');
+        const kelas=data.kelas ?? data.class ?? '';
+        if(mapel) report.subjects.add(mapel);
+        if(kelas!=='' && kelas!=null) report.classes.add(String(kelas));
+        report.examIds.add(d.id);
+        // Simpan salinan per sekolah dengan ID asli.
+        examTargets.set(`${n}/${d.id}`,{school:n,id:d.id,data:{...data,id:d.id},source:`schools/${n}/exams/${d.id}`});
+      });
+    }catch(e){report.errors.push(`schools/${n}/exams: ${e.message}`);}
+  }
 
-  // Khusus PUSAT: pastikan paket soal pusat ikut dipindahkan dan diperbaiki.
+  // Koleksi exams lama tingkat atas, bila ada.
   try{
-    const pusatSrc=dbMigrationPrimary.collection('schools').doc('PUSAT').collection('exams');
-    const pusatDst=db.collection('schools').doc('PUSAT').collection('exams');
-    const count=await migrateExamCollection(pusatSrc,pusatDst,report,'PUSAT/exams');
-    status(`Soal Admin Pusat: ${count} paket sudah diperiksa dan dipindahkan.`);
-  }catch(e){report.errors.push('PUSAT/exams: '+e.message);}
+    const snap=await dbMigrationPrimary.collection('exams').get();
+    report.examRead+=snap.size; report.read+=snap.size;
+    snap.forEach(d=>{
+      const data=d.data()||{};
+      const mapel=canonicalMapel(data.mapel||data.subject||'');
+      const kelas=data.kelas ?? data.class ?? '';
+      if(mapel) report.subjects.add(mapel);
+      if(kelas!=='' && kelas!=null) report.classes.add(String(kelas));
+      report.examIds.add(d.id);
+      examTargets.set(`__TOP__/${d.id}`,{school:'__TOP__',id:d.id,data:{...data,id:d.id},source:`exams/${d.id}`});
+    });
+  }catch(e){/* koleksi ini opsional */}
 
-  // RTDB: salin seluruh root, tetapi jangan menghapus data yang sudah ada di backup.
-  status('Menyalin data RTDB...');
+  // Tulis kembali semua paket pada lokasi asalnya di Server Cadangan.
+  const allExamDocs=[...examTargets.values()];
+  for(let i=0;i<allExamDocs.length;i+=80){
+    const part=allExamDocs.slice(i,i+80);
+    let done=false,last=null;
+    for(let attempt=1;attempt<=5&&!done;attempt++){
+      try{
+        const batch=db.batch();
+        for(const item of part){
+          const dst=item.school==='__TOP__'
+            ? db.collection('exams').doc(item.id)
+            : db.collection('schools').doc(item.school).collection('exams').doc(item.id);
+          batch.set(dst,item.data,{merge:true});
+        }
+        await batch.commit(); done=true;
+      }catch(e){last=e;await new Promise(r=>setTimeout(r,1000*attempt));}
+    }
+    if(!done){report.errors.push(`paket soal batch ${i+1}: ${last?.message||'gagal'}`);continue;}
+    report.examWritten+=part.length; report.written+=part.length;
+    status(`📚 Paket soal dipindahkan: ${Math.min(i+part.length,allExamDocs.length)} / ${allExamDocs.length}<br>Mapel: ${[...report.subjects].join(', ')||'-'}<br>Kelas: ${[...report.classes].join(', ')||'-'}`);
+  }
+
+  // PENTING: semua paket soal pusat dijadikan sumber utama Admin Pusat di backup.
+  // Paket dari sekolah yang berbeda juga dikumpulkan jika belum ada di PUSAT.
+  const pusatMap=new Map();
+  for(const item of allExamDocs){
+    if(item.school==='PUSAT' || item.school==='__TOP__') pusatMap.set(item.id,item.data);
+  }
+  for(const item of allExamDocs){
+    if(item.school!=='PUSAT' && item.school!=='__TOP__'){
+      // Hanya masukkan sebagai paket pusat jika ID belum ditemukan di pusat.
+      if(!pusatMap.has(item.id)) pusatMap.set(item.id,item.data);
+    }
+  }
+  const pusatItems=[...pusatMap.entries()].map(([id,data])=>({id,data}));
+  for(let i=0;i<pusatItems.length;i+=80){
+    const part=pusatItems.slice(i,i+80); let done=false,last=null;
+    for(let attempt=1;attempt<=5&&!done;attempt++){
+      try{
+        const batch=db.batch();
+        part.forEach(x=>batch.set(db.collection('schools').doc('PUSAT').collection('exams').doc(x.id),x.data,{merge:true}));
+        await batch.commit(); done=true;
+      }catch(e){last=e;await new Promise(r=>setTimeout(r,1000*attempt));}
+    }
+    if(!done) report.errors.push(`PUSAT/exams batch ${i+1}: ${last?.message||'gagal'}`);
+    else {report.examWritten+=part.length;report.written+=part.length;}
+  }
+
+  // RTDB: salin seluruh root primary -> backup. Hasil ujian Firestore tetap tidak disentuh.
+  status('🖼️ Menyalin data RTDB...');
   try{
     const r=await fetch(migrationPrimaryRTDB+'/.json');
     if(!r.ok) throw new Error('HTTP '+r.status);
@@ -173,17 +246,18 @@ async function migrateAllExceptResults(){
     }
   }catch(e){report.errors.push('RTDB: '+e.message);}
 
-  status(`<b>Perbaikan migrasi selesai.</b><br>Dokumen dibaca: ${report.read}<br>Dokumen ditulis/diperbarui: ${report.written}<br>${report.errors.length?'⚠️ Kesalahan:<br>'+report.errors.join('<br>'):'✅ Tidak ada kesalahan yang dilaporkan.'}<br><br><b>Jalankan MIGRASI ULANG</b> jika sebelumnya ada soal yang belum masuk.`);
+  const uniqueSubjects=[...report.subjects].sort();
+  const uniqueClasses=[...report.classes].sort();
+  status(`<b>✅ MIGRASI SEMUA PAKET SOAL SELESAI</b><br>Dokumen dibaca: ${report.read}<br>Dokumen ditulis/diperbarui: ${report.written}<br><b>Paket soal ditemukan: ${report.examRead}</b><br><b>Paket soal ditulis: ${report.examWritten}</b><br><b>Mapel ditemukan (${uniqueSubjects.length}):</b> ${uniqueSubjects.join(', ')||'-'}<br><b>Kelas ditemukan:</b> ${uniqueClasses.join(', ')||'-'}<br>${report.errors.length?'⚠️ Kesalahan:<br>'+report.errors.join('<br>'):'✅ Tidak ada kesalahan yang dilaporkan.'}`);
   return report;
 }
-
 function showMigrationPanel(){
   if(!D.isPusat) return;
   let el=document.getElementById('migrationPanel');
   if(el) return;
   el=document.createElement('div'); el.id='migrationPanel';
   el.style='position:fixed;right:18px;bottom:18px;z-index:99999;background:#fff;padding:16px;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.22);max-width:420px;border:2px solid #ddd';
-  el.innerHTML='<b>🔄 Pindahkan Data Lama</b><p style="margin:8px 0;font-size:13px">Memindahkan semua data Server Utama ke Server Cadangan, <b>kecuali hasil ujian/jawaban</b>.</p><button id="migrationBtn" style="padding:10px 14px;border:0;border-radius:9px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">MULAI MIGRASI</button><button id="migrationClose" style="margin-left:6px;padding:10px;border:0;border-radius:9px;cursor:pointer">Tutup</button><div id="migrationStatus" style="margin-top:10px;font-size:12px;max-height:220px;overflow:auto"></div>';
+  el.innerHTML='<b>🔄 Pindahkan Data Lama</b><p style="margin:8px 0;font-size:13px">Memindahkan semua data Server Utama ke Server Cadangan, <b>kecuali hasil ujian/jawaban</b>.</p><button id="migrationBtn" style="padding:10px 14px;border:0;border-radius:9px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">MULAI MIGRASI SEMUA SOAL</button><button id="migrationClose" style="margin-left:6px;padding:10px;border:0;border-radius:9px;cursor:pointer">Tutup</button><div id="migrationStatus" style="margin-top:10px;font-size:12px;max-height:220px;overflow:auto"></div>';
   document.body.appendChild(el);
   el.querySelector('#migrationClose').onclick=()=>el.remove();
   el.querySelector('#migrationBtn').onclick=async()=>{const b=el.querySelector('#migrationBtn');b.disabled=true;b.textContent='MEMINDAHKAN...';try{await migrateAllExceptResults();}catch(e){document.getElementById('migrationStatus').textContent='Gagal: '+e.message;}b.disabled=false;b.textContent='MIGRASI ULANG';};
