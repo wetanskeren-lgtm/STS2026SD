@@ -54,6 +54,111 @@ const BACKUP_RTDB_URL=backupFirebaseConfig.databaseURL;
    (bentuknya: https://<project>-default-rtdb.<region>.firebasedatabase.app) */
 
 const RTDB_URL=BACKUP_RTDB_URL;
+/* ================================================================
+   MIGRASI SATU KALI: SERVER UTAMA -> SERVER CADANGAN
+   Yang dipindahkan: schools, students, exams, mail dan RTDB.
+   Yang SENGAJA TIDAK dipindahkan: results (hasil ujian/jawaban).
+   Server utama hanya dipakai oleh tombol migrasi, bukan oleh aplikasi.
+================================================================ */
+const MIGRATION_PRIMARY_CONFIG={
+  apiKey:"AIzaSyDUQzyCiKcnTn43A78hXb5kO0BUEBHyO0Y4",
+  authDomain:"pts2026-fb4d7.firebaseapp.com",
+  projectId:"pts2026-fb4d7",
+  storageBucket:"pts2026-fb4d7.firebasestorage.app",
+  messagingSenderId:"167251105079",
+  appId:"1:167251105079:web:c652c51458227620f236b2",
+  measurementId:"G-SEF0HCJ5CK",
+  databaseURL:"https://pts2026-fb4d7-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+const migrationPrimaryApp=firebase.initializeApp(MIGRATION_PRIMARY_CONFIG,"MIGRATION_PRIMARY");
+const dbMigrationPrimary=firebase.firestore(migrationPrimaryApp);
+const migrationPrimaryRTDB=MIGRATION_PRIMARY_CONFIG.databaseURL;
+
+async function migrationWriteDocs(dstCol, docs, report){
+  let batch=db.batch(), n=0;
+  for(const d of docs){
+    batch.set(dstCol.doc(d.id), d.data, {merge:false}); n++;
+    if(n===450){ await batch.commit(); report.written+=n; batch=db.batch(); n=0; }
+  }
+  if(n){ await batch.commit(); report.written+=n; }
+}
+async function migrationCopyCollection(srcCol, dstCol, report){
+  const snap=await srcCol.get();
+  const docs=snap.docs.map(d=>({id:d.id,data:d.data()}));
+  await migrationWriteDocs(dstCol,docs,report);
+  report.read+=docs.length;
+  return docs.length;
+}
+async function migrateAllExceptResults(){
+  if(!D.isPusat) throw new Error('Migrasi hanya boleh dijalankan oleh Admin Pusat.');
+  const report={read:0,written:0,skippedResults:0,errors:[]};
+  const status=(m)=>{const el=document.getElementById('migrationStatus');if(el)el.innerHTML=m;};
+  status('Membaca data Server Utama...');
+
+  // Top-level collections used by this application. results deliberately excluded.
+  for(const col of ['mail']){
+    try{ await migrationCopyCollection(dbMigrationPrimary.collection(col),db.collection(col),report); }
+    catch(e){ report.errors.push(col+': '+e.message); }
+  }
+
+  let schools=[];
+  try{
+    const snap=await dbMigrationPrimary.collection('schools').get();
+    report.read+=snap.size;
+    schools=snap.docs.map(d=>({id:d.id,data:d.data()}));
+    await migrationWriteDocs(db.collection('schools'),schools,report);
+  }catch(e){report.errors.push('schools: '+e.message);}
+
+  for(const school of schools){
+    const n=school.id;
+    for(const sub of ['students','exams']){
+      try{
+        await migrationCopyCollection(
+          dbMigrationPrimary.collection('schools').doc(n).collection(sub),
+          db.collection('schools').doc(n).collection(sub), report
+        );
+      }catch(e){report.errors.push('schools/'+n+'/'+sub+': '+e.message);}
+    }
+    // NEVER copy schools/{n}/results.
+    try{
+      const rs=await dbMigrationPrimary.collection('schools').doc(n).collection('results').get();
+      report.skippedResults+=rs.size;
+    }catch(_e){/* results may not exist */}
+  }
+
+  // If a top-level exams collection exists in the old project, preserve it too.
+  try{
+    const topEx=await dbMigrationPrimary.collection('exams').get();
+    if(topEx.size) await migrationWriteDocs(db.collection('exams'),topEx.docs.map(d=>({id:d.id,data:d.data()})),report);
+    report.read+=topEx.size;
+  }catch(_e){/* collection absent is fine */}
+
+  status('Menyalin data RTDB...');
+  try{
+    const r=await fetch(migrationPrimaryRTDB+'/.json');
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const all=await r.json();
+    // Merge root data into backup. This does not touch Firestore results.
+    const wr=await fetch(BACKUP_RTDB_URL+'/.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(all||{})});
+    if(!wr.ok) throw new Error('Backup RTDB HTTP '+wr.status);
+  }catch(e){report.errors.push('RTDB: '+e.message);}
+
+  status(`<b>Migrasi selesai.</b><br>Dokumen dibaca: ${report.read}<br>Dokumen ditulis: ${report.written}<br>Hasil ujian yang sengaja dilewati: ${report.skippedResults}<br>${report.errors.length?'⚠️ Kesalahan:<br>'+report.errors.join('<br>'):'✅ Tidak ada kesalahan yang dilaporkan.'}`);
+  return report;
+}
+
+function showMigrationPanel(){
+  if(!D.isPusat) return;
+  let el=document.getElementById('migrationPanel');
+  if(el) return;
+  el=document.createElement('div'); el.id='migrationPanel';
+  el.style='position:fixed;right:18px;bottom:18px;z-index:99999;background:#fff;padding:16px;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.22);max-width:420px;border:2px solid #ddd';
+  el.innerHTML='<b>🔄 Pindahkan Data Lama</b><p style="margin:8px 0;font-size:13px">Memindahkan semua data Server Utama ke Server Cadangan, <b>kecuali hasil ujian/jawaban</b>.</p><button id="migrationBtn" style="padding:10px 14px;border:0;border-radius:9px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">MULAI MIGRASI</button><button id="migrationClose" style="margin-left:6px;padding:10px;border:0;border-radius:9px;cursor:pointer">Tutup</button><div id="migrationStatus" style="margin-top:10px;font-size:12px;max-height:220px;overflow:auto"></div>';
+  document.body.appendChild(el);
+  el.querySelector('#migrationClose').onclick=()=>el.remove();
+  el.querySelector('#migrationBtn').onclick=async()=>{const b=el.querySelector('#migrationBtn');b.disabled=true;b.textContent='MEMINDAHKAN...';try{await migrateAllExceptResults();}catch(e){document.getElementById('migrationStatus').textContent='Gagal: '+e.message;}b.disabled=false;b.textContent='MIGRASI ULANG';};
+}
+
 
 </script>
 
@@ -5588,5 +5693,14 @@ function renderSD(){
   console.info('[SERVER] Semua data aplikasi menggunakan Server Cadangan stscadangan2026.');
 })();
 </script> 
+<script>
+(function(){
+  let shown=false;
+  const timer=setInterval(()=>{
+    try{ if(window.D && D.isPusat && !shown){ shown=true; showMigrationPanel(); } }catch(_e){}
+  },1500);
+  setTimeout(()=>clearInterval(timer),30*60*1000);
+})();
+</script>
 </body> 
 </html> 
