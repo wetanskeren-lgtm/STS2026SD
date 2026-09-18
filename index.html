@@ -1230,7 +1230,22 @@ service cloud.firestore {
 
     </div>
 
-    <div id="serverPicker"></div>
+    <div id="serverPicker" style="display:block!important;margin-top:22px;position:relative;z-index:20;">
+      <div class="cd" style="padding:16px 18px;margin-top:0;border:2px solid var(--pr);background:rgba(255,255,255,.98);box-shadow:0 8px 24px rgba(0,0,0,.08)">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p style="font-weight:800;font-size:1rem"><i class="fas fa-server mr-2" style="color:var(--pr)"></i>Pilih Server</p>
+            <p style="font-size:.74rem;color:var(--mt);margin-top:4px">Pilih server yang digunakan untuk login dan data aplikasi. Soal Pusat tetap disinkronkan ke kedua server.</p>
+          </div>
+          <span id="activeServerBadge" class="schb"><i class="fas fa-shield-halved"></i> Server Cadangan</span>
+        </div>
+        <div class="flex gap-2 flex-wrap mt-3">
+          <button type="button" data-server-choice="utama" class="bt bt5 bts" onclick="setActiveServer('utama')"><i class="fas fa-cloud"></i> Server Utama</button>
+          <button type="button" data-server-choice="cadangan" class="bt bt2 bts" onclick="setActiveServer('cadangan')"><i class="fas fa-shield-halved"></i> Server Cadangan</button>
+        </div>
+        <p style="font-size:.68rem;color:var(--mt);margin-top:9px"><i class="fas fa-circle-info mr-1"></i>Server terpilih disimpan di perangkat ini dan bisa diganti kapan saja sebelum login.</p>
+      </div>
+    </div>
 
     <p class="mt-4 daai-tagline"><span>DAAI SCORE</span><span class="tag-arrow">→</span><span>MENUJU I2 SCORE</span></p>
 
