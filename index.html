@@ -4638,11 +4638,54 @@ async function buatUjian(){
 
 /* ===== EDIT SOAL ===== */
 
-function editUjian(eid){
+async function editUjian(eid){
   if(!D.isPusat)return tt('Soal dari Admin Pusat tidak dapat diedit di Admin Sekolah.','er');
-  const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
-  /* Admin Pusat mengedit DRAF. Soal yang tampil ke siswa tetap ex.questions. */
-  const sourceQuestions=normalizeQuestionList(Array.isArray(ex.draftQuestions)&&ex.draftQuestions.length?ex.draftQuestions:ex.questions);
+  let ex=D.ex.find(e=>e.id===eid);if(!ex)return;
+
+  /*
+     PERBAIKAN PENTING:
+     Jika dokumen paket di Server Cadangan masih memiliki questions kosong,
+     jangan tampilkan form Edit dalam keadaan kosong. Ambil isi paket lama
+     dari Server Utama HANYA untuk paket yang sedang dibuka, lalu simpan
+     kembali isinya ke Server Cadangan. Server Cadangan tetap menjadi server
+     aktif untuk seluruh operasi aplikasi.
+  */
+  let draftQs=normalizeQuestionList(ex.draftQuestions);
+  let currentQs=normalizeQuestionList(ex.questions);
+
+  if(draftQs.length===0 && currentQs.length===0){
+    ld('Memulihkan soal paket...');
+    try{
+      const oldSnap=await PRIMARY_PUSAT_EXAM_PATH().doc(eid).get();
+      if(oldSnap.exists){
+        const oldEx=normalizeExamRecord({id:oldSnap.id,...oldSnap.data()});
+        const oldDraft=normalizeQuestionList(oldEx.draftQuestions);
+        const oldQuestions=normalizeQuestionList(oldEx.questions);
+        const recovered=oldDraft.length?oldDraft:oldQuestions;
+        if(recovered.length){
+          await BACKUP_PUSAT_EXAM_PATH().doc(eid).set({
+            questions:JSON.parse(JSON.stringify(oldQuestions)),
+            ...(oldDraft.length?{draftQuestions:JSON.parse(JSON.stringify(oldDraft)),draftUpdatedAt:oldEx.draftUpdatedAt||oldEx.updatedAt||Date.now()}:{}),
+            updatedAt:Math.max(Number(ex.updatedAt||0),Number(oldEx.updatedAt||0),Date.now())
+          },{merge:true});
+          ex=normalizeExamRecord({...ex,questions:oldQuestions,draftQuestions:oldDraft.length?oldDraft:undefined});
+          const pos=D.ex.findIndex(e=>e.id===eid);
+          if(pos>=0)D.ex[pos]=ex;
+          draftQs=oldDraft;currentQs=oldQuestions;
+          tt(recovered.length+' soal berhasil dipulihkan ke Server Cadangan.','ok');
+        }
+      }
+    }catch(e){
+      console.warn('[EDIT SOAL] pemulihan paket gagal',e);
+      tt('Soal lama belum dapat dipulihkan: '+(e.code||e.message),'er');
+    }finally{
+      hd();
+    }
+  }
+
+  /* Admin Pusat mengedit DRAF. Jika tidak ada draf, gunakan soal yang
+     sedang tampil ke siswa. */
+  const sourceQuestions=draftQs.length?draftQs:currentQs;
   D.editQs=JSON.parse(JSON.stringify(sourceQuestions.map(normalizeQuestion)));
   if(!Array.isArray(D.editQs))D.editQs=[];
   D.editIdx=-1;D.editKelas=ex.kelas;
