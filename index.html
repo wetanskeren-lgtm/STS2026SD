@@ -1432,169 +1432,106 @@ function $(id){return document.getElementById(id)}
 function $v(id){return $(id).value.trim()}
 
 /* ================================================================
-   BACKUP SYNC ENGINE — UTAMA -> CADANGAN
-   ---------------------------------------------------------------
-   Memantulkan data Firestore utama ke project stscadangan2026.
-   Cakupan:
-   - schools/*
-   - schools/{npsn}/exams
-   - schools/{npsn}/results
-   - schools/{npsn}/students
-   - mail/*
-   - gambar/images pada Realtime Database
+   BACKUP SYNC ENGINE — RINGAN / ANTI-QUOTA
+   Satu arah: UTAMA -> CADANGAN.
 
-   Catatan: karena aplikasi ini berjalan langsung di browser, listener
-   aktif selama halaman aplikasi terbuka. Untuk sinkronisasi 24/7 saat
-   tidak ada browser yang membuka aplikasi, gunakan backend/Cloud
-   Functions sebagai proses sinkronisasi permanen.
+   Prinsip:
+   - Tidak melakukan full-sync berulang.
+   - Tidak membuat 3 listener untuk setiap sekolah.
+   - Hanya 5 listener Firestore global:
+       schools, mail, exams, results, students.
+   - collectionGroup listener menerima kondisi awal + perubahan,
+     sehingga tidak perlu get() full database lagi.
+   - RTDB gambar disinkronkan saat mulai dan saat upload/hapus,
+     tanpa timer GET setiap 60 detik.
    ================================================================ */
 let _backupSyncStarted=false;
-let _backupSchoolUnsubs=new Map();
 let _backupRootUnsubs=[];
-let _backupSyncBusy=false;
+let _backupRtdbInitialDone=false;
 
 function backupSafeData(data){
-  try{return JSON.parse(JSON.stringify(data||{}));}catch(_e){return data||{};}
+  try{return JSON.parse(JSON.stringify(data||{}));}
+  catch(_e){return data||{};}
 }
 
-async function backupMirrorCollection(docRef, data, deleted=false){
-  if(deleted){await docRef.delete();return;}
-  await docRef.set(backupSafeData(data),{merge:false});
+async function backupSet(ref,data){
+  await ref.set(backupSafeData(data),{merge:false});
 }
 
-async function backupDeleteSubcollection(parentPath, sub){
-  try{
-    const snap=await dbBackup.doc(parentPath).collection(sub).get();
-    if(!snap.size)return;
-    for(let i=0;i<snap.docs.length;i+=400){
-      const b=dbBackup.batch();
-      snap.docs.slice(i,i+400).forEach(d=>b.delete(d.ref));
-      await b.commit();
-    }
-  }catch(e){console.warn('[BACKUP] gagal membersihkan',parentPath,sub,e);}
-}
-
-function stopBackupSchoolListener(schoolId){
-  const arr=_backupSchoolUnsubs.get(schoolId)||[];
-  arr.forEach(u=>{try{u();}catch(_e){}});
-  _backupSchoolUnsubs.delete(schoolId);
-}
-
-function attachBackupSchoolListener(schoolId){
-  if(_backupSchoolUnsubs.has(schoolId))return;
-  const arr=[];
-  const subs=['exams','results','students'];
-  for(const sub of subs){
-    const u=db.collection('schools').doc(schoolId).collection(sub).onSnapshot(async snap=>{
-      try{
-        for(const change of snap.docChanges()){
-          const ref=dbBackup.collection('schools').doc(schoolId).collection(sub).doc(change.doc.id);
-          if(change.type==='removed') await ref.delete();
-          else await ref.set(backupSafeData(change.doc.data()),{merge:false});
-        }
-      }catch(e){console.error('[BACKUP]',sub,schoolId,e);}
-    },e=>console.error('[BACKUP] listener',sub,schoolId,e));
-    arr.push(u);
-  }
-  _backupSchoolUnsubs.set(schoolId,arr);
-}
-
-async function backupFullSchoolSync(schoolId){
-  const root=await db.collection('schools').doc(schoolId).get();
-  if(!root.exists){
-    stopBackupSchoolListener(schoolId);
-    await backupDeleteSubcollection('schools/'+schoolId,'exams');
-    await backupDeleteSubcollection('schools/'+schoolId,'results');
-    await backupDeleteSubcollection('schools/'+schoolId,'students');
-    await dbBackup.collection('schools').doc(schoolId).delete();
-    return;
-  }
-  await dbBackup.collection('schools').doc(schoolId).set(backupSafeData(root.data()),{merge:false});
-  for(const sub of ['exams','results','students']){
-    const snap=await root.ref.collection(sub).get();
-    for(let i=0;i<snap.docs.length;i+=400){
-      const b=dbBackup.batch();
-      snap.docs.slice(i,i+400).forEach(d=>b.set(dbBackup.collection('schools').doc(schoolId).collection(sub).doc(d.id),backupSafeData(d.data()),{merge:false}));
-      await b.commit();
-    }
-  }
-  attachBackupSchoolListener(schoolId);
-}
-
-async function backupSyncAllNow(){
-  if(_backupSyncBusy)return;
-  _backupSyncBusy=true;
-  try{
-    const schools=await db.collection('schools').get();
-    const ids=new Set();
-    for(const d of schools.docs){
-      ids.add(d.id);
-      await backupFullSchoolSync(d.id);
-    }
-    const backupSchools=await dbBackup.collection('schools').get();
-    for(const d of backupSchools.docs){
-      if(!ids.has(d.id)){
-        stopBackupSchoolListener(d.id);
-        await backupDeleteSubcollection('schools/'+d.id,'exams');
-        await backupDeleteSubcollection('schools/'+d.id,'results');
-        await backupDeleteSubcollection('schools/'+d.id,'students');
-        await dbBackup.collection('schools').doc(d.id).delete();
-      }
-    }
-    await backupSyncRtdbImages();
-    return true;
-  }catch(e){
-    console.error('[BACKUP] full sync gagal',e);
-    return false;
-  }finally{_backupSyncBusy=false;}
+function backupLogError(label,e){
+  console.warn('[BACKUP]',label,e);
 }
 
 function attachBackupSync(){
   if(_backupSyncStarted)return;
   _backupSyncStarted=true;
 
-  _backupRootUnsubs.push(db.collection('schools').onSnapshot(async snap=>{
-    try{
+  /* 1. Daftar sekolah */
+  _backupRootUnsubs.push(
+    db.collection('schools').onSnapshot(async snap=>{
       for(const change of snap.docChanges()){
-        if(change.type==='removed'){
-          stopBackupSchoolListener(change.doc.id);
-          await backupDeleteSubcollection('schools/'+change.doc.id,'exams');
-          await backupDeleteSubcollection('schools/'+change.doc.id,'results');
-          await backupDeleteSubcollection('schools/'+change.doc.id,'students');
-          await dbBackup.collection('schools').doc(change.doc.id).delete();
-        }else{
-          await dbBackup.collection('schools').doc(change.doc.id).set(backupSafeData(change.doc.data()),{merge:false});
-          attachBackupSchoolListener(change.doc.id);
-          /* onSnapshot school-level change tidak selalu menjamin child
-             listener sudah pernah menerima kondisi awal; lakukan sync penuh
-             hanya untuk added agar data awal pasti lengkap. */
-          if(change.type==='added') await backupFullSchoolSync(change.doc.id);
+        try{
+          const ref=dbBackup.collection('schools').doc(change.doc.id);
+          if(change.type==='removed') await ref.delete();
+          else await backupSet(ref,change.doc.data());
+        }catch(e){backupLogError('schools',e);}
+      }
+    },e=>backupLogError('listener schools',e))
+  );
+
+  /* 2. Mail */
+  _backupRootUnsubs.push(
+    db.collection('mail').onSnapshot(async snap=>{
+      for(const change of snap.docChanges()){
+        try{
+          const ref=dbBackup.collection('mail').doc(change.doc.id);
+          if(change.type==='removed') await ref.delete();
+          else await backupSet(ref,change.doc.data());
+        }catch(e){backupLogError('mail',e);}
+      }
+    },e=>backupLogError('listener mail',e))
+  );
+
+  /*
+   * 3-5. Subcollection global.
+   * collectionGroup menghindari pembuatan listener terpisah untuk
+   * setiap sekolah. Parent-nya tetap schools/{npsn}.
+   */
+  for(const sub of ['exams','results','students']){
+    _backupRootUnsubs.push(
+      db.collectionGroup(sub).onSnapshot(async snap=>{
+        for(const change of snap.docChanges()){
+          try{
+            const schoolRef=change.doc.ref.parent.parent;
+            if(!schoolRef || schoolRef.parent.id!=='schools') continue;
+
+            const ref=dbBackup.collection('schools').doc(schoolRef.id)
+              .collection(sub).doc(change.doc.id);
+
+            if(change.type==='removed') await ref.delete();
+            else await backupSet(ref,change.doc.data());
+          }catch(e){backupLogError(sub,e);}
         }
-      }
-    }catch(e){console.error('[BACKUP] schools sync gagal',e);}
-  },e=>console.error('[BACKUP] schools root listener',e)));
+      },e=>backupLogError('listener '+sub,e))
+    );
+  }
 
-  _backupRootUnsubs.push(db.collection('mail').onSnapshot(async snap=>{
-    try{
-      for(const change of snap.docChanges()){
-        const ref=dbBackup.collection('mail').doc(change.doc.id);
-        if(change.type==='removed')await ref.delete();
-        else await ref.set(backupSafeData(change.doc.data()),{merge:false});
-      }
-    }catch(e){console.error('[BACKUP] mail sync gagal',e);}
-  },e=>console.warn('[BACKUP] mail listener',e)));
+  /*
+   * Gambar hanya sinkron sekali saat engine mulai.
+   * Perubahan berikutnya ditangani langsung oleh fungsi upload/delete
+   * yang sudah dipasang pada aplikasi.
+   */
+  if(!_backupRtdbInitialDone){
+    _backupRtdbInitialDone=true;
+    backupSyncRtdbImages().catch(e=>backupLogError('RTDB awal',e));
+  }
 
-  /* Full initial copy, lalu listener menjaga perubahan berikutnya. */
-  backupSyncAllNow().then(ok=>{
-    if(ok)console.info('[BACKUP] sinkronisasi utama -> cadangan aktif');
-  });
+  console.info('[BACKUP] sinkronisasi UTAMA -> CADANGAN aktif (mode ringan)');
 }
 
 function stopBackupSync(){
-  _backupRootUnsubs.forEach(u=>{try{u();}catch(_e){}});
+  _backupRootUnsubs.forEach(u=>{try{u()}catch(e){}});
   _backupRootUnsubs=[];
-  _backupSchoolUnsubs.forEach(arr=>arr.forEach(u=>{try{u();}catch(_e){}}));
-  _backupSchoolUnsubs.clear();
   _backupSyncStarted=false;
 }
 
@@ -1603,30 +1540,26 @@ async function backupSyncRtdbFolder(folder){
     const primary=await fetch(RTDB_URL+'/'+folder+'.json',{cache:'no-store'});
     if(!primary.ok)throw new Error('Primary RTDB HTTP '+primary.status);
     const data=await primary.json();
+
     const backup=await fetch(BACKUP_RTDB_URL+'/'+folder+'.json',{
-      method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data===null?null:data)
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(data===null?null:data)
     });
     if(!backup.ok)throw new Error('Backup RTDB HTTP '+backup.status);
     return true;
-  }catch(e){console.warn('[BACKUP] RTDB '+folder+' gagal',e);return false;}
+  }catch(e){
+    backupLogError('RTDB '+folder+' gagal',e);
+    return false;
+  }
 }
 
 async function backupSyncRtdbImages(){
-  await Promise.all([backupSyncRtdbFolder('gambar'),backupSyncRtdbFolder('images')]);
+  return Promise.all([
+    backupSyncRtdbFolder('gambar'),
+    backupSyncRtdbFolder('images')
+  ]);
 }
-
-/* Sinkron RTDB berkala untuk gambar lama/baru. Tidak menyentuh data utama. */
-let _backupRtdbTimer=null;
-function startBackupRtdbTimer(){
-  if(_backupRtdbTimer)return;
-  _backupRtdbTimer=setInterval(()=>{if(_backupSyncStarted)backupSyncRtdbImages();},60000);
-}
-
-startBackupRtdbTimer();
-
-
-
-
 /* ================================================================
 
    LIVE SYNC ENGINE — perubahan Admin Pusat otomatis ter-update
