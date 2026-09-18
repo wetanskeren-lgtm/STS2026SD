@@ -4688,8 +4688,20 @@ async function editUjian(eid){
   const sourceQuestions=draftQs.length?draftQs:currentQs;
   D.editQs=JSON.parse(JSON.stringify(sourceQuestions.map(normalizeQuestion)));
   if(!Array.isArray(D.editQs))D.editQs=[];
-  D.editIdx=-1;D.editKelas=ex.kelas;
-  renderEditSoal(ex);
+  D.editIdx=-1;
+  D.editKelas=ex.kelas;
+  try{
+    renderEditSoal(ex);
+    const editor=document.getElementById('eqText');
+    if(editor){
+      editor.focus();
+      const panel=document.getElementById('aC');
+      if(panel)panel.scrollTop=0;
+    }
+  }catch(err){
+    console.error('[EDIT SOAL] render editor gagal:',err);
+    tt('Editor soal gagal ditampilkan: '+(err.message||err),'er');
+  }
 }
 
 
@@ -4703,7 +4715,7 @@ function renderEditSoal(ex){
 
     <div class="flex items-center gap-3 mb-5">
 
-      <button class="bt bt3 btx" onclick="aTab('s',document.querySelectorAll('#aSB a')[1])"><i class="fas fa-arrow-left"></i></button>
+      <button class="bt bt3 btx" onclick="aTab('s',document.querySelector('#aSB a[onclick^=\"aTab(\'s\'\")'))"><i class="fas fa-arrow-left"></i></button>
 
       <div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div>
 
@@ -5047,7 +5059,11 @@ async function simpanSoal(eid){
 
   const image=$v('eqImg')||'';const isEssay=$('eqEssayWrap').style.display!=='none';const mo=maxOpts(D.editKelas);
 
-  let q={id:uid(),text,image,type:isEssay?'essay':'pg'};
+  /* Saat UPDATE, pertahankan ID soal lama agar jawaban siswa/riwayat
+     tetap terhubung ke soal yang sama. ID baru hanya untuk soal baru. */
+  const isNew=D.editIdx<0;
+  const oldQ=isNew?null:D.editQs[D.editIdx];
+  let q={id:(!isNew&&oldQ&&oldQ.id)?oldQ.id:uid(),text,image,type:isEssay?'essay':'pg'};
 
   if(isEssay){q.key=$v('eqKey')||'';}
 
@@ -5071,11 +5087,11 @@ async function simpanSoal(eid){
 
   }
 
-  const isNew=D.editIdx<0;
-
-  let oldQ=null;
-
-  if(!isNew){oldQ=D.editQs[D.editIdx];D.editQs[D.editIdx]=q;}else{D.editQs.push(q);}
+  if(!isNew){
+    D.editQs[D.editIdx]=q;
+  }else{
+    D.editQs.push(q);
+  }
 
   D.editIdx=-1;
   const currentEx=D.ex.find(e=>e.id===eid);
@@ -5148,7 +5164,15 @@ async function autoSaveDraft(eid,msg){
     hd();
     tt(msg+' Belum mengubah soal siswa.');
     D._savingExam=false;
-    renderSoal($('aC'));
+
+    /* BUG FIX: setelah auto-save DRAF, jangan kembali ke daftar soal.
+       Tetap di editor agar Admin Pusat bisa melanjutkan edit. */
+    const currentEx=D.ex.find(e=>e.id===eid);
+    if(currentEx){
+      renderEditSoal(currentEx);
+      const editor=document.getElementById('eqText');
+      if(editor)editor.focus();
+    }
     return true;
   }catch(e){
     D._savingExam=false;hd();
