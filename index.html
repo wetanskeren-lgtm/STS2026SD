@@ -2058,10 +2058,13 @@ async function loadSiswaInit(){
     const sd=await sR(npsn).get();if(!sd.exists){hd();$('sLKA').style.display='none';$('sLError').style.display='block';$('sLError').textContent='Sekolah tidak ditemukan.';return;}
 
     D.sch=sd.data();
-    // LOGIN SISWA = ONLINE SEKALI: ambil/sinkron soal terbaru, lalu lepaskan
-    // seluruh listener realtime. Selama mengerjakan tidak ada onSnapshot.
-    await syncPusatExamsToSchool(npsn);
-    await loadD(npsn);
+    // LOGIN SISWA dibuat ringan: baca sekolah, data siswa, dan soal langsung
+    // dari Server Cadangan. Koleksi hasil ujian tidak dibaca di tahap ini.
+    const siswaSnap=await wR(npsn).get();
+    const examSnap=await soalR().get();
+    D.ss=siswaSnap.docs.map(d=>({id:d.id,...d.data()}));
+    D.ex=examSnap.docs.map(d=>normalizeExamRecord({id:d.id,...d.data()}));
+    D.rs=[];
     D.studentOnlineReady=true;
     D.studentOfflineMode=false;
 
@@ -2577,6 +2580,23 @@ async function loadImgBlob(url){
 }
 
 
+
+async function imgToDataUrl(url){
+  if(!url)return null;
+  if(url.startsWith('data:'))return url;
+  try{
+    const blobUrl=await loadImgBlob(url);
+    if(!blobUrl)return null;
+    const resp=await fetch(blobUrl);
+    const blob=await resp.blob();
+    return await new Promise((resolve,reject)=>{
+      const fr=new FileReader();
+      fr.onload=()=>resolve(fr.result);
+      fr.onerror=reject;
+      fr.readAsDataURL(blob);
+    });
+  }catch(e){return null;}
+}
 
 /* Panaskan cache gambar soal saat ujian dimulai (jalan di background, tanpa nunggu) */
 
@@ -3823,11 +3843,11 @@ async function cSoalPDF(exId, npsn){
 
       if(!orig){ img.style.display = 'none'; return; }
 
-      const blobUrl = await loadImgBlob(orig);
+      const dataUrl = await imgToDataUrl(orig);
 
-      if(blobUrl){
+      if(dataUrl){
 
-        img.src = blobUrl;
+        img.src = dataUrl;
 
         try { await img.decode(); } catch(e) {}
 
