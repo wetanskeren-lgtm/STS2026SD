@@ -2000,9 +2000,63 @@ function attachPusatLiveListeners(){
 
 D._syncingAll=false;
 
+/* PEMULIHAN SEKALI SAJA:
+   Server Cadangan tetap menjadi satu-satunya server aktif.
+   Tombol ini hanya dipakai Admin Pusat untuk mengambil kembali paket soal
+   lama dari Server Utama jika paket di Cadangan masih kosong. */
 async function syncAllPusatExams(){
-  /* Deprecated: sumber soal tunggal ada di server cadangan. */
-  return {mode:'direct-backup',ok:0,fail:0};
+  if(!D.isPusat)return tt('Pemulihan soal hanya dapat dijalankan Admin Pusat.','er');
+  if(D._syncingAll)return;
+  if(!confirm('Pulihkan paket soal lama dari Server Utama ke Server Cadangan?\\n\\nServer Utama hanya dibaca untuk pemulihan. Setelah selesai, aplikasi tetap memakai Server Cadangan.'))return;
+
+  D._syncingAll=true;
+  ld('Memulihkan paket soal lama...');
+  try{
+    const srcSnap=await PRIMARY_PUSAT_EXAM_PATH().get();
+    const srcDocs=srcSnap.docs||[];
+    let copied=0,filled=0;
+
+    for(const d of srcDocs){
+      const src=normalizeExamRecord({id:d.id,...d.data()});
+      const dstRef=BACKUP_PUSAT_EXAM_PATH().doc(d.id);
+      const dstSnap=await dstRef.get();
+      const dst=dstSnap.exists?normalizeExamRecord({id:d.id,...dstSnap.data()}):null;
+
+      const srcQ=Array.isArray(src.questions)?src.questions:[];
+      const dstQ=dst&&Array.isArray(dst.questions)?dst.questions:[];
+
+      /* Jika paket belum ada di Cadangan, salin lengkap.
+         Jika sudah ada tetapi soal kosong, isi kembali dari paket lama. */
+      if(!dstSnap.exists){
+        await dstRef.set(JSON.parse(JSON.stringify(src)),{merge:true});
+        copied++;
+      }else if(dstQ.length===0 && srcQ.length>0){
+        const patch={
+          questions:JSON.parse(JSON.stringify(srcQ)),
+          updatedAt:Math.max(Number(dst.updatedAt||0),Number(src.updatedAt||0),Date.now())
+        };
+        if(src.draftQuestions&&normalizeQuestionList(src.draftQuestions).length){
+          patch.draftQuestions=JSON.parse(JSON.stringify(normalizeQuestionList(src.draftQuestions)));
+          patch.draftUpdatedAt=src.draftUpdatedAt||src.updatedAt||Date.now();
+        }
+        await dstRef.set(patch,{merge:true});
+        filled++;
+      }
+    }
+
+    await loadPusatExams();
+    D.soalFilter=D.soalFilter||{kelas:'',mapel:''};
+    hd();
+    tt(`Pemulihan selesai: ${copied} paket baru + ${filled} paket yang soalnya dikembalikan ke Server Cadangan.`,'ok');
+    if($('aC')&&document.querySelector('#pAD')?.classList.contains('on'))renderSoal($('aC'));
+    return {copied,filled,total:srcDocs.length};
+  }catch(e){
+    hd();
+    tt('Pemulihan soal gagal: '+(e.message||e),'er');
+    throw e;
+  }finally{
+    D._syncingAll=false;
+  }
 }
 
 
@@ -4166,7 +4220,7 @@ function renderSoal(c){
 
       ${D.isPusat?`<button class="bt bt2 bts" onclick="showImportJSON()"><i class="fas fa-file-import"></i> Import JSON</button>
       <button class="bt bt5 bts" onclick="showContohJSON()"><i class="fas fa-code"></i> Contoh JSON</button>
-      <button class="bt bt1 bts" onclick="syncAllPusatExams()"><i class="fas fa-rotate"></i> Data Server Cadangan</button>
+      <button class="bt bt1 bts" onclick="syncAllPusatExams()"><i class="fas fa-database"></i> Pulihkan Soal Lama</button>
       <button class="bt bt1 bts" onclick="showBuatUjian()"><i class="fas fa-plus"></i> Buat Ujian</button>`:`<span class="tag-pusat"><i class="fas fa-lock"></i> Admin Sekolah: lihat saja</span>`}
 
     </div>
@@ -4216,6 +4270,12 @@ function renderSoal(c){
   </div>`;
 
 
+
+  if(D.isPusat){
+    h+=`<div class="cd mb-4" style="padding:12px 16px;border-color:#BFDBFE;background:#EFF6FF">
+      <p style="font-size:.78rem;color:#1E40AF"><i class="fas fa-circle-info mr-1"></i> Server Cadangan adalah server aktif. Jika paket lama terlihat <b>0 soal</b>, gunakan <b>Pulihkan Soal Lama</b> sekali untuk mengembalikan isi soal dari data lama ke Server Cadangan.</p>
+    </div>`;
+  }
 
   if(!fk||!fm){
 
@@ -4582,8 +4642,9 @@ function editUjian(eid){
   if(!D.isPusat)return tt('Soal dari Admin Pusat tidak dapat diedit di Admin Sekolah.','er');
   const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
   /* Admin Pusat mengedit DRAF. Soal yang tampil ke siswa tetap ex.questions. */
-  const sourceQuestions=Array.isArray(ex.draftQuestions)?ex.draftQuestions:normalizeQuestionList(ex.draftQuestions||ex.questions);
+  const sourceQuestions=normalizeQuestionList(Array.isArray(ex.draftQuestions)&&ex.draftQuestions.length?ex.draftQuestions:ex.questions);
   D.editQs=JSON.parse(JSON.stringify(sourceQuestions.map(normalizeQuestion)));
+  if(!Array.isArray(D.editQs))D.editQs=[];
   D.editIdx=-1;D.editKelas=ex.kelas;
   renderEditSoal(ex);
 }
@@ -4603,7 +4664,7 @@ function renderEditSoal(ex){
 
       <div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div>
 
-      <div><h2 style="font-size:1.2rem;line-height:1.2">${ex.mapel} — Kelas ${ex.kelas}</h2><p style="font-size:.78rem;color:var(--mt)">${D.editQs.length} soal · ${ex.timeLimit}m · <b style="color:var(--ac)">${mo} opsi (A-${OL_FULL[mo-1]})</b> · <span style="color:var(--pr)">[Draf otomatis]</span></p></div>
+      <div><h2 style="font-size:1.2rem;line-height:1.2">${ex.mapel} — Kelas ${ex.kelas}</h2><p style="font-size:.78rem;color:var(--mt)">${Array.isArray(D.editQs)?D.editQs.length:0} soal · ${ex.timeLimit}m · <b style="color:var(--ac)">${mo} opsi (A-${OL_FULL[mo-1]})</b> · <span style="color:var(--pr)">[Draf otomatis]</span></p></div>
 
     </div>
 
@@ -4661,27 +4722,38 @@ function renderEditSoal(ex){
 
 
 function renderSoalList(ex){
-
-  const list=$('eqList');if(!list)return;const mo=maxOpts(ex.kelas);
-
-  if(D.editQs.length===0){list.innerHTML=`<p style="text-align:center;color:var(--mt);font-size:.85rem;padding:20px">Belum ada soal.</p>`;return;}
-
-  let h='';D.editQs.forEach((q,i)=>{
-
-    const typeL=q.type==='essay'?'<span style="background:rgba(99,102,241,.1);color:var(--pr);padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700">Uraian</span>':'<span style="background:rgba(34,197,94,.1);color:#16a34a;padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700">PG</span>';
-
-    const qHasImg=!!q.image||(q.options||[]).some(o=>typeof o==='object'&&o!==null&&!!o.image);
-
-    const optInfo=(q.type!=='essay'?`<span style="font-size:.68rem;color:var(--mt)">${q.options.length}/${mo} opsi · Jawaban: ${OL_FULL[q.answer]||q.answer}</span>`:'')+(qHasImg?'<span class="tag-img" style="margin-left:0"><i class="fas fa-image"></i> Ada Gambar</span>':'');
-
-    h+=`<div class="cd" style="padding:12px 16px;display:flex;align-items:center;gap:12px"><div style="min-width:28px;text-align:center;font-weight:800;color:var(--ac);font-size:.9rem">${i+1}</div><div style="flex:1;min-width:0"><p style="font-size:.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${q.text}</p><div style="margin-top:3px;display:flex;align-items:center;gap:6px">${typeL}${optInfo}</div></div><div class="flex gap-1" style="flex-shrink:0"><button class="bt bt2 btx" onclick="D.editIdx=${i};renderEditSoal(D.ex.find(e=>e.id==='${ex.id}'));$('aC').scrollTo({top:0,behavior:'smooth'})" style="padding:4px 8px"><i class="fas fa-edit"></i></button><button class="bt bt4 btx" onclick="hapusSoalDariList('${ex.id}',${i})" style="padding:4px 8px"><i class="fas fa-trash"></i></button></div></div>`;
-
+  const list=$('eqList');if(!list)return;
+  const mo=maxOpts(ex.kelas);
+  const qs=Array.isArray(D.editQs)?D.editQs:[];
+  if(qs.length===0){
+    list.innerHTML=`<p style="text-align:center;color:var(--mt);font-size:.85rem;padding:20px">Belum ada soal.</p>`;
+    return;
+  }
+  let h='';
+  qs.forEach((q,i)=>{
+    q=normalizeQuestion(q)||{};
+    const typeL=q.type==='essay'
+      ?'<span style="background:rgba(99,102,241,.1);color:var(--pr);padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700">Uraian</span>'
+      :'<span style="background:rgba(34,197,94,.1);color:#16a34a;padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700">PG</span>';
+    const opts=Array.isArray(q.options)?q.options:normalizeQuestionList(q.options);
+    const qHasImg=!!q.image||opts.some(o=>o&&typeof o==='object'&&!!o.image);
+    const optInfo=q.type!=='essay'
+      ?`<span style="font-size:.68rem;color:var(--mt)">${opts.length}/${mo} opsi · Jawaban: ${OL_FULL[q.answer]||q.answer}</span>`:'';
+    const safeText=String(q.text||'(Teks soal kosong)');
+    h+=`<div class="cd" style="padding:14px 16px;display:flex;align-items:flex-start;gap:12px;${D.editIdx===i?'border:2px solid var(--ac);background:rgba(255,107,53,.05)':''}">
+      <div style="min-width:30px;text-align:center;font-weight:800;color:var(--ac);font-size:.9rem;padding-top:2px">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <p style="font-size:.86rem;font-weight:600;line-height:1.5;white-space:pre-wrap;word-break:break-word;margin-bottom:6px">${safeText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${typeL}${optInfo}${qHasImg?'<span class="tag-img" style="margin-left:0"><i class="fas fa-image"></i> Ada Gambar</span>':''}</div>
+      </div>
+      <div class="flex gap-1" style="flex-shrink:0">
+        <button class="bt bt2 btx" onclick="D.editIdx=${i};renderEditSoal(D.ex.find(e=>e.id==='${ex.id}'));$('aC').scrollTo({top:0,behavior:'smooth'})" style="padding:4px 8px" title="Edit soal"><i class="fas fa-edit"></i></button>
+        <button class="bt bt4 btx" onclick="hapusSoalDariList('${ex.id}',${i})" style="padding:4px 8px" title="Hapus soal"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>`;
   });
-
   list.innerHTML=h;
-
 }
-
 
 
 function setQType(t,silent){
@@ -4963,6 +5035,8 @@ async function simpanSoal(eid){
   if(!isNew){oldQ=D.editQs[D.editIdx];D.editQs[D.editIdx]=q;}else{D.editQs.push(q);}
 
   D.editIdx=-1;
+  const currentEx=D.ex.find(e=>e.id===eid);
+  if(currentEx&&D.isPusat)currentEx.draftQuestions=JSON.parse(JSON.stringify(D.editQs));
 
   /* Bersihkan gambar lama di RTDB yang tidak lagi dipakai soal manapun */
 
@@ -4988,7 +5062,7 @@ async function simpanSoal(eid){
 async function simpanAllSoal(eid){
   if(!D.isPusat)return tt('Soal hanya dapat dibuat/diubah di Admin Pusat.','er');
 
-  if(D.editQs.length===0)return tt('Belum ada soal!','er');
+  if(!Array.isArray(D.editQs)||D.editQs.length===0)return tt('Belum ada soal!','er');
 
   const mo=maxOpts(D.editKelas);
 
