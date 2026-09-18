@@ -1463,6 +1463,10 @@ function backupLogError(label,e){
 }
 
 function attachBackupSync(){
+  /* BACKUP HANYA BERJALAN DARI SESI ADMIN PUSAT.
+     Jangan jalankan backup di browser siswa/admin sekolah karena setiap
+     perangkat yang membuka aplikasi akan membuat listener + write sendiri. */
+  if(!D.isPusat)return;
   if(_backupSyncStarted)return;
   _backupSyncStarted=true;
 
@@ -2008,6 +2012,8 @@ async function logP(){
     const cleaned=await bersihkanDuplikatPusatDanSekolah();
     if(muatanRemoved>0||cleaned>0){await loadPusatExams();tt(`${muatanRemoved?muatanRemoved+' paket Muatan Lokal dihapus. ':''}${cleaned?cleaned+' paket soal duplikat lama dihapus otomatis.':''}`,'in');}
     attachPusatLiveListeners();
+    /* Mulai backup hanya setelah Admin Pusat benar-benar login. */
+    attachBackupSync();
 
     hd();go('pAD');$('aSN2').textContent='Admin Pusat';$('navSch').style.display='';
 
@@ -2047,7 +2053,7 @@ async function logA(){
 
 
 
-function outA(e){if(e)e.preventDefault();clearUnsub();D.aIn=false;D.sch=null;D.isPusat=false;D.ex=[];D.rs=[];D.ss=[];D.allSchools=[];D.allResults=[];go('pH');tt('Keluar','in')}
+function outA(e){if(e)e.preventDefault();clearUnsub();stopBackupSync();D.aIn=false;D.sch=null;D.isPusat=false;D.ex=[];D.rs=[];D.ss=[];D.allSchools=[];D.allResults=[];go('pH');tt('Keluar','in')}
 
 
 
@@ -5899,8 +5905,8 @@ function renderSD(){
 /* ===== INIT ===== */ 
 (async function init(){ 
   ld('Menguji koneksi...');try{const r=db.collection('_ct').doc('p');await r.set({t:Date.now()});await r.delete();hd();go('pH');
-    /* Mulai sinkronisasi otomatis setelah server utama dipastikan aktif. */
-    attachBackupSync();
+    /* Backup TIDAK dimulai di halaman awal.
+       Backup baru aktif setelah Admin Pusat login. */
   } 
   catch(e){hd();go('pSU');} 
 })(); 
