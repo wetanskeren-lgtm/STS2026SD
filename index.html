@@ -3753,6 +3753,9 @@ async function cSoalPDF(exId, npsn){
           align-items:flex-start !important;
           width:100% !important;
           max-width:100% !important;
+          overflow:visible !important;
+          page-break-inside:avoid;
+          break-inside:avoid-page;
         }
         #pdSoal .sn{flex:0 0 auto !important;width:${isKelasKecil?30:24}px}
         #pdSoal .sc2{flex:1 1 auto !important;min-width:0 !important;width:auto !important}
@@ -3801,9 +3804,21 @@ async function cSoalPDF(exId, npsn){
         #pdSoal .opsi-col{
           max-width:100%;
         }
+        /* === PAGINASI PDF: CEGAH TEKS MENGGANTUNG / TERPOTONG === */
+        #pdSoal .pdf-keep-together{
+          page-break-inside:avoid !important;
+          break-inside:avoid-page !important;
+          -webkit-column-break-inside:avoid !important;
+          overflow:visible !important;
+        }
+        #pdSoal .pdf-allow-split{
+          page-break-inside:auto !important;
+          break-inside:auto !important;
+        }
         #pdSoal .pdf-force-page-break{
           page-break-before:always !important;
           break-before:page !important;
+          -webkit-column-break-before:page !important;
         }
         #pdSoal .pdf-force-page-break.section-head + *{ }
         #pdSoal .soal-block:first-child{margin-top:0 !important}
@@ -4174,10 +4189,16 @@ async function cSoalPDF(exId, npsn){
   try {
 
     /*
-     * PAGINATION PACKING:
-     * Hitung urutan isi dari atas ke bawah, bukan berdasarkan posisi halaman
-     * yang sudah dihitung browser. Cara lama menyebabkan cascading break dan
-     * ruang kosong besar setelah satu soal dipindahkan.
+     * PAGINASI PDF v3 — ANTI TEKS MENGGANTUNG / TERPOTONG
+     *
+     * Prinsip:
+     * 1. Ukur tinggi soal yang BENAR-BENAR sudah dirender browser.
+     * 2. Jika satu soal masih muat dalam satu halaman, paksa UTUH.
+     *    Jadi tidak boleh ada 1-2 baris soal menggantung di dasar halaman.
+     * 3. Hanya soal yang benar-benar lebih tinggi dari satu halaman yang
+     *    boleh mengalir ke halaman berikutnya.
+     * 4. Setelah ada pemisah halaman, perhitungan dilanjutkan dari halaman
+     *    baru sehingga tidak terjadi cascading break yang salah.
      */
     const pd = $('pdSoal');
     if(!pd) throw new Error('Container PDF tidak ditemukan.');
@@ -4187,62 +4208,92 @@ async function cSoalPDF(exId, npsn){
     const MARGIN_MM = 8;
     const CONTENT_W_MM = PAGE_W_MM - (MARGIN_MM * 2);
     const CONTENT_H_MM = PAGE_H_MM - (MARGIN_MM * 2);
-    const SAFE_PX = 4;
+    const SAFE_PX = 14;
 
-    pd.querySelectorAll('.pdf-force-page-break').forEach(el=>el.classList.remove('pdf-force-page-break'));
+    pd.querySelectorAll('.pdf-force-page-break,.pdf-keep-together,.pdf-allow-split')
+      .forEach(el=>{
+        el.classList.remove('pdf-force-page-break','pdf-keep-together','pdf-allow-split');
+      });
 
     const pdRect = pd.getBoundingClientRect();
     if(!pdRect.width) throw new Error('Lebar area PDF tidak dapat dihitung.');
 
+    /* Lebar konten PDF setelah margin 8 mm. */
     const pxPerMm = pdRect.width / CONTENT_W_MM;
     const PAGE_H_PX = CONTENT_H_MM * pxPerMm;
 
     const flow = Array.from(pd.querySelectorAll('.section-head, .soal-block'))
-      .map(el => ({ el, rect: el.getBoundingClientRect() }))
+      .map(el => ({el, rect:el.getBoundingClientRect()}))
       .sort((a,b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left);
 
     if(!flow.length) throw new Error('Isi soal tidak ditemukan.');
 
     const pdTop = pdRect.top;
-    let usedPx = Math.max(0, flow[0].rect.top - pdTop);
 
-    const isLong = el => {
-      const h = el.getBoundingClientRect().height;
-      return h > (PAGE_H_PX - SAFE_PX * 2);
-    };
-
-    for(let i=0; i<flow.length; i++){
-      const item = flow[i];
+    /* Tandai setiap blok berdasarkan tinggi NYATA setelah font/gambar selesai dimuat. */
+    flow.forEach(item=>{
       const el = item.el;
       const h = item.rect.height;
-      const long = el.classList.contains('soal-block') && isLong(el);
 
-      /* Section heading harus tetap bersama soal pertama setelahnya bila muat. */
-      if(el.classList.contains('section-head')){
-        const next = flow[i+1] && flow[i+1].el.classList.contains('soal-block') ? flow[i+1].el : null;
-        const groupH = h + (next ? next.getBoundingClientRect().height : 0);
+      if(el.classList.contains('soal-block')){
+        if(h <= PAGE_H_PX - SAFE_PX * 2){
+          el.classList.add('pdf-keep-together');
+        }else{
+          el.classList.add('pdf-allow-split');
+        }
+      }else{
+        el.classList.add('pdf-keep-together');
+      }
+    });
 
-        if(next && !isLong(next) && usedPx > SAFE_PX && usedPx + groupH > PAGE_H_PX - SAFE_PX){
+    /*
+     * Packing urut dari atas ke bawah. Setelah pindah halaman, usedPx di-reset
+     * sehingga posisi elemen lama tidak ikut memengaruhi keputusan berikutnya.
+     */
+    let usedPx = Math.max(0, flow[0].rect.top - pdTop);
+
+    const getH = el => el.getBoundingClientRect().height;
+    const canFit = h => usedPx <= SAFE_PX || usedPx + h <= PAGE_H_PX - SAFE_PX;
+
+    for(let i=0; i<flow.length; i++){
+      const el = flow[i].el;
+      const h = getH(el);
+      const isSection = el.classList.contains('section-head');
+      const isBlock = el.classList.contains('soal-block');
+      const canBeWhole = isBlock && h <= PAGE_H_PX - SAFE_PX * 2;
+
+      if(isSection){
+        const next = flow[i+1] && flow[i+1].el.classList.contains('soal-block')
+          ? flow[i+1].el : null;
+        const nextH = next ? getH(next) : 0;
+
+        /* Jangan tinggalkan judul bagian sendirian di bawah halaman. */
+        if(next && nextH <= PAGE_H_PX - SAFE_PX * 2 &&
+           usedPx > SAFE_PX &&
+           usedPx + h + nextH > PAGE_H_PX - SAFE_PX){
           el.classList.add('pdf-force-page-break');
           usedPx = h;
-        } else {
+        }else if(!canFit(h)){
+          el.classList.add('pdf-force-page-break');
+          usedPx = h;
+        }else{
           usedPx += h;
         }
         continue;
       }
 
-      if(long){
-        /* Soal yang lebih tinggi dari satu halaman memang harus mengalir. */
-        usedPx = PAGE_H_PX;
+      if(isBlock && canBeWhole){
+        if(!canFit(h)){
+          el.classList.add('pdf-force-page-break');
+          usedPx = h;
+        }else{
+          usedPx += h;
+        }
         continue;
       }
 
-      if(usedPx <= SAFE_PX || usedPx + h <= PAGE_H_PX - SAFE_PX){
-        usedPx += h;
-      } else {
-        el.classList.add('pdf-force-page-break');
-        usedPx = h;
-      }
+      /* Soal yang benar-benar lebih tinggi dari satu halaman boleh terbelah. */
+      if(isBlock) usedPx = PAGE_H_PX;
     }
 
     const pdfBlob = await html2pdf().set({
@@ -4258,8 +4309,17 @@ async function cSoalPDF(exId, npsn){
       jsPDF: { unit: 'mm', format: [215.9, 330.2], orientation: 'portrait', compress: true },
 
       pagebreak: {
-        mode: ['css'],
-        before: ['.pdf-force-page-break']
+        mode: ['css', 'legacy'],
+        before: ['.pdf-force-page-break'],
+        avoid: [
+          '.pdf-keep-together',
+          '.kop-block',
+          '.info-block',
+          '.section-head',
+          '.soal-img-wrap',
+          '.opsi-item',
+          '.essay-box'
+        ]
       }
 
     }).from($('pdSoal')).outputPdf('blob');
@@ -10201,6 +10261,9 @@ async function cSoalPDF(exId, npsn){
           align-items:flex-start !important;
           width:100% !important;
           max-width:100% !important;
+          overflow:visible !important;
+          page-break-inside:avoid;
+          break-inside:avoid-page;
         }
         #pdSoal .sn{flex:0 0 auto !important;width:${isKelasKecil?30:24}px}
         #pdSoal .sc2{flex:1 1 auto !important;min-width:0 !important;width:auto !important}
@@ -10249,9 +10312,21 @@ async function cSoalPDF(exId, npsn){
         #pdSoal .opsi-col{
           max-width:100%;
         }
+        /* === PAGINASI PDF: CEGAH TEKS MENGGANTUNG / TERPOTONG === */
+        #pdSoal .pdf-keep-together{
+          page-break-inside:avoid !important;
+          break-inside:avoid-page !important;
+          -webkit-column-break-inside:avoid !important;
+          overflow:visible !important;
+        }
+        #pdSoal .pdf-allow-split{
+          page-break-inside:auto !important;
+          break-inside:auto !important;
+        }
         #pdSoal .pdf-force-page-break{
           page-break-before:always !important;
           break-before:page !important;
+          -webkit-column-break-before:page !important;
         }
         #pdSoal .pdf-force-page-break.section-head + *{ }
         #pdSoal .soal-block:first-child{margin-top:0 !important}
@@ -10622,10 +10697,16 @@ async function cSoalPDF(exId, npsn){
   try {
 
     /*
-     * PAGINATION PACKING:
-     * Hitung urutan isi dari atas ke bawah, bukan berdasarkan posisi halaman
-     * yang sudah dihitung browser. Cara lama menyebabkan cascading break dan
-     * ruang kosong besar setelah satu soal dipindahkan.
+     * PAGINASI PDF v3 — ANTI TEKS MENGGANTUNG / TERPOTONG
+     *
+     * Prinsip:
+     * 1. Ukur tinggi soal yang BENAR-BENAR sudah dirender browser.
+     * 2. Jika satu soal masih muat dalam satu halaman, paksa UTUH.
+     *    Jadi tidak boleh ada 1-2 baris soal menggantung di dasar halaman.
+     * 3. Hanya soal yang benar-benar lebih tinggi dari satu halaman yang
+     *    boleh mengalir ke halaman berikutnya.
+     * 4. Setelah ada pemisah halaman, perhitungan dilanjutkan dari halaman
+     *    baru sehingga tidak terjadi cascading break yang salah.
      */
     const pd = $('pdSoal');
     if(!pd) throw new Error('Container PDF tidak ditemukan.');
@@ -10635,62 +10716,92 @@ async function cSoalPDF(exId, npsn){
     const MARGIN_MM = 8;
     const CONTENT_W_MM = PAGE_W_MM - (MARGIN_MM * 2);
     const CONTENT_H_MM = PAGE_H_MM - (MARGIN_MM * 2);
-    const SAFE_PX = 4;
+    const SAFE_PX = 14;
 
-    pd.querySelectorAll('.pdf-force-page-break').forEach(el=>el.classList.remove('pdf-force-page-break'));
+    pd.querySelectorAll('.pdf-force-page-break,.pdf-keep-together,.pdf-allow-split')
+      .forEach(el=>{
+        el.classList.remove('pdf-force-page-break','pdf-keep-together','pdf-allow-split');
+      });
 
     const pdRect = pd.getBoundingClientRect();
     if(!pdRect.width) throw new Error('Lebar area PDF tidak dapat dihitung.');
 
+    /* Lebar konten PDF setelah margin 8 mm. */
     const pxPerMm = pdRect.width / CONTENT_W_MM;
     const PAGE_H_PX = CONTENT_H_MM * pxPerMm;
 
     const flow = Array.from(pd.querySelectorAll('.section-head, .soal-block'))
-      .map(el => ({ el, rect: el.getBoundingClientRect() }))
+      .map(el => ({el, rect:el.getBoundingClientRect()}))
       .sort((a,b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left);
 
     if(!flow.length) throw new Error('Isi soal tidak ditemukan.');
 
     const pdTop = pdRect.top;
-    let usedPx = Math.max(0, flow[0].rect.top - pdTop);
 
-    const isLong = el => {
-      const h = el.getBoundingClientRect().height;
-      return h > (PAGE_H_PX - SAFE_PX * 2);
-    };
-
-    for(let i=0; i<flow.length; i++){
-      const item = flow[i];
+    /* Tandai setiap blok berdasarkan tinggi NYATA setelah font/gambar selesai dimuat. */
+    flow.forEach(item=>{
       const el = item.el;
       const h = item.rect.height;
-      const long = el.classList.contains('soal-block') && isLong(el);
 
-      /* Section heading harus tetap bersama soal pertama setelahnya bila muat. */
-      if(el.classList.contains('section-head')){
-        const next = flow[i+1] && flow[i+1].el.classList.contains('soal-block') ? flow[i+1].el : null;
-        const groupH = h + (next ? next.getBoundingClientRect().height : 0);
+      if(el.classList.contains('soal-block')){
+        if(h <= PAGE_H_PX - SAFE_PX * 2){
+          el.classList.add('pdf-keep-together');
+        }else{
+          el.classList.add('pdf-allow-split');
+        }
+      }else{
+        el.classList.add('pdf-keep-together');
+      }
+    });
 
-        if(next && !isLong(next) && usedPx > SAFE_PX && usedPx + groupH > PAGE_H_PX - SAFE_PX){
+    /*
+     * Packing urut dari atas ke bawah. Setelah pindah halaman, usedPx di-reset
+     * sehingga posisi elemen lama tidak ikut memengaruhi keputusan berikutnya.
+     */
+    let usedPx = Math.max(0, flow[0].rect.top - pdTop);
+
+    const getH = el => el.getBoundingClientRect().height;
+    const canFit = h => usedPx <= SAFE_PX || usedPx + h <= PAGE_H_PX - SAFE_PX;
+
+    for(let i=0; i<flow.length; i++){
+      const el = flow[i].el;
+      const h = getH(el);
+      const isSection = el.classList.contains('section-head');
+      const isBlock = el.classList.contains('soal-block');
+      const canBeWhole = isBlock && h <= PAGE_H_PX - SAFE_PX * 2;
+
+      if(isSection){
+        const next = flow[i+1] && flow[i+1].el.classList.contains('soal-block')
+          ? flow[i+1].el : null;
+        const nextH = next ? getH(next) : 0;
+
+        /* Jangan tinggalkan judul bagian sendirian di bawah halaman. */
+        if(next && nextH <= PAGE_H_PX - SAFE_PX * 2 &&
+           usedPx > SAFE_PX &&
+           usedPx + h + nextH > PAGE_H_PX - SAFE_PX){
           el.classList.add('pdf-force-page-break');
           usedPx = h;
-        } else {
+        }else if(!canFit(h)){
+          el.classList.add('pdf-force-page-break');
+          usedPx = h;
+        }else{
           usedPx += h;
         }
         continue;
       }
 
-      if(long){
-        /* Soal yang lebih tinggi dari satu halaman memang harus mengalir. */
-        usedPx = PAGE_H_PX;
+      if(isBlock && canBeWhole){
+        if(!canFit(h)){
+          el.classList.add('pdf-force-page-break');
+          usedPx = h;
+        }else{
+          usedPx += h;
+        }
         continue;
       }
 
-      if(usedPx <= SAFE_PX || usedPx + h <= PAGE_H_PX - SAFE_PX){
-        usedPx += h;
-      } else {
-        el.classList.add('pdf-force-page-break');
-        usedPx = h;
-      }
+      /* Soal yang benar-benar lebih tinggi dari satu halaman boleh terbelah. */
+      if(isBlock) usedPx = PAGE_H_PX;
     }
 
     const pdfBlob = await html2pdf().set({
@@ -10706,8 +10817,17 @@ async function cSoalPDF(exId, npsn){
       jsPDF: { unit: 'mm', format: [215.9, 330.2], orientation: 'portrait', compress: true },
 
       pagebreak: {
-        mode: ['css'],
-        before: ['.pdf-force-page-break']
+        mode: ['css', 'legacy'],
+        before: ['.pdf-force-page-break'],
+        avoid: [
+          '.pdf-keep-together',
+          '.kop-block',
+          '.info-block',
+          '.section-head',
+          '.soal-img-wrap',
+          '.opsi-item',
+          '.essay-box'
+        ]
       }
 
     }).from($('pdSoal')).outputPdf('blob');
