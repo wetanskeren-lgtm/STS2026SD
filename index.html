@@ -3942,9 +3942,18 @@ function cetakSoalPusat(eid){
   win.document.open();
   win.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Cetak Soal - ${esc(ex.mapel)} - ${esc(examKelasLabel(ex))}</title>
   <style>
-    @page{size:A4;margin:18mm 16mm 18mm 16mm}
+    @page{size:A4 portrait;margin:12mm 14mm}
     *{box-sizing:border-box}
-    body{font-family:"Times New Roman",serif;color:#111;background:#fff;font-size:12pt;line-height:1.45;margin:0}
+    html,body{width:100%;margin:0;padding:0}
+    body{font-family:"Times New Roman",serif;color:#111;background:#fff;font-size:11pt;line-height:1.4}
+    .qtext-text,.option-content-text{white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal}
+    .qtext{display:flex;gap:7px;align-items:flex-start;text-align:left}
+    .options{margin:6px 0 0 29px}
+    .option{display:flex;gap:7px;align-items:flex-start;margin:4px 0;break-inside:avoid;page-break-inside:avoid}
+    .option-content{flex:1;min-width:0}
+    .option-content-text{display:inline}
+    .stored-img-holder img{max-width:100%;height:auto;max-height:150px;object-fit:contain}
+    .question{margin:0 0 12px 0;break-inside:avoid;page-break-inside:avoid}
     .head{text-align:center;border-bottom:1.5px solid #222;padding-bottom:9px;margin-bottom:18px}
     .school{font-size:16pt;font-weight:700;text-transform:uppercase}
     .title{font-size:14pt;font-weight:700;margin-top:3px}
