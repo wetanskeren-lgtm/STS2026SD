@@ -3760,9 +3760,9 @@ async function cSoalPDF(exId, npsn){
         #pdSoal .soal-block.long-question > .soal-row,#pdSoal .soal-block.statement-question > .soal-row{page-break-inside:auto !important;break-inside:auto !important}
         #pdSoal .soal-block.long-question .soal-text,#pdSoal .soal-block.statement-question .soal-text{page-break-inside:auto !important;break-inside:auto !important}
 
-        /* Perlindungan tambahan agar elemen tidak terpotong saat html2pdf membuat halaman. */
-        #pdSoal .soal-block,
-        #pdSoal .soal-row,
+        /* Perlindungan elemen yang memang harus utuh.
+           JANGAN memasang avoid pada .soal-block/.soal-row secara global,
+           karena soal yang lebih tinggi dari satu halaman harus boleh mengalir. */
         #pdSoal .section-head,
         #pdSoal .kop-block,
         #pdSoal .info-block,
@@ -3778,21 +3778,25 @@ async function cSoalPDF(exId, npsn){
 
         #pdSoal > .kop-block:first-child{page-break-after:avoid !important;break-after:avoid !important}
 
-        /* Perbaikan v2: jangan biarkan judul/awal soal menempel di dasar halaman.
-           Setiap blok soal diperlakukan sebagai satu unit cetak. */
+        /* Perbaikan v3: soal normal dijaga utuh melalui .soal-block,
+           sedangkan soal panjang boleh mengalir bila memang melebihi satu halaman. */
         #pdSoal .soal-block{
           display:block !important;
           width:100% !important;
           max-width:100% !important;
+        }
+        #pdSoal .soal-block:not(.long-question):not(.statement-question){
           page-break-inside:avoid;
-          break-inside:avoid;
+          break-inside:avoid-page;
         }
         #pdSoal .soal-block > .soal-row{
           display:flex !important;
           align-items:flex-start !important;
           width:100% !important;
+        }
+        #pdSoal .soal-block:not(.long-question):not(.statement-question) > .soal-row{
           page-break-inside:avoid;
-          break-inside:avoid;
+          break-inside:avoid-page;
         }
         #pdSoal .soal-block .sc2{
           display:block !important;
@@ -4219,12 +4223,19 @@ async function cSoalPDF(exId, npsn){
     const pdTop = pd.getBoundingClientRect().top;
 
     Array.from(pd.querySelectorAll('.soal-block')).forEach((el)=>{
-      if(el.classList.contains('long-question') || el.classList.contains('statement-question')) return;
       const r = el.getBoundingClientRect();
       const relTop = r.top - pdTop;
       const pageIndex = Math.floor(Math.max(0, relTop) / pageHeightPx);
       const usedOnPage = relTop - pageIndex * pageHeightPx;
       const fitsOnOnePage = r.height <= (pageHeightPx - safetyPx * 2);
+
+      /*
+       * PENTING:
+       * Soal panjang yang sebenarnya masih muat 1 halaman JANGAN dimulai
+       * di sisa ruang halaman. Pindahkan utuh ke halaman berikutnya.
+       * Hanya soal yang benar-benar lebih tinggi dari 1 halaman yang
+       * diperbolehkan mengalir ke halaman berikutnya.
+       */
       if(fitsOnOnePage && usedOnPage > safetyPx && usedOnPage + r.height > pageHeightPx - safetyPx){
         el.classList.add('pdf-force-page-break');
       }
@@ -4244,7 +4255,7 @@ async function cSoalPDF(exId, npsn){
 
       /* Hindari memaksa soal panjang tetap utuh; ini mencegah halaman 7+ terpotong. */
       pagebreak: {
-        mode: ['css', 'legacy'],
+        mode: ['css'],
         before: ['.pdf-force-page-break'],
         avoid: ['.kop-block', '.info-block', '.section-head', '.soal-img-wrap', '.essay-box']
       }
