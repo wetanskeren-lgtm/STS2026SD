@@ -345,14 +345,14 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .soal-text{font-weight:bold;display:block;word-wrap:break-word;overflow-wrap:break-word}
 
 /* Teks bacaan/soal panjang: rata kiri-kanan. Judul yang dipisahkan oleh baris baru dibuat rata tengah. */
-.pd .soal-body-text{font-weight:400;text-align:justify;line-height:1.35;word-wrap:break-word;overflow-wrap:break-word}
+.pd .soal-body-text{font-weight:400;text-align:left;line-height:1.35;word-wrap:break-word;overflow-wrap:break-word}
 .pd .soal-body-title{display:block;text-align:center;font-weight:700;margin:0 0 4px 0;line-height:1.25}
-.pd .soal-body-paragraph{display:block;text-align:justify;margin:0 0 4px 0}
+.pd .soal-body-paragraph{display:block;text-align:left;margin:0 0 4px 0}
 
-/* Tampilan bacaan pada layar siswa: judul terpisah rata tengah, isi rata kiri-kanan. */
+/* Tampilan siswa: hanya judul bacaan yang rata tengah; isi dan soal biasa rata kiri. */
 .student-question-text .student-question-title{display:block;text-align:center;font-weight:700;margin:0 0 8px;line-height:1.3}
-.student-question-text .student-question-body{display:block;text-align:justify}
-.student-question-text .student-question-paragraph{display:block;text-align:justify;margin:0 0 7px}
+.student-question-text .student-question-body{display:block;text-align:left}
+.student-question-text .student-question-paragraph{display:block;text-align:left;margin:0 0 7px}
 
 
 
@@ -2786,16 +2786,36 @@ function isStatementQuestion(q){
   return nums.length>=2;
 }
 
-/* Format bacaan/judul untuk tampilan soal siswa: judul baris tersendiri rata tengah, isi bacaan rata kiri-kanan. */
+/* ================================================================
+   FORMAT SOAL SISWA
+   Hanya judul bacaan yang memang diawali "Bacaan" / "Teks Bacaan"
+   yang dibuat rata tengah. Soal biasa TIDAK dianggap mempunyai judul.
+   ================================================================ */
+function isReadingTitleLine(line){
+  const s=String(line==null?'':line).replace(/<[^>]*>/g,'').trim();
+  return /^(bacaan|teks\s+bacaan)\b/i.test(s);
+}
+
 function formatStudentQuestionText(q){
   const raw=String(q&&q.text||'');
   let s=raw.replace(/\r\n|\r/g,'\n').replace(/(?:<br\s*\/?>\s*)+/gi,'\n');
   const lines=s.split('\n').map(x=>x.trim()).filter(Boolean);
+
+  /* Soal satu baris atau soal biasa: tampil normal/rata kiri. */
   if(lines.length<2) return `<span class="student-question-body">${raw}</span>`;
+
   const first=lines[0];
-  const looksLikeTitle=first.length<=100 && !/[.!?:]$/.test(first) && !/^(bacalah|perhatikan|jawablah|pilihlah|isilah|tentukan|berilah|sebutkan|apa|siapa|kapan|dimana|di mana|mengapa|bagaimana)\b/i.test(first);
-  if(!looksLikeTitle) return `<span class="student-question-body">${raw}</span>`;
-  const body=lines.slice(1).map(x=>`<span class="student-question-paragraph">${x}</span>`).join('');
+
+  /* JANGAN lagi menganggap semua baris pertama sebagai judul.
+     Hanya "Bacaan ..." / "Teks Bacaan ..." yang dipusatkan. */
+  if(!isReadingTitleLine(first)){
+    return `<span class="student-question-body">${raw}</span>`;
+  }
+
+  const body=lines.slice(1)
+    .map(x=>`<span class="student-question-paragraph">${x}</span>`)
+    .join('');
+
   return `<span class="student-question-title">${first}</span>${body}`;
 }
 
@@ -3407,18 +3427,34 @@ function previewPDF(blob, filename){
 
    ================================================================ */
 
-/* Format teks soal untuk PDF: jika ada judul pada baris terpisah,
-   judul dipusatkan dan isi bacaan/pertanyaan diratakan kiri-kanan. */
+/* ================================================================
+   FORMAT SOAL PDF
+   Hanya judul "Bacaan ..." / "Teks Bacaan ..." yang rata tengah.
+   Semua soal biasa tetap rata kiri.
+   ================================================================ */
 function formatPdfQuestionText(raw){
   const s=String(raw==null?'':raw).replace(/\r\n|\r/g,'\n').trim();
   if(!s) return '';
+
   const lines=s.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+
+  /* Soal biasa / satu baris -> normal, rata kiri. */
   if(lines.length<2){
     return `<span class="soal-body-paragraph">${s}</span>`;
   }
+
   const title=lines[0];
-  const body=lines.slice(1).join(' ');
-  return `<span class="soal-body-title">${title}</span><span class="soal-body-paragraph">${body}</span>`;
+
+  /* Hanya judul bacaan yang boleh dipusatkan. */
+  if(!isReadingTitleLine(title)){
+    return `<span class="soal-body-paragraph">${s}</span>`;
+  }
+
+  const body=lines.slice(1)
+    .map(x=>`<span class="soal-body-paragraph">${x}</span>`)
+    .join('');
+
+  return `<span class="soal-body-title">${title}</span>${body}`;
 }
 
 async function cSoalPDF(exId, npsn){
