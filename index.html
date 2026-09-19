@@ -3982,6 +3982,10 @@ async function cetakSoalPusat(eid){
     return html;
   }).join('');
 
+  const printKelas=String(examKelasLabel(ex)||'').toLowerCase();
+  const isKelas12=/(^|\s|kelas\s*)(1|2)(?:\s|$)/i.test(printKelas) || /\bkelas\s*[12]\b/i.test(printKelas);
+  const printBodyClass=isKelas12?'grade-1-2':'grade-3-6';
+
   const win=window.open('','_blank','width=1000,height=800');
   if(!win)return tt('Popup diblokir browser. Izinkan pop-up untuk mencetak soal.','er');
 
@@ -3992,7 +3996,9 @@ async function cetakSoalPusat(eid){
     @page{size:A4 portrait;margin:12mm 14mm}
     *{box-sizing:border-box}
     html,body{width:100%;margin:0;padding:0}
-    body{font-family:"Times New Roman",serif;color:#111;background:#fff;font-size:11pt;line-height:1.4}
+    body{font-family:"Times New Roman",serif;color:#111;background:#fff;font-size:12pt;line-height:1.4}
+    body.grade-1-2{font-family:Arial,sans-serif;font-size:14pt}
+    body.grade-3-6{font-family:"Times New Roman",serif;font-size:12pt}
     .qtext-text,.option-content-text{white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal}
     .head{text-align:center;border-bottom:1.5px solid #222;padding-bottom:9px;margin-bottom:18px}
     .school{font-size:16pt;font-weight:700;text-transform:uppercase}
@@ -4018,7 +4024,7 @@ async function cetakSoalPusat(eid){
       .no-print{display:none!important}
       img{print-color-adjust:exact;-webkit-print-color-adjust:exact}
     }
-  </style></head><body>
+  </style></head><body class="${printBodyClass}">
   <div class="head">
     <div class="school">${esc((D.sch&&D.sch.nama)||'SEKOLAH')}</div>
     <div class="title">${esc(ex.mapel)} — ${esc(examKelasLabel(ex))}</div>
