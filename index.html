@@ -3564,6 +3564,7 @@ async function doHapusSoalSch(exId,npsn,nama){oMo(`<div class="text-center"><h3 
    Format tabel Senin-Jumat + tanggal, siap dicetak PDF.
    ================================================================ */
 async function cetakJadwalSTS(){
+  if(!D.aIn)return tt('Silakan login terlebih dahulu.','er');
   const fk=String((D.jadwalFilter&&D.jadwalFilter.kelas)||'');
   if(!fk){ return tt('Pilih kelas terlebih dahulu sebelum mencetak jadwal.','er'); }
   const targetKelas=parseInt(fk,10);
@@ -3586,9 +3587,9 @@ async function cetakJadwalSTS(){
     const status=examStatus(ex);
     return `<tr style="page-break-inside:avoid">
       <td style="border:1px solid #222;padding:8px;font-weight:700;vertical-align:middle">${hari}, ${tanggal}</td>
-      <td style="border:1px solid #222;padding:8px;text-align:center;vertical-align:middle">${ex.timeLimit||'-'} menit</td>
+      <td style="border:1px solid #222;padding:8px;text-align:center;vertical-align:middle">${ex.timeLimit||90} Menit</td>
       <td style="border:1px solid #222;padding:8px;font-weight:700;vertical-align:middle">${ex.mapel||'-'}</td>
-      <td style="border:1px solid #222;padding:8px;text-align:center;vertical-align:middle">${status[0]}</td>
+      <td style="border:1px solid #222;padding:8px;text-align:center;vertical-align:middle">${ex.keterangan||'STS'}</td>
     </tr>`;
   }).join('');
 
@@ -3611,8 +3612,8 @@ async function cetakJadwalSTS(){
     <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:10pt;page-break-inside:auto">
       <thead style="display:table-header-group">
         <tr style="background:#fff !important;color:#000 !important">
-          <th style="background:#fff !important;color:#000 !important;border:1px solid #000;padding:11px 8px;width:42%">Hari, Tanggal</th>
-          <th style="background:#fff !important;color:#000 !important;border:1px solid #000;padding:11px 8px;width:18%">Waktu</th>
+          <th style="background:#fff !important;color:#000 !important;border:1px solid #000;padding:11px 8px;width:42%">Waktu</th>
+          <th style="background:#fff !important;color:#000 !important;border:1px solid #000;padding:11px 8px;width:18%">Pelaksanaan</th>
           <th style="background:#fff !important;color:#000 !important;border:1px solid #000;padding:11px 8px;width:25%">Mata Pelajaran</th>
           <th style="background:#fff !important;color:#000 !important;border:1px solid #000;padding:11px 8px;width:15%">Keterangan</th>
         </tr>
@@ -3620,11 +3621,10 @@ async function cetakJadwalSTS(){
       <tbody>${rows}</tbody>
     </table>
     <div style="margin-top:34px;display:flex;justify-content:flex-end;page-break-inside:avoid;break-inside:avoid">
-      <div class="ttd-jadwal" style="width:240px;text-align:center">
-        <p style="margin:0">${sch.kota||''}, ................................</p>
+      <div class="ttd-jadwal" style="width:260px;text-align:center">
+        <p style="margin:0 0 4px">Majalengka, ............... September 2026</p>
         <p style="margin:0 0 55px">Kepala Sekolah</p>
-        <p style="margin:0;border-bottom:1px solid #000;font-weight:700">(................................)</p>
-        <p style="margin:3px 0 0">NIP. ................................</p>
+        <p style="margin:0;font-weight:700">....................................</p>
       </div>
     </div>
   </div>`;
@@ -3676,7 +3676,10 @@ function renderJadwal(c){
           ${KL.map(k=>`<option value="${k.v}" ${fk===String(k.v)?'selected':''}>Kelas ${k.l}</option>`).join('')}
         </select>
       </div>
-      ${fk?`<div style="display:flex;align-items:flex-end"><button class="bt bt3 bts" onclick="D.jadwalFilter={kelas:''};renderJadwal($('aC'))"><i class="fas fa-times"></i> Reset Filter</button></div>`:''}
+      ${fk?`<div style="display:flex;align-items:flex-end;gap:8px">
+        <button class="bt bt1 bts" onclick="cetakJadwalSTS()"><i class="fas fa-print"></i> Cetak Jadwal STS</button>
+        <button class="bt bt3 bts" onclick="D.jadwalFilter={kelas:''};renderJadwal($('aC'))"><i class="fas fa-times"></i> Reset Filter</button>
+      </div>`:''}
     </div>
   </div>`;
 
@@ -3879,6 +3882,7 @@ function renderSoal(c){
       }else{
 
         h+=`${isFromPusat?'<span style="font-size:.72rem;color:var(--pr);font-weight:700;background:rgba(99,102,241,.08);padding:4px 10px;border-radius:8px"><i class="fas fa-lock mr-1"></i>Dari Admin Pusat</span>':''}
+          <button class="bt bt2 btx" onclick="cetakSoalPusat('${ex.id}')"><i class="fas fa-print"></i> Cetak Soal</button>
           `;
 
       }
@@ -3897,7 +3901,7 @@ function renderSoal(c){
 
 /* ===== CETAK SOAL ADMIN PUSAT ===== */
 function cetakSoalPusat(eid){
-  if(!D.isPusat)return tt('Hanya Admin Pusat yang dapat mencetak soal.','er');
+  if(!D.aIn)return tt('Silakan login terlebih dahulu.','er');
   const ex=D.ex.find(e=>e.id===eid);
   if(!ex)return tt('Paket soal tidak ditemukan.','er');
 
@@ -3974,7 +3978,7 @@ function cetakSoalPusat(eid){
     @media print{.no-print{display:none!important}}
   </style></head><body>
   <div class="head">
-    <div class="school">SDN MAJALENGKA WETAN VIII</div>
+    <div class="school">${esc((D.sch&&D.sch.nama)||'SEKOLAH')}</div>
     <div class="title">${esc(ex.mapel)} — ${esc(examKelasLabel(ex))}</div>
     <div class="meta">Paket Soal · ${qs.length} Soal · Waktu ${esc(ex.timeLimit||'')} Menit</div>
   </div>
