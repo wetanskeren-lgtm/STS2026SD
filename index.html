@@ -4246,6 +4246,96 @@ async function doHapusSoalSch(exId,npsn,nama){oMo(`<div class="text-center"><h3 
 
    ================================================================ */
 
+
+/* ================================================================
+   CETAK JADWAL PELAKSANAAN STS
+   Format tabel Senin-Jumat + tanggal, siap dicetak PDF.
+   ================================================================ */
+async function cetakJadwalSTS(){
+  const exams=(D.ex||[]).filter(ex=>getExamScheduleDate(ex))
+    .sort((a,b)=>(scheduleBounds(a).start||0)-(scheduleBounds(b).start||0));
+
+  if(!exams.length){
+    return tt('Belum ada jadwal STS yang dapat dicetak.','er');
+  }
+
+  const rows=exams.map((ex,i)=>{
+    const date=getExamScheduleDate(ex);
+    const b=localDateBounds(date);
+    const d=new Date(b.start);
+    const hari=d.toLocaleDateString('id-ID',{weekday:'long'});
+    const tanggal=d.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+    const status=examStatus(ex);
+    return `<tr>
+      <td style="border:1px solid #222;padding:7px;text-align:center">${i+1}</td>
+      <td style="border:1px solid #222;padding:7px;font-weight:700">${hari}</td>
+      <td style="border:1px solid #222;padding:7px">${tanggal}</td>
+      <td style="border:1px solid #222;padding:7px;font-weight:700">${ex.mapel||'-'}</td>
+      <td style="border:1px solid #222;padding:7px;text-align:center">${examKelasLabel(ex)}</td>
+      <td style="border:1px solid #222;padding:7px;text-align:center">${ex.timeLimit||'-'} menit</td>
+      <td style="border:1px solid #222;padding:7px;text-align:center">${status[0]}</td>
+    </tr>`;
+  }).join('');
+
+  const sch=D.sch||{};
+  const html=`<div id="pdJadwalSTS" class="pd" style="font-family:'Arial',sans-serif;font-size:10pt;color:#000;background:#fff;padding:8mm">
+    <div style="text-align:center;border-bottom:3px double #000;padding-bottom:10px;margin-bottom:14px">
+      <p style="margin:0;font-weight:700;font-size:11pt">PEMERINTAH ${String(sch.kota||'').toUpperCase()}</p>
+      <p style="margin:2px 0;font-weight:700;font-size:11pt">DINAS PENDIDIKAN</p>
+      <h2 style="margin:5px 0;font-size:15pt">${String(sch.nama||'SEKOLAH').toUpperCase()}</h2>
+      <p style="margin:0;font-size:9pt">NPSN: ${sch.npsn||'-'} ${sch.kota?'· '+sch.kota:''}</p>
+    </div>
+    <h2 style="text-align:center;font-size:14pt;margin:6px 0">JADWAL PELAKSANAAN SUMATIF TENGAH SEMESTER (STS)</h2>
+    <p style="text-align:center;font-weight:700;margin:0 0 14px">TAHUN PELAJARAN 2026/2027 — SEMESTER I</p>
+    <table style="width:100%;border-collapse:collapse;font-size:9pt">
+      <thead>
+        <tr style="background:#e5e7eb">
+          <th style="border:1px solid #222;padding:8px">No</th>
+          <th style="border:1px solid #222;padding:8px">Hari</th>
+          <th style="border:1px solid #222;padding:8px">Tanggal</th>
+          <th style="border:1px solid #222;padding:8px">Mata Pelajaran</th>
+          <th style="border:1px solid #222;padding:8px">Kelas</th>
+          <th style="border:1px solid #222;padding:8px">Waktu</th>
+          <th style="border:1px solid #222;padding:8px">Keterangan</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:30px;display:flex;justify-content:flex-end">
+      <div style="width:220px;text-align:center">
+        <p style="margin:0">${sch.kota||''}, ................................</p>
+        <p style="margin:0 0 55px">Kepala Sekolah</p>
+        <p style="margin:0;border-bottom:1px solid #000;font-weight:700">(................................)</p>
+        <p style="margin:3px 0 0">NIP. ................................</p>
+      </div>
+    </div>
+  </div>`;
+
+  const box=$('pB');
+  box.style.left='0';box.style.top='0';box.style.zIndex='9999';
+  box.innerHTML=html;
+  tt('Membuat PDF jadwal STS...','in');
+
+  try{
+    const blob=await html2pdf().set({
+      margin:[5,5,5,5],
+      filename:'Jadwal_Pelaksanaan_STS.pdf',
+      image:{type:'jpeg',quality:.98},
+      html2canvas:{scale:2,useCORS:true,backgroundColor:'#fff',scrollY:0},
+      jsPDF:{unit:'mm',format:'a4',orientation:'landscape'},
+      pagebreak:{mode:['css','legacy']}
+    }).from($('pdJadwalSTS')).outputPdf('blob');
+
+    previewPDF(blob,'Jadwal_Pelaksanaan_STS.pdf');
+    tt('Jadwal STS siap dicetak!');
+  }catch(e){
+    tt('Gagal membuat PDF jadwal: '+e.message,'er');
+  }finally{
+    box.style.left='-9999px';
+    box.style.zIndex='-1';
+  }
+}
+
 function renderJadwal(c){
 
   const quickScheduleHtml=D.isPusat?`<div class="cd" style="margin-bottom:18px;border:2px solid #C7D2FE;background:linear-gradient(135deg,#fff,#f5f3ff)"><div class="flex items-center justify-between gap-3 flex-wrap"><div><h3 style="font-size:1.05rem;margin-bottom:3px"><i class="fas fa-calendar-pen mr-2" style="color:var(--pr)"></i>Atur Jadwal Ulangan</h3><p style="font-size:.75rem;color:var(--mt)">Atur tanggal ujian dari Admin Pusat. Jadwal hanya tampil setelah memilih filter kelas.</p></div><button class="bt bt5 bts" onclick="showQuickSchedulePicker()"><i class="fas fa-calendar-plus"></i> Atur Jadwal</button></div></div>`:'';
@@ -4254,8 +4344,9 @@ function renderJadwal(c){
   const fk=String(D.jadwalFilter.kelas||'');
 
   let h=`<div class="asu"><div class="flex items-center justify-between flex-wrap gap-3 mb-5">
-    <div><h2 style="font-size:1.5rem;margin-bottom:2px"><i class="fas fa-calendar-days mr-2" style="color:var(--pr)"></i>Jadwal Ulangan</h2>
-    <p style="color:var(--mt);font-size:.85rem">Pilih kelas terlebih dahulu. Jadwal tidak ditampilkan pada tampilan umum agar tidak membingungkan.</p></div>
+    <div><h2 style="font-size:1.5rem;margin-bottom:2px"><i class="fas fa-calendar-days mr-2" style="color:var(--pr)"></i>Jadwal Pelaksanaan STS</h2>
+    <p style="color:var(--mt);font-size:.85rem">Jadwal pelaksanaan STS dapat dilihat dan dicetak dalam format tabel yang rapi.</p></div>
+    <button class="bt bt5 bts" onclick="cetakJadwalSTS()"><i class="fas fa-file-pdf"></i> Cetak Jadwal STS</button>
   </div>`;
 
   h+=`<div class="cd mb-5" style="padding:16px 20px;border:2px solid var(--ac);border-style:dashed">
@@ -4468,10 +4559,8 @@ function renderSoal(c){
 
       }else{
 
-        if(isFromPusat){
-          h+=`<span style="font-size:.72rem;color:var(--pr);font-weight:700;background:rgba(99,102,241,.08);padding:4px 10px;border-radius:8px"><i class="fas fa-lock mr-1"></i>Dari Admin Pusat</span>
-            <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}', '${D.sch?.npsn||''}')"><i class="fas fa-file-pdf"></i> Cetak</button>`;
-        }
+        h+=`${isFromPusat?'<span style="font-size:.72rem;color:var(--pr);font-weight:700;background:rgba(99,102,241,.08);padding:4px 10px;border-radius:8px"><i class="fas fa-lock mr-1"></i>Dari Admin Pusat</span>':''}
+          <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}', '${D.sch?.npsn||''}')"><i class="fas fa-file-pdf"></i> Cetak PDF</button>`;
 
       }
 
