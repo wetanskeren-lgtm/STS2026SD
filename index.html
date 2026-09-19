@@ -4219,7 +4219,7 @@ async function cSoalPDF(exId, npsn){
 
       /* Section heading harus tetap bersama soal pertama setelahnya bila muat. */
       if(el.classList.contains('section-head')){
-        const next = flow[i+1] && flow[i+1].el.classList.contains('soal-block') ? flow[i+1] : null;
+        const next = flow[i+1] && flow[i+1].el.classList.contains('soal-block') ? flow[i+1].el : null;
         const groupH = h + (next ? next.getBoundingClientRect().height : 0);
 
         if(next && !isLong(next) && usedPx > SAFE_PX && usedPx + groupH > PAGE_H_PX - SAFE_PX){
@@ -10667,7 +10667,7 @@ async function cSoalPDF(exId, npsn){
 
       /* Section heading harus tetap bersama soal pertama setelahnya bila muat. */
       if(el.classList.contains('section-head')){
-        const next = flow[i+1] && flow[i+1].el.classList.contains('soal-block') ? flow[i+1] : null;
+        const next = flow[i+1] && flow[i+1].el.classList.contains('soal-block') ? flow[i+1].el : null;
         const groupH = h + (next ? next.getBoundingClientRect().height : 0);
 
         if(next && !isLong(next) && usedPx > SAFE_PX && usedPx + groupH > PAGE_H_PX - SAFE_PX){
