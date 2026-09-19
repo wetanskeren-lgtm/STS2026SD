@@ -8,6 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
+<!-- CETAK ADMIN SEKOLAH = SUMBER SOAL PUSAT -->
 <title>UTS Digital - Multi Sekolah</title>
 
 <link rel="icon" type="image/jpeg" href="https://cdn.phototourl.com/free/2026-09-04-7825e90c-b085-495b-ac97-b4d09f741830.jpg">
@@ -3292,7 +3293,7 @@ async function cPDF(rid, npsn){
 
     </table>
 
-    <p style="font-size:7pt;margin:2px 0"><b>Catatan:</b> PG=Nilai Pilihan Ganda | Uraian=Nilai Uraian | Akhir=Nilai Akhir (bobot 60% PG + 40% Uraian)</p>
+    <p style="font-size:7pt;margin:2px 0"><b>Catatan:</b> PG=Nilai Pilihan Ganda | Uraian=Nilai Uraian | Akhir=Nilai Akhir (bobot 50% PG + 50% Uraian)</p>
 
 
 
@@ -3476,9 +3477,23 @@ async function cSoalPDF(exId, npsn){
 
   } else {
 
-    ex = D.ex.find(e=>e.id===exId);
-
-    if(D.isPusat && !npsn){ D.sch = {npsn:'-', nama:'Bank Soal Pusat', kota:'', prov:''}; }
+    /* ADMIN SEKOLAH:
+       Saat mencetak, selalu ambil paket langsung dari koleksi PUSAT.
+       Dengan begitu isi soal yang dicetak berasal dari sumber yang sama
+       dengan yang dipakai Admin Pusat, bukan dari cache tampilan sekolah. */
+    if(!D.isPusat){
+      const schoolDoc = await soalR().doc(exId).get();
+      if(!schoolDoc.exists) return tt('Soal tidak ditemukan di Admin Pusat!', 'er');
+      ex = {id:schoolDoc.id, ...schoolDoc.data()};
+      const schoolNpsn = npsn || D.sch?.npsn || '';
+      if(schoolNpsn){
+        const sDoc = await sR(schoolNpsn).get();
+        D.sch = sDoc.exists ? sDoc.data() : (D.sch || {nama:'Sekolah', npsn:schoolNpsn});
+      }
+    }else{
+      ex = D.ex.find(e=>e.id===exId);
+      if(!npsn){ D.sch = {npsn:'-', nama:'Bank Soal Pusat', kota:'', prov:''}; }
+    }
 
   }
 
@@ -4455,7 +4470,7 @@ function renderSoal(c){
 
         if(isFromPusat){
           h+=`<span style="font-size:.72rem;color:var(--pr);font-weight:700;background:rgba(99,102,241,.08);padding:4px 10px;border-radius:8px"><i class="fas fa-lock mr-1"></i>Dari Admin Pusat</span>
-            <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}')"><i class="fas fa-file-pdf"></i> Cetak</button>`;
+            <button class="bt bt5 btx" onclick="cSoalPDF('${ex.id}', '${D.sch?.npsn||''}')"><i class="fas fa-file-pdf"></i> Cetak</button>`;
         }
 
       }
@@ -5883,7 +5898,7 @@ async function simpanKoreksi(rid, npsn){
   const pgScore = r.autoScore; 
   const essayAvg = (r.essays && r.essays.length>0) ? Math.round(totalEssay/r.essays.length) : 0; 
   let finalScore; 
-  if(pgCount>0 && r.essays && r.essays.length>0) finalScore=Math.round(pgScore*0.6+essayAvg*0.4); 
+  if(pgCount>0 && r.essays && r.essays.length>0) finalScore=Math.round(pgScore*0.5+essayAvg*0.5); 
   else if(r.essays && r.essays.length>0) finalScore=essayAvg; 
   else finalScore=pgScore; 
   r.score=finalScore; 
