@@ -770,6 +770,23 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 
 }
 
+/* ===== CETAK REKAP HASIL UJIAN: A4 PORTRAIT ===== */
+@media print{
+  @page{size:A4 portrait;margin:8mm}
+  #pdRekap{
+    width:190mm!important;
+    max-width:190mm!important;
+    margin:0 auto!important;
+    padding:0!important;
+    background:#fff!important;
+    color:#000!important;
+  }
+  #pdRekap .blok-cetak.ttd{
+    page-break-inside:avoid!important;
+    break-inside:avoid!important;
+  }
+}
+
 /* ===== PERBAIKAN KONTRAS DATA SISWA ADMIN SEKOLAH ===== */
 #pAD #aC table,
 #pAD #aC table th,
@@ -5726,7 +5743,7 @@ async function cetakHasilSiswa(rid,npsn){
    ${pg.length?`<h3>A. PG — KUNCI & JAWABAN SISWA (tanpa soal)</h3><table class="pg-tabel" style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th>No</th><th>Jawaban Siswa</th><th>Kunci</th><th>Hasil</th></tr></thead><tbody>${pgr}</tbody></table>`:''}
    ${es.length?`<h3>B. URAIAN — SOAL, JAWABAN SISWA & NILAI</h3><table style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th style="width:5%">No</th><th>Soal Uraian</th><th>Jawaban Siswa</th><th style="width:12%">Nilai</th></tr></thead><tbody>${esr}</tbody></table>`:''}
    <p class="blok-cetak" style="padding:4px;border:1px solid #aaa"><b>Catatan:</b> ${catatanHasilCetak(r)}</p>
-   <div class="blok-cetak ttd" style="display:flex;justify-content:space-between;gap:20px"><div style="text-align:center;width:45%"><b>${escHasil(labelGuruCetak(r.mapel,namaGuru))}</b><div style="height:28px"></div>(....................................)</div><div style="text-align:center;width:45%">Majalengka, ${new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})}<br><b>Kepala Sekolah</b><div style="height:28px"></div>(....................................)</div></div>
+   <div class="blok-cetak ttd" style="display:flex;justify-content:space-between;gap:20px"><div style="text-align:center;width:45%"><b>${escHasil(labelGuruCetak(r.mapel,namaGuru))}</b><div style="height:28px"></div>(....................................)</div><div style="text-align:center;width:45%">Majalengka, ${new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})}<br><b>Kepala Sekolah</b><div style="height:42px"></div>(....................................)</div></div>
   </div>`;
 
   tt('Membuat PDF...','in');
@@ -5837,7 +5854,7 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
        
       const gRk=getGuruFor(kelasData.kelas,rb,mapel); 
       let labelGuru = gRk.nama ? 'Guru Kelas: '+gRk.nama : "Guru Kelas"; 
-      if(/agama|pai/i.test(mapel)) labelGuru = gRk.nama ? 'Guru PAI: '+gRk.nama : "Guru Mapel PAI"; 
+      if(/agama|pai/i.test(mapel)) labelGuru = gRk.nama ? 'Guru PAI: '+gRk.nama : "Guru PAI"; 
       else if(/pjok|jasmani|olahraga/i.test(mapel)) labelGuru = gRk.nama ? 'Guru PJOK: '+gRk.nama : 'Guru PJOK'; 
        
       html += `<p style="font-size:10pt;font-weight:700;margin:8px 0 4px">${mapel} <span style="font-weight:400;font-size:8pt">(Rata-rata: ${avg})</span></p>`; 
