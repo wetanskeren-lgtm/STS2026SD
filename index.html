@@ -2880,7 +2880,7 @@ function rQ(){
       let inner='';
       if(optImg)inner+=`<span class="stored-img-holder" data-stored-img="${encodeURIComponent(optImg)}" data-alt="Gambar opsi ${OL_FULL[j]}"></span>`;
       inner+=`<span class="lt">${OL_FULL[j]}</span><span style="flex:1">${optText}</span>`;
-      h+=`<button type="button" class="oc ${D.an[i]===j?'sl':''}" onclick="pA(${j})" style="width:100%;text-align:left">${inner}</button>`;
+      h+=`<button type="button" class="oc ${normalizeStudentAnswer(D.an[i])===j?'sl':''}" onclick="pA(${j})" style="width:100%;text-align:left">${inner}</button>`;
     }
   }
   h+=`</div></div>`;$('eA').innerHTML=h;
@@ -2961,11 +2961,11 @@ async function finEx(){
 
     else{
 
-      if(D.an[i]===q.answer)cor++;
+      if(sameStudentAnswer(D.an[i],q.answer))cor++;
 
       const optT=o=>typeof o==='object'&&o!==null?(o.text||''):String(o);
 
-      pgList.push({id:q.id,text:q.text,image:q.image||'',options:(q.options||[]).map(optT),studentAns:(D.an[i]!==undefined&&D.an[i]!==null)?D.an[i]:null,correctAns:q.answer});
+      pgList.push({id:q.id,text:q.text,image:q.image||'',options:(q.options||[]).map(optT),studentAns:normalizeStudentAnswer(D.an[i]),correctAns:normalizeStudentAnswer(q.answer)});
 
     }
 
@@ -5302,6 +5302,29 @@ function showContohKunciJSON(){
   </div>`);
 }
 
+
+/* ===== NORMALISASI JAWABAN SISWA: A dan a DIANGGAP SAMA =====
+   Semua jawaban PG dibandingkan dalam bentuk index 0-based.
+   Contoh: A = a = 0, B = b = 1, dst.
+   Angka dan string angka juga diterima untuk kompatibilitas data lama.
+*/
+function normalizeStudentAnswer(v){
+  if(v===undefined || v===null || v==='') return null;
+  if(typeof v==='number' && Number.isFinite(v)) return Math.max(0,Math.floor(v));
+  const s=String(v).trim().toUpperCase();
+  if(/^[A-Z]$/.test(s)){
+    const idx=OL_FULL.indexOf(s);
+    if(idx>=0)return idx;
+  }
+  if(/^\d+$/.test(s))return parseInt(s,10);
+  return null;
+}
+function sameStudentAnswer(a,b){
+  const na=normalizeStudentAnswer(a);
+  const nb=normalizeStudentAnswer(b);
+  return na!==null && nb!==null && na===nb;
+}
+
 function normalizeKeyMapel(v){
   return canonicalMapel(String(v||'').trim());
 }
@@ -5799,8 +5822,8 @@ function koreksiEssay(rid, npsn){
   if(pgArr.length){ 
     h+=`<h4 style="font-size:.9rem;margin-bottom:8px;color:var(--ac)"><i class="fas fa-list mr-1"></i> Pilihan Ganda — Soal No. 1 s.d. ${pgArr.length} — ubah jawaban jika perlu</h4><div style="max-height:280px;overflow-y:auto;margin-bottom:14px;padding-right:4px">`; 
     pgArr.forEach((g,i)=>{ 
-      const isRight = g.studentAns===g.correctAns; 
-      let opts = (g.options||[]).map((t,j)=>`<option value="${j}" ${g.studentAns===j?'selected':''}>${OL_FULL[j]}. ${t}</option>`).join(''); 
+      const isRight = sameStudentAnswer(g.studentAns,g.correctAns); 
+      let opts = (g.options||[]).map((t,j)=>`<option value="${j}" ${normalizeStudentAnswer(g.studentAns)===j?'selected':''}>${OL_FULL[j]}. ${t}</option>`).join(''); 
       opts += `<option value="" ${g.studentAns===null||g.studentAns===undefined?'selected':''}>-- Kosong --</option>`; 
       h+=`<div class="cd mb-2" style="padding:10px 12px"><p style="font-size:.82rem;font-weight:700;margin-bottom:6px">Soal No. ${i+1} &mdash; ${g.text}</p> 
         <div class="flex items-center gap-2 flex-wrap"> 
@@ -5842,7 +5865,7 @@ async function simpanKoreksi(rid, npsn){
       if(!el)return; 
       const v=el.value; 
       g.studentAns = v==='' ? null : parseInt(v); 
-      if(g.studentAns===g.correctAns)cor++; 
+      if(sameStudentAnswer(g.studentAns,g.correctAns))cor++; 
     }); 
   } 
   if(r.essays && r.essays.length){ 
