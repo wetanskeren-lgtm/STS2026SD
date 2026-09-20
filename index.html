@@ -5250,7 +5250,7 @@ function normalizeUploadedAnswerValue(v){
 function extractUploadedKeyItems(data){
   let arr=Array.isArray(data)?data:(Array.isArray(data.answers)?data.answers:(Array.isArray(data.kunci)?data.kunci:(Array.isArray(data.questions)?data.questions:null)));
   if(arr)return arr.map((x,i)=>({
-    no:Number(x&&x.no??x&&x.number??x&&x.nomor??i+1),
+    no:Number((x&&x.no) ?? (x&&x.number) ?? (x&&x.nomor) ?? (i+1)),
     answer:x&&x.answer!==undefined?x.answer:(x&&x.jawaban!==undefined?x.jawaban:x&&x.key),
     key:x&&x.key!==undefined?x.key:(x&&x.kunci!==undefined?x.kunci:x&&x.answer)
   }));
