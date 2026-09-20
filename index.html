@@ -5652,7 +5652,92 @@ function cssCetakPage(){
 function statusHasilCetak(r){if(r.essays&&r.essays.length&&!r.essays.every(e=>e.graded===true))return 'Menunggu Koreksi';return Number(r.score||0)>=70?'Tuntas':'Perlu Perbaikan';}
 function catatanHasilCetak(r){return Number(r.score||0)>=70?'Hasil belajar menunjukkan pencapaian yang baik. Pertahankan ketekunan, kedisiplinan, dan semangat belajar untuk meningkatkan pencapaian pada penilaian berikutnya.':'Hasil belajar masih perlu ditingkatkan. Tetap semangat, lakukan latihan secara bertahap, perhatikan materi yang belum dikuasai, dan manfaatkan bimbingan guru agar pencapaian berikutnya semakin baik.';}
 async function cetakHasilSiswa(rid,npsn){
- const sb=D.sch,ssb=D.ss;try{let r;if(npsn){const doc=await rR(npsn).doc(rid).get();if(!doc.exists)return tt('Hasil tidak ditemukan!','er');r={id:doc.id,...doc.data()};const sd=await sR(npsn).get();D.sch=sd.exists?sd.data():{nama:'Sekolah',npsn,kota:'',prov:''};const snap=await wR(npsn).get();D.ss=snap.docs.map(d=>d.data());}else r=D.rs.find(x=>x.id===rid);if(!r)return tt('Hasil tidak ditemukan!','er');const sch=D.sch||{},pg=r.pg||[],es=r.essays||[],pgc=pg.length||Math.max(0,(r.total||0)-es.length),ps=Number(r.autoScore||0),escore=es.length?(r.essayScore??'-'):'-',fs=Number(r.score||0),st=statusHasilCetak(r);let pgr='',esr='';pg.forEach((q,i)=>{const sa=q.studentAns==null||q.studentAns===''?'-':(typeof q.studentAns==='number'&&q.options?q.options[q.studentAns]:q.studentAns),ka=q.correctAns==null||q.correctAns===''?'-':(typeof q.correctAns==='number'&&q.options?q.options[q.correctAns]:q.correctAns);pgr+=`<tr><td>${i+1}</td><td>${escHasil(q.text||'')}</td><td>${escHasil(sa)}</td><td>${escHasil(ka)}</td><td>${sameStudentAnswer(q.studentAns,q.correctAns)?'Benar':'Salah'}</td></tr>`});es.forEach((q,i)=>esr+=`<tr><td>${pg.length+i+1}</td><td>${escHasil(q.text||'')}</td><td>${escHasil(q.answer||'-')}</td><td>${escHasil(q.key||'-')}</td><td>${q.graded?q.score+'/100':'Menunggu'}</td></tr>`);const b=$('pB');b.style.left='0';b.style.top='0';b.style.zIndex='9999';b.innerHTML=`<div class="pd" id="pdHasilSiswa" style="font-family:Arial;background:#fff;color:#111;font-size:8pt;padding:5px">${cssCetakPage()}<div style="text-align:center;border-bottom:3px double #222;padding-bottom:8px"><h2 style="font-size:13pt;margin:2px">${escHasil(sch.nama||'SEKOLAH').toUpperCase()}</h2><div>HASIL UJIAN SISWA</div></div><table style="width:100%;border-collapse:collapse;margin-bottom:8px"><tr><td><b>Nama</b>: ${escHasil(r.nama)}</td><td><b>NIS</b>: ${escHasil(r.nis||'-')}</td></tr><tr><td><b>Kelas</b>: ${escHasil(r.kelas)}</td><td><b>Rombel</b>: ${escHasil(r.rombel||'-')}</td></tr><tr><td><b>Mapel</b>: ${escHasil(r.mapel)}</td><td><b>Status</b>: ${st}</td></tr></table><table style="width:100%;border-collapse:collapse;border:1px solid #000"><tr><th>PG</th><th>Uraian</th><th>Nilai Akhir</th></tr><tr><td>${ps}</td><td>${escore}</td><td><b>${fs}</b></td></tr></table><p><b>Perhitungan:</b> ${pgc?'PG = '+Number(r.correct||0)+'/'+pgc+' = '+ps+'. ':''}${es.length?'Uraian = rata-rata '+escore+'. ':''}${pgc&&es.length?'Akhir = (50% × '+ps+') + (50% × '+escore+') = '+fs+'.':'Nilai akhir = '+fs+'.'}</p>${pg.length?`<h3>A. Jawaban Pilihan Ganda</h3><table style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th>No</th><th>Soal</th><th>Jawaban Siswa</th><th>Kunci</th><th>Hasil</th></tr></thead><tbody>${pgr}</tbody></table>`:''}${es.length?`<h3>B. Jawaban Uraian</h3><table style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th>No</th><th>Soal</th><th>Jawaban Siswa</th><th>Kunci</th><th>Nilai</th></tr></thead><tbody>${esr}</tbody></table>`:''}<p class="blok-cetak" style="margin-top:10px;padding:8px;border:1px solid #aaa"><b>Catatan:</b> ${catatanHasilCetak(r)}</p><div class="blok-cetak" style="margin-top:24px;display:flex;justify-content:space-between;gap:30px"><div style="text-align:center;width:45%"><b>${escHasil(labelGuruCetak(r.mapel, r.guruNama||r.namaGuru||''))}</b><div style="height:55px"></div>(....................................)</div><div style="text-align:center;width:45%">Majalengka, ${new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})}<br><b>Kepala Sekolah</b><div style="height:55px"></div>(....................................)</div></div></div>`;tt('Membuat PDF...','in');await html2pdf().set({margin:[6,6,6,6],filename:'Hasil_Ujian_'+String(r.nama||'Siswa').replace(/[^a-z0-9_-]/gi,'_')+'.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdHasilSiswa')).save();tt('PDF berhasil!');b.style.left='-9999px';b.style.zIndex='-1';}catch(e){tt('Gagal mencetak: '+e.message,'er');}finally{D.sch=sb;D.ss=ssb;}}
+ const sb=D.sch,ssb=D.ss;
+ try{
+  let r;
+  if(npsn){
+   const doc=await rR(npsn).doc(rid).get();
+   if(!doc.exists)return tt('Hasil tidak ditemukan!','er');
+   r={id:doc.id,...doc.data()};
+   const sd=await sR(npsn).get();
+   D.sch=sd.exists?sd.data():{nama:'Sekolah',npsn,kota:'',prov:''};
+   const snap=await wR(npsn).get();
+   D.ss=snap.docs.map(d=>d.data());
+  }else r=D.rs.find(x=>x.id===rid);
+  if(!r)return tt('Hasil tidak ditemukan!','er');
+
+  const sch=D.sch||{},pg=r.pg||[],es=r.essays||[];
+  const pgc=pg.length||Math.max(0,(r.total||0)-es.length);
+  const ps=Number(r.autoScore||0), escore=es.length?(r.essayScore??'-'):'-';
+  const fs=Number(r.score||0),st=statusHasilCetak(r);
+  const guru=getGuruFor(r.kelas,r.rombel,r.mapel);
+  const namaGuru=(r.guruNama||r.namaGuru||(guru&&guru.nama)||'');
+
+  /* PG: tanpa teks soal, hanya nomor + jawaban siswa + kunci + hasil. */
+  let pgr='';
+  pg.forEach((q,i)=>{
+   const sa=q.studentAns==null||q.studentAns===''?'-':(typeof q.studentAns==='number'&&q.options?q.options[q.studentAns]:q.studentAns);
+   const ka=q.correctAns==null||q.correctAns===''?'-':(typeof q.correctAns==='number'&&q.options?q.options[q.correctAns]:q.correctAns);
+   pgr+=`<tr><td>${i+1}</td><td>${escHasil(sa)}</td><td>${escHasil(ka)}</td><td>${sameStudentAnswer(q.studentAns,q.correctAns)?'Benar':'Salah'}</td></tr>`;
+  });
+
+  /* Uraian: tetap lengkap dengan teks soal. */
+  let esr='';
+  es.forEach((q,i)=>{
+   esr+=`<tr><td>${pg.length+i+1}</td><td>${escHasil(q.text||'')}</td><td>${escHasil(q.answer||'-')}</td><td>${escHasil(q.key||'-')}</td><td>${q.graded?q.score+'/100':'Menunggu'}</td></tr>`;
+  });
+
+  const b=$('pB');
+  b.style.left='0';b.style.top='0';b.style.zIndex='9999';
+  b.innerHTML=`<div class="pd" id="pdHasilSiswa" style="font-family:Arial;background:#fff;color:#111;font-size:7pt;padding:3px;line-height:1.15">
+   ${cssCetakPage()}
+   <style>
+    #pdHasilSiswa h2{font-size:11pt;margin:1px 0}
+    #pdHasilSiswa h3{font-size:8.5pt;margin:4px 0 2px}
+    #pdHasilSiswa table{font-size:6.5pt}
+    #pdHasilSiswa th,#pdHasilSiswa td{padding:2px 3px;border:1px solid #000;vertical-align:top}
+    #pdHasilSiswa .ident td{border:0;padding:1px 3px}
+    #pdHasilSiswa .ringkas td,#pdHasilSiswa .ringkas th{padding:2px;text-align:center}
+    #pdHasilSiswa .pg-tabel td:first-child,#pdHasilSiswa .pg-tabel th:first-child{width:5%;text-align:center}
+    #pdHasilSiswa .pg-tabel td:nth-child(2),#pdHasilSiswa .pg-tabel th:nth-child(2){width:28%;text-align:center}
+    #pdHasilSiswa .pg-tabel td:nth-child(3),#pdHasilSiswa .pg-tabel th:nth-child(3){width:28%;text-align:center}
+    #pdHasilSiswa .pg-tabel td:nth-child(4),#pdHasilSiswa .pg-tabel th:nth-child(4){width:18%;text-align:center}
+    #pdHasilSiswa .blok-cetak{margin-top:5px!important}
+    #pdHasilSiswa .ttd{margin-top:10px!important}
+   </style>
+   <div style="text-align:center;border-bottom:2px double #222;padding-bottom:3px">
+    <h2>${escHasil(sch.nama||'SEKOLAH').toUpperCase()}</h2><div>HASIL UJIAN SISWA</div>
+   </div>
+   <table class="ident" style="width:100%;border-collapse:collapse;margin:2px 0 4px">
+    <tr><td><b>Nama</b>: ${escHasil(r.nama)}</td><td><b>NIS/NISN</b>: ${escHasil(r.nisn||r.nis||'-')}</td></tr>
+    <tr><td><b>Kelas</b>: ${escHasil(r.kelas)}</td><td><b>Rombel</b>: ${escHasil(r.rombel||'-')}</td></tr>
+    <tr><td><b>Mapel</b>: ${escHasil(r.mapel)}</td><td><b>Status</b>: ${st}</td></tr>
+   </table>
+   <table class="ringkas" style="width:100%;border-collapse:collapse;border:1px solid #000">
+    <tr><th>PG</th><th>Uraian</th><th>Nilai Akhir</th></tr>
+    <tr><td>${ps}</td><td>${escore}</td><td><b>${fs}</b></td></tr>
+   </table>
+   <div style="margin:3px 0"><b>Perhitungan:</b> ${pgc?'PG '+Number(r.correct||0)+'/'+pgc+' = '+ps+'. ':''}${es.length?'Uraian rata-rata '+escore+'. ':''}${pgc&&es.length?'Nilai akhir = 50% PG + 50% Uraian = '+fs+'.':'Nilai akhir = '+fs+'.'}</div>
+   ${pg.length?`<h3>A. PG — KUNCI & JAWABAN SISWA (tanpa soal)</h3><table class="pg-tabel" style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th>No</th><th>Jawaban Siswa</th><th>Kunci</th><th>Hasil</th></tr></thead><tbody>${pgr}</tbody></table>`:''}
+   ${es.length?`<h3>B. URAIAN — LENGKAP DENGAN SOAL</h3><table style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th>No</th><th>Soal</th><th>Jawaban Siswa</th><th>Kunci</th><th>Nilai</th></tr></thead><tbody>${esr}</tbody></table>`:''}
+   <p class="blok-cetak" style="padding:4px;border:1px solid #aaa"><b>Catatan:</b> ${catatanHasilCetak(r)}</p>
+   <div class="blok-cetak ttd" style="display:flex;justify-content:space-between;gap:20px"><div style="text-align:center;width:45%"><b>${escHasil(labelGuruCetak(r.mapel,namaGuru))}</b><div style="height:28px"></div>(....................................)</div><div style="text-align:center;width:45%">Majalengka, ${new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})}<br><b>Kepala Sekolah</b><div style="height:28px"></div>(....................................)</div></div>
+  </div>`;
+
+  tt('Membuat PDF...','in');
+  await html2pdf().set({
+   margin:[3,3,3,3],
+   filename:'Hasil_Ujian_'+String(r.nama||'Siswa').replace(/[^a-z0-9_-]/gi,'_')+'.pdf',
+   image:{type:'jpeg',quality:.98},
+   html2canvas:{scale:2,useCORS:true},
+   pagebreak:{mode:['css','legacy'],avoid:'.blok-cetak'},
+   jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+  }).from($('pdHasilSiswa')).save();
+  tt('PDF berhasil!');
+  b.style.left='-9999px';b.style.zIndex='-1';
+ }catch(e){tt('Gagal mencetak: '+e.message,'er');}
+ finally{D.sch=sb;D.ss=ssb;}
+}
 async function cetakRekapHasilSemua(){const f=D.hasilFilter||{};if(!f.kelas||!f.rombel||!f.mapel)return tt('Pilih Kelas, Rombel & Mapel dulu!','er');const list=(D.isPusat?D.allResults:D.rs).filter(r=>String(r.kelas)===String(f.kelas)&&String(r.rombel||'-')===String(f.rombel)&&String(r.mapel||'').trim()===String(f.mapel).trim()).sort((a,b)=>Number(b.score||0)-Number(a.score||0));if(!list.length)return tt('Tidak ada hasil untuk filter ini!','er');const sch=D.sch||{},rows=list.map((r,i)=>`<tr><td>${i+1}</td><td style="text-align:left">${escHasil(r.nama)}</td><td>${escHasil(r.nis||'-')}</td><td>${r.autoScore||0}</td><td>${r.essayScore??'-'}</td><td><b>${r.score||0}</b></td><td>${statusHasilCetak(r)}</td></tr>`).join('');const b=$('pB');b.style.left='0';b.style.top='0';b.style.zIndex='9999';b.innerHTML=`<div class="pd" id="pdRekapHasil" style="font-family:Arial;background:#fff;color:#111;font-size:8pt;padding:5px"><div style="text-align:center;border-bottom:3px double #222;padding-bottom:8px"><h2 style="font-size:13pt;margin:2px">${escHasil(sch.nama||'SEKOLAH').toUpperCase()}</h2><div>REKAP HASIL UJIAN</div><div>Kelas ${escHasil(f.kelas)} · Rombel ${escHasil(f.rombel)} · ${escHasil(f.mapel)}</div></div><table style="width:100%;border-collapse:collapse;border:1px solid #000;margin-top:10px"><thead><tr><th>No</th><th>Nama</th><th>NIS</th><th>PG</th><th>Uraian</th><th>Nilai Akhir</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><div style="margin-top:30px;text-align:right">${escHasil(sch.kota||'')}, ${new Date().toLocaleDateString('id-ID',{month:'long',year:'numeric'})}<br><b>Kepala Sekolah</b><div style="height:50px"></div>(....................................)</div></div>`;tt('Membuat rekap PDF...','in');try{await html2pdf().set({margin:[6,6,6,6],filename:'Rekap_Hasil_Ujian_'+f.kelas+'_'+f.rombel+'.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'landscape'}}).from($('pdRekapHasil')).save();tt('Rekap PDF berhasil!');}catch(e){tt('Gagal mencetak rekap: '+e.message,'er');}b.style.left='-9999px';b.style.zIndex='-1';}
 
 /* ===== HASIL UJIAN ===== */ 
