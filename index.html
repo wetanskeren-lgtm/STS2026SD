@@ -3909,6 +3909,13 @@ function renderSoal(c){
    sehingga hasil cetak sekolah tidak bergantung pada cache halaman. */
 async function cetakKunciJawaban(eid){
   if(!D.aIn)return tt('Silakan login terlebih dahulu.','er');
+  // Escape HTML khusus untuk jendela cetak. Jangan bergantung pada safeText lokal di renderSoalList.
+  const safeText=(v)=>String(v??'')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
   ld('Memuat kunci jawaban terbaru...');
   try{
     const snap=await soalR().doc(eid).get();
