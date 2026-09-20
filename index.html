@@ -3877,6 +3877,7 @@ function renderSoal(c){
 
           <button class="bt bt1 btx" onclick="sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Sebar</button>
           <button class="bt bt2 btx" onclick="cetakSoalPusat('${ex.id}')"><i class="fas fa-print"></i> Cetak Soal</button>
+          <button class="bt bt5 btx" onclick="cetakKunciJawaban('${ex.id}')"><i class="fas fa-key"></i> Cetak Kunci</button>
 
           <button class="bt bt4 btx" onclick="hapusUjianPusat('${ex.id}')"><i class="fas fa-trash"></i></button>`;
 
@@ -3884,6 +3885,7 @@ function renderSoal(c){
 
         h+=`${isFromPusat?'<span style="font-size:.72rem;color:var(--pr);font-weight:700;background:rgba(99,102,241,.08);padding:4px 10px;border-radius:8px"><i class="fas fa-lock mr-1"></i>Dari Admin Pusat</span>':''}
           <button class="bt bt2 btx" onclick="cetakSoalPusat('${ex.id}')"><i class="fas fa-print"></i> Cetak Soal</button>
+          <button class="bt bt5 btx" onclick="cetakKunciJawaban('${ex.id}')"><i class="fas fa-key"></i> Cetak Kunci</button>
           `;
 
       }
@@ -3898,6 +3900,54 @@ function renderSoal(c){
 
   h+=`</div>`;c.innerHTML=h;
 
+}
+
+/* ===== CETAK KUNCI JAWABAN =====
+   Sumber kunci untuk Admin Pusat dan Admin Sekolah sama persis:
+   dokumen paket soal aktif di Server Cadangan (PUSAT).
+   Fungsi mengambil data terbaru langsung dari Firestore sebelum mencetak,
+   sehingga hasil cetak sekolah tidak bergantung pada cache halaman. */
+async function cetakKunciJawaban(eid){
+  if(!D.aIn)return tt('Silakan login terlebih dahulu.','er');
+  ld('Memuat kunci jawaban terbaru...');
+  try{
+    const snap=await soalR().doc(eid).get();
+    if(!snap.exists){hd();return tt('Paket soal tidak ditemukan di Server Cadangan.','er');}
+    const ex=normalizeExamRecord({id:snap.id,...snap.data()});
+    const qs=Array.isArray(ex.questions)?ex.questions.map(normalizeQuestion).filter(questionIsUsable):[];
+    if(!qs.length){hd();return tt('Paket soal belum memiliki soal yang dapat dicetak.','er');}
+
+    const rows=qs.map((q,i)=>{
+      if(q.type==='essay'){
+        return `<tr><td>${i+1}</td><td>Uraian</td><td colspan="2" style="text-align:left">${safeText(q.key||'')}</td></tr>`;
+      }
+      const idx=Number(q.answer);
+      const label=(Number.isInteger(idx)&&idx>=0&&idx<OL_FULL.length)?OL_FULL[idx]:String(q.answer??'');
+      return `<tr><td>${i+1}</td><td>PG</td><td>${label}</td><td style="text-align:left">${safeText((q.options&&q.options[idx])?((typeof q.options[idx]==='object'?q.options[idx].text:q.options[idx])||''):'')}</td></tr>`;
+    }).join('');
+
+    hd();
+    const win=window.open('','_blank','width=900,height=800');
+    if(!win)return tt('Popup diblokir browser. Izinkan pop-up untuk mencetak kunci.','er');
+    const title=`KUNCI JAWABAN — ${ex.mapel||''} — ${examKelasLabel(ex)}`;
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safeText(title)}</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:24px;color:#111;font-size:12px}
+      h1{text-align:center;font-size:18px;margin:0 0 4px;text-transform:uppercase}
+      .sub{text-align:center;font-size:12px;margin-bottom:16px}.meta{display:flex;justify-content:space-between;gap:12px;border:1px solid #999;padding:8px 10px;margin-bottom:12px;font-size:11px}
+      table{width:100%;border-collapse:collapse}th,td{border:1px solid #333;padding:6px 7px;text-align:center;vertical-align:top}th{background:#eee;font-weight:700}
+      .foot{margin-top:14px;font-size:10px;color:#555;text-align:center}
+      @media print{body{padding:10mm}.no-print{display:none!important}table{page-break-inside:auto}tr{page-break-inside:avoid}}
+    </style></head><body>
+      <h1>KUNCI JAWABAN</h1>
+      <div class="sub">${safeText(ex.mapel||'')} — ${safeText(examKelasLabel(ex))}</div>
+      <div class="meta"><span><b>Tanggal:</b> ${safeText(fmtTanggalHari(getExamScheduleDate(ex))||'-')}</span><span><b>Jumlah Soal:</b> ${qs.length}</span><span><b>Sumber:</b> Admin Pusat</span></div>
+      <table><thead><tr><th style="width:8%">No</th><th style="width:12%">Jenis</th><th style="width:12%">Kunci</th><th>Keterangan / Jawaban Uraian</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="foot">Kunci diambil otomatis dari paket soal aktif di Server Cadangan yang menjadi sumber bersama Admin Pusat, Admin Sekolah, dan Siswa.</div>
+      <script>window.onload=function(){setTimeout(function(){window.focus();window.print()},250)};<\/script>
+    </body></html>`);
+    win.document.close();
+    tt('Kunci jawaban siap dicetak dan diambil dari data terbaru Admin Pusat.','ok');
+  }catch(e){hd();tt('Gagal mencetak kunci: '+(e.code||e.message),'er');}
 }
 
 /* ===== CETAK SOAL ADMIN PUSAT ===== */
