@@ -4359,6 +4359,8 @@ async function editUjian(eid){
   /* Admin Pusat mengedit DRAF. Jika tidak ada draf, gunakan soal yang
      sedang tampil ke siswa. */
   const sourceQuestions=draftQs.length?draftQs:currentQs;
+  const keyLockedByJSON=ex.keyLockedByJSON===true || ex.answerKeySource==='json';
+  D._keyLockedByJSON=keyLockedByJSON;
   D.editQs=JSON.parse(JSON.stringify(sourceQuestions.map(normalizeQuestion)));
   if(!Array.isArray(D.editQs))D.editQs=[];
   D.editIdx=-1;
@@ -5248,18 +5250,15 @@ function normalizeUploadedAnswerValue(v){
 }
 
 function extractUploadedKeyItems(data){
-  let arr=Array.isArray(data)?data:(Array.isArray(data.answers)?data.answers:(Array.isArray(data.kunci)?data.kunci:(Array.isArray(data.questions)?data.questions:null)));
-  if(arr)return arr.map((x,i)=>({
-    no:Number((x&&x.no) ?? (x&&x.number) ?? (x&&x.nomor) ?? (i+1)),
-    answer:x&&x.answer!==undefined?x.answer:(x&&x.jawaban!==undefined?x.jawaban:x&&x.key),
-    key:x&&x.key!==undefined?x.key:(x&&x.kunci!==undefined?x.kunci:x&&x.answer)
-  }));
-  if(data&&data.answers&&typeof data.answers==='object'&&!Array.isArray(data.answers)){
-    return Object.keys(data.answers).map(k=>({no:Number(k),answer:data.answers[k],key:data.answers[k]}));
-  }
-  if(data&&data.kunci&&typeof data.kunci==='object'&&!Array.isArray(data.kunci)){
-    return Object.keys(data.kunci).map(k=>({no:Number(k),answer:data.kunci[k],key:data.kunci[k]}));
-  }
+  const pick=(x,n)=>{
+    const answer=x&&x.answer!==undefined?x.answer:(x&&x.jawaban!==undefined?x.jawaban:(x&&x.kunci!==undefined?x.kunci:(x&&x.correctAnswer!==undefined?x.correctAnswer:(x&&x.correct!==undefined?x.correct:x&&x.key))));
+    const key=x&&x.key!==undefined?x.key:(x&&x.kunci!==undefined?x.kunci:(x&&x.jawaban!==undefined?x.jawaban:(x&&x.answer!==undefined?x.answer:answer)));
+    return {no:Number((x&&x.no) ?? (x&&x.number) ?? (x&&x.nomor) ?? (x&&x.questionNumber) ?? n),answer,key};
+  };
+  let arr=Array.isArray(data)?data:(Array.isArray(data.answers)?data.answers:(Array.isArray(data.kunci)?data.kunci:(Array.isArray(data.questions)?data.questions:(Array.isArray(data.items)?data.items:null))));
+  if(arr)return arr.map((x,i)=>pick(x,i+1));
+  const obj=(data&&data.answers&&typeof data.answers==='object'&&!Array.isArray(data.answers))?data.answers:(data&&data.kunci&&typeof data.kunci==='object'&&!Array.isArray(data.kunci)?data.kunci:null);
+  if(obj)return Object.keys(obj).map(k=>({no:Number(k),answer:obj[k],key:obj[k]}));
   return [];
 }
 
@@ -5295,7 +5294,8 @@ function validateAndUploadKunciJSON(){
     seen.add(no);
 
     const keyRaw=it.key;
-    const answerIdx=normalizeUploadedAnswerValue(it.answer!==undefined?it.answer:keyRaw);
+    const sourceAnswer=it.answer!==undefined&&it.answer!==null&&String(it.answer).trim()!==''?it.answer:keyRaw;
+    const answerIdx=normalizeUploadedAnswerValue(sourceAnswer);
     const isTextKey=typeof keyRaw==='string' && answerIdx===null;
 
     clean.push({
@@ -5364,7 +5364,7 @@ async function applyUploadedKunciToExam(ex,items){
 
   if(changed===0)throw new Error('Tidak ada kunci yang cocok dengan nomor soal pada paket.');
   const stamp=Date.now();
-  const payload={questions:qs,updatedAt:stamp,answerKeyUpdatedAt:stamp};
+  const payload={questions:qs,updatedAt:stamp,answerKeyUpdatedAt:stamp,answerKeySource:'json'};
   if(draft){
     payload.draftQuestions=draft;
     payload.draftUpdatedAt=stamp;
@@ -5374,7 +5374,13 @@ async function applyUploadedKunciToExam(ex,items){
   ex.questions=qs;
   ex.updatedAt=stamp;
   ex.answerKeyUpdatedAt=stamp;
+  ex.answerKeySource='json';
   if(draft){ex.draftQuestions=draft;ex.draftUpdatedAt=stamp;}
+  if(D.cEx===ex.id || D.editTargetNpsn===ex.id){
+    D._keyLockedByJSON=false;
+    const src=(draft&&draft.length)?draft:qs;
+    D.editQs=JSON.parse(JSON.stringify(src.map(normalizeQuestion)));
+  }
   return {changed,skipped};
 }
 
