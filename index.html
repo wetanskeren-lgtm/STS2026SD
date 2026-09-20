@@ -5686,10 +5686,10 @@ async function cetakHasilSiswa(rid,npsn){
    pgr+=`<tr><td>${i+1}</td><td><b>${escHasil(sa)}</b></td><td><b>${escHasil(ka)}</b></td><td>${sameStudentAnswer(q.studentAns,q.correctAns)?'Benar':'Salah'}</td></tr>`;
   });
 
-  /* Uraian: tanpa teks soal, hanya jawaban siswa, kunci/acuan, dan nilai. */
+  /* Uraian khusus cetak: tampilkan soal, jawaban siswa, dan nilai saja. Kunci TIDAK ditampilkan. */
   let esr='';
   es.forEach((q,i)=>{
-   esr+=`<tr><td>${pg.length+i+1}</td><td>${escHasil(q.answer||'-')}</td><td>${escHasil(q.key||'-')}</td><td>${q.graded?q.score+'/100':'Menunggu'}</td></tr>`;
+   esr+=`<tr><td style="text-align:center">${pg.length+i+1}</td><td>${escHasil(q.text||'-')}</td><td>${escHasil(q.answer||'-')}</td><td style="text-align:center">${q.graded?q.score+'/100':'Menunggu'}</td></tr>`;
   });
 
   const b=$('pB');
@@ -5724,7 +5724,7 @@ async function cetakHasilSiswa(rid,npsn){
    </table>
    <div style="margin:3px 0"><b>Perhitungan:</b> ${pgc?'PG '+Number(r.correct||0)+'/'+pgc+' = '+ps+'. ':''}${es.length?'Uraian rata-rata '+escore+'. ':''}${pgc&&es.length?'Nilai akhir = 50% PG + 50% Uraian = '+fs+'.':'Nilai akhir = '+fs+'.'}</div>
    ${pg.length?`<h3>A. PG — KUNCI & JAWABAN SISWA (tanpa soal)</h3><table class="pg-tabel" style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th>No</th><th>Jawaban Siswa</th><th>Kunci</th><th>Hasil</th></tr></thead><tbody>${pgr}</tbody></table>`:''}
-   ${es.length?`<h3>B. URAIAN</h3><table style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th>No</th><th>Jawaban Siswa</th><th>Kunci</th><th>Nilai</th></tr></thead><tbody>${esr}</tbody></table>`:''}
+   ${es.length?`<h3>B. URAIAN — SOAL, JAWABAN SISWA & NILAI</h3><table style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th style="width:5%">No</th><th>Soal Uraian</th><th>Jawaban Siswa</th><th style="width:12%">Nilai</th></tr></thead><tbody>${esr}</tbody></table>`:''}
    <p class="blok-cetak" style="padding:4px;border:1px solid #aaa"><b>Catatan:</b> ${catatanHasilCetak(r)}</p>
    <div class="blok-cetak ttd" style="display:flex;justify-content:space-between;gap:20px"><div style="text-align:center;width:45%"><b>${escHasil(labelGuruCetak(r.mapel,namaGuru))}</b><div style="height:28px"></div>(....................................)</div><div style="text-align:center;width:45%">Majalengka, ${new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})}<br><b>Kepala Sekolah</b><div style="height:28px"></div>(....................................)</div></div>
   </div>`;
