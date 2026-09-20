@@ -5838,7 +5838,7 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
       const gRk=getGuruFor(kelasData.kelas,rb,mapel); 
       let labelGuru = gRk.nama ? 'Guru Kelas: '+gRk.nama : "Guru Kelas"; 
       if(/agama|pai/i.test(mapel)) labelGuru = gRk.nama ? 'Guru PAI: '+gRk.nama : "Guru Mapel PAI"; 
-      else if(/pjok|jasmani|olahraga/i.test(mapel)) labelGuru = gRk.nama ? gRk.nama : "Guru Mapel PJOK"; 
+      else if(/pjok|jasmani|olahraga/i.test(mapel)) labelGuru = gRk.nama ? 'Guru PJOK: '+gRk.nama : 'Guru PJOK'; 
        
       html += `<p style="font-size:10pt;font-weight:700;margin:8px 0 4px">${mapel} <span style="font-weight:400;font-size:8pt">(Rata-rata: ${avg})</span></p>`; 
       html += `<table style="width:100%; border:2px solid #000; border-collapse:collapse; margin-bottom:12px;"> 
@@ -5883,17 +5883,17 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
       }); 
        
       html += `</tbody></table> 
-      <div style="margin-top:20px;margin-bottom:30px;display:flex;justify-content:space-between"> 
-        <div style="text-align:center;width:40%"> 
-          <p style="font-size:9pt;font-weight:700">${labelGuru}</p> 
-          <div style="height:45px"></div> 
-          <p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p> 
+      <div class="blok-cetak ttd" style="margin-top:10px!important;margin-bottom:20px;display:flex;justify-content:space-between;gap:20px;page-break-inside:avoid;break-inside:avoid"> 
+        <div style="text-align:center;width:45%"> 
+          <b style="font-size:9pt">${escHasil(labelGuru)}</b>
+          <div style="height:28px"></div>
+          (....................................)
         </div> 
-        <div style="text-align:center;width:40%"> 
-          <p style="font-size:9pt;font-weight:700;margin:0">Majalengka, ${new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})}</p> 
-          <p style="font-size:9pt;font-weight:700;margin:3px 0 0">Kepala Sekolah</p> 
-          <div style="height:45px"></div> 
-          <p style="font-size:9pt;border-top:1px solid #333;padding-top:3px">(____________)</p> 
+        <div style="text-align:center;width:45%"> 
+          Majalengka, ${new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})}<br>
+          <b>Kepala Sekolah</b>
+          <div style="height:28px"></div>
+          (....................................)
         </div> 
       </div>`; 
     }); 
@@ -5905,7 +5905,7 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
   box.innerHTML = html; 
   tt('Membuat PDF Rekap...','in'); 
   try { 
-    await html2pdf().set({margin:[5,5,5,5],filename:`Rekap_Nilai_${D.sch.nama}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdRekap')).save(); 
+    await html2pdf().set({margin:[5,5,5,5],filename:`Rekap_Nilai_${D.sch.nama}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},pagebreak:{mode:['css','legacy'],avoid:['.blok-cetak','tr']},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdRekap')).save(); 
     tt('Rekap PDF berhasil!'); 
   } catch(e) { 
     tt('Gagal: '+e.message,'er'); 
