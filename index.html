@@ -5760,7 +5760,11 @@ async function cetakHasilSiswa(rid,npsn){
  }catch(e){tt('Gagal mencetak: '+e.message,'er');}
  finally{D.sch=sb;D.ss=ssb;}
 }
-async function cetakRekapHasilSemua(){const f=D.hasilFilter||{};if(!f.kelas||!f.rombel||!f.mapel)return tt('Pilih Kelas, Rombel & Mapel dulu!','er');const list=(D.isPusat?D.allResults:D.rs).filter(r=>String(r.kelas)===String(f.kelas)&&String(r.rombel||'-')===String(f.rombel)&&String(r.mapel||'').trim()===String(f.mapel).trim()).sort((a,b)=>Number(b.score||0)-Number(a.score||0));if(!list.length)return tt('Tidak ada hasil untuk filter ini!','er');const sch=D.sch||{},rows=list.map((r,i)=>`<tr><td>${i+1}</td><td style="text-align:left">${escHasil(r.nama)}</td><td>${escHasil(r.nis||'-')}</td><td>${r.autoScore||0}</td><td>${r.essayScore??'-'}</td><td><b>${r.score||0}</b></td><td>${statusHasilCetak(r)}</td></tr>`).join('');const b=$('pB');b.style.left='0';b.style.top='0';b.style.zIndex='9999';b.innerHTML=`<div class="pd" id="pdRekapHasil" style="font-family:Arial;background:#fff;color:#111;font-size:8pt;padding:5px"><div style="text-align:center;border-bottom:3px double #222;padding-bottom:8px"><h2 style="font-size:13pt;margin:2px">${escHasil(sch.nama||'SEKOLAH').toUpperCase()}</h2><div>REKAP HASIL UJIAN</div><div>Kelas ${escHasil(f.kelas)} · Rombel ${escHasil(f.rombel)} · ${escHasil(f.mapel)}</div></div><table style="width:100%;border-collapse:collapse;border:1px solid #000;margin-top:10px"><thead><tr><th>No</th><th>Nama</th><th>NIS</th><th>PG</th><th>Uraian</th><th>Nilai Akhir</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><div style="margin-top:30px;text-align:right">${escHasil(sch.kota||'')}, ${new Date().toLocaleDateString('id-ID',{month:'long',year:'numeric'})}<br><b>Kepala Sekolah</b><div style="height:50px"></div>(....................................)</div></div>`;tt('Membuat rekap PDF...','in');try{await html2pdf().set({margin:[6,6,6,6],filename:'Rekap_Hasil_Ujian_'+f.kelas+'_'+f.rombel+'.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'landscape'}}).from($('pdRekapHasil')).save();tt('Rekap PDF berhasil!');}catch(e){tt('Gagal mencetak rekap: '+e.message,'er');}b.style.left='-9999px';b.style.zIndex='-1';}
+async function cetakRekapHasilSemua(){
+  // Gunakan satu jalur cetak rekap saja agar tidak lagi memakai fungsi lama
+  // yang menghasilkan landscape dan hanya tanda tangan Kepala Sekolah.
+  return cetakFilterRekap();
+}
 
 /* ===== HASIL UJIAN ===== */ 
 function renderHasil(c){ 
@@ -5797,7 +5801,7 @@ function renderHasil(c){
   h+=`<div class="flex items-center justify-between flex-wrap gap-2 mb-4"> 
     <p style="font-size:.88rem;color:var(--mt)"><i class="fas ${mf.ic} mr-1" style="color:${mf.c}"></i><b style="color:var(--fg)">${fm} &mdash; Kelas ${fk} Rombel ${fr}</b> &middot; ${list.length} siswa &middot; Rata-rata: ${avg}</p> 
      
-  <button class="bt bt3 bts" onclick="cetakRekapHasilSemua()"><i class="fas fa-print"></i> Cetak Rekap Semua Siswa</button></div>`; 
+  <button class="bt bt3 bts" onclick="cetakFilterRekap()"><i class="fas fa-print"></i> Cetak Rekap Semua Siswa</button></div>`; 
  
   const grouped={}; 
   list.forEach(r=>{const k=D.isPusat?(r.schoolNpsn||'-'):'-';if(!grouped[k])grouped[k]={schoolName:r.schoolName||D.sch.nama,schoolNpsn:r.schoolNpsn||D.sch.npsn,items:[]};grouped[k].items.push(r);}); 
@@ -5823,7 +5827,8 @@ function cetakFilterRekap(){
 } 
  
 async function cRekapPDF(filterKelas, filterMapel, filterRombel){ 
-  const list = D.rs.filter(r => { 
+  const sumberHasil = D.isPusat ? (D.allResults||[]) : (D.rs||[]);
+  const list = sumberHasil.filter(r => { 
     let pass = true; 
     if(filterKelas && String(r.kelas) !== String(filterKelas)) pass = false; 
     if(filterMapel && String(r.mapel).trim() !== String(filterMapel).trim()) pass = false; 
