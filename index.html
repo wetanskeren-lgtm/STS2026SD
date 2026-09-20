@@ -4766,6 +4766,9 @@ async function simpanSoal(eid){
     q.options=texts.map((t,i)=>{const img=imgs[i]||'';return img?{text:t,image:img}:t;});
 
     q.answer=parseInt($('eqAns').value)||0;
+    /* Nilai select editor adalah indeks 0-based: A=0, B=1, C=2, D=3.
+       Tandai agar normalisasi tidak mengubah B kembali menjadi A. */
+    q.answerIsZeroBased=true;
 
     if(q.answer>=q.options.length)q.answer=0;
 
@@ -5354,6 +5357,10 @@ async function applyUploadedKunciToExam(ex,items){
         const max=(Array.isArray(q.options)?q.options.length:0)-1;
         if(item.answerIdx<0||item.answerIdx>max){skipped++;return;}
         q.answer=item.answerIdx;
+        /* Kunci dari Upload JSON sudah dinormalisasi ke indeks 0-based:
+           A=0, B=1, C=2, D=3. Tandai agar normalizeQuestion tidak
+           menganggap angka tersebut sebagai nomor opsi 1-based. */
+        q.answerIsZeroBased=true;
         changed++;
       }
     });
