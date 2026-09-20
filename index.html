@@ -5673,12 +5673,17 @@ async function cetakHasilSiswa(rid,npsn){
   const guru=getGuruFor(r.kelas,r.rombel,r.mapel);
   const namaGuru=(r.guruNama||r.namaGuru||(guru&&guru.nama)||'');
 
-  /* PG: tanpa teks soal, hanya nomor + jawaban siswa + kunci + hasil. */
+  /* PG: tanpa teks soal. Tampilkan hanya huruf jawaban: A/B/C/D, lalu kunci dan hasil. */
+  const hurufJawaban=v=>{
+   const n=normalizeStudentAnswer(v);
+   if(n===null || n===undefined || n<0) return '-';
+   return OL_FULL[n] || String.fromCharCode(65+n);
+  };
   let pgr='';
   pg.forEach((q,i)=>{
-   const sa=q.studentAns==null||q.studentAns===''?'-':(typeof q.studentAns==='number'&&q.options?q.options[q.studentAns]:q.studentAns);
-   const ka=q.correctAns==null||q.correctAns===''?'-':(typeof q.correctAns==='number'&&q.options?q.options[q.correctAns]:q.correctAns);
-   pgr+=`<tr><td>${i+1}</td><td>${escHasil(sa)}</td><td>${escHasil(ka)}</td><td>${sameStudentAnswer(q.studentAns,q.correctAns)?'Benar':'Salah'}</td></tr>`;
+   const sa=hurufJawaban(q.studentAns);
+   const ka=hurufJawaban(q.correctAns);
+   pgr+=`<tr><td>${i+1}</td><td><b>${escHasil(sa)}</b></td><td><b>${escHasil(ka)}</b></td><td>${sameStudentAnswer(q.studentAns,q.correctAns)?'Benar':'Salah'}</td></tr>`;
   });
 
   /* Uraian: tetap lengkap dengan teks soal. */
