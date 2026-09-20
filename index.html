@@ -1588,17 +1588,6 @@ function normalizeQuestionList(value){
   }
   return [];
 }
-function normalizePGAnswerValue(v){
-  if(v===null||v===undefined||v==='')return null;
-  if(typeof v==='number'&&Number.isFinite(v))return Math.trunc(v);
-  const s=String(v).trim(); if(!s)return null;
-  if(/^[A-Za-z]$/.test(s))return s.toUpperCase().charCodeAt(0)-65;
-  if(/^\d+$/.test(s))return parseInt(s,10);
-  const m=s.match(/^([A-Za-z])(?:[.)]|\s|$)/);
-  if(m)return m[1].toUpperCase().charCodeAt(0)-65;
-  return null;
-}
-
 function normalizeQuestion(q){
   if(!q||typeof q!=='object')return q;
   const out={...q};
@@ -1637,13 +1626,13 @@ function normalizeQuestion(q){
     if(a!=null)out.answer=a;
   }
   if(out.type!=='essay' && out.answer!=null){
-    const av=normalizePGAnswerValue(out.answer);
-    if(av!==null){
-      if(typeof out.answer==='string' && /^[A-Za-z]$/.test(out.answer.trim())) out.answer=av;
-      else if(!out.answerIsZeroBased && typeof out.answer==='string' && /^\d+$/.test(out.answer.trim())){
-        const n=Number(out.answer.trim()); out.answer=(n>=1&&n<=10)?n-1:n;
-      }else out.answer=av;
-    }else out.answer=0;
+    // Terima index 0-based, huruf A/B/C/D, maupun angka 1-based dari data lama.
+    const av=String(out.answer).trim();
+    if(/^[A-Z]$/i.test(av)) out.answer=av.toUpperCase().charCodeAt(0)-65;
+    else if(/^\d+$/.test(av)){
+      const n=Number(av);
+      out.answer=(n>=1 && n<=10 && !out.answerIsZeroBased)?n-1:n;
+    } else out.answer=0;
   }
   if(out.key==null){
     const k=out.answerKey??out.kunciJawaban??out.jawaban??out.jawabanUraian;
@@ -2972,13 +2961,11 @@ async function finEx(){
 
     else{
 
-      const studentAns=normalizePGAnswerValue(D.an[i]);
-      const correctAns=normalizePGAnswerValue(q.answer);
-      if(studentAns!==null && correctAns!==null && studentAns===correctAns)cor++;
+      if(D.an[i]===q.answer)cor++;
 
       const optT=o=>typeof o==='object'&&o!==null?(o.text||''):String(o);
 
-      pgList.push({id:q.id,text:q.text,image:q.image||'',options:(q.options||[]).map(optT),studentAns,correctAns});
+      pgList.push({id:q.id,text:q.text,image:q.image||'',options:(q.options||[]).map(optT),studentAns:(D.an[i]!==undefined&&D.an[i]!==null)?D.an[i]:null,correctAns:q.answer});
 
     }
 
@@ -3653,7 +3640,7 @@ async function cetakJadwalSTS(){
       filename:'Jadwal_Pelaksanaan_STS_Kelas_'+targetKelas+'.pdf',
       image:{type:'jpeg',quality:.98},
       html2canvas:{scale:1.8,useCORS:true,backgroundColor:'#fff',scrollY:0,logging:false},
-      jsPDF:{unit:'mm',format:'a4',orientation:'landscape'},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
       pagebreak:{mode:['css','legacy'],avoid:['tr','.ttd-jadwal']}
     }).from($('pdJadwalSTS')).outputPdf('blob');
 
@@ -3750,6 +3737,7 @@ function renderSoal(c){
     <div class="flex gap-2 flex-wrap">
 
       ${D.isPusat?`<button class="bt bt2 bts" onclick="showImportJSON()"><i class="fas fa-file-import"></i> Import JSON</button>
+      <button class="bt bt5 bts" onclick="showImportKunciJSON()"><i class="fas fa-key"></i> Upload Kunci JSON</button>
       <button class="bt bt5 bts" onclick="showContohJSON()"><i class="fas fa-code"></i> Contoh JSON</button>
       <button class="bt bt1 bts" onclick="syncAllPusatExams()"><i class="fas fa-database"></i> Pulihkan Soal Lama</button>
       <button class="bt bt1 bts" onclick="showBuatUjian()"><i class="fas fa-plus"></i> Buat Ujian</button>`:`<span class="tag-pusat"><i class="fas fa-lock"></i> Admin Sekolah: lihat saja</span>`}
@@ -3889,6 +3877,7 @@ function renderSoal(c){
 
           <button class="bt bt1 btx" onclick="sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Sebar</button>
           <button class="bt bt2 btx" onclick="cetakSoalPusat('${ex.id}')"><i class="fas fa-print"></i> Cetak Soal</button>
+          <button class="bt bt5 btx" onclick="cetakKunciJawaban('${ex.id}')"><i class="fas fa-key"></i> Cetak Kunci</button>
 
           <button class="bt bt4 btx" onclick="hapusUjianPusat('${ex.id}')"><i class="fas fa-trash"></i></button>`;
 
@@ -3896,6 +3885,7 @@ function renderSoal(c){
 
         h+=`${isFromPusat?'<span style="font-size:.72rem;color:var(--pr);font-weight:700;background:rgba(99,102,241,.08);padding:4px 10px;border-radius:8px"><i class="fas fa-lock mr-1"></i>Dari Admin Pusat</span>':''}
           <button class="bt bt2 btx" onclick="cetakSoalPusat('${ex.id}')"><i class="fas fa-print"></i> Cetak Soal</button>
+          <button class="bt bt5 btx" onclick="cetakKunciJawaban('${ex.id}')"><i class="fas fa-key"></i> Cetak Kunci</button>
           `;
 
       }
@@ -3910,6 +3900,76 @@ function renderSoal(c){
 
   h+=`</div>`;c.innerHTML=h;
 
+}
+
+/* ===== CETAK KUNCI JAWABAN =====
+   Sumber kunci untuk Admin Pusat dan Admin Sekolah sama persis:
+   dokumen paket soal aktif di Server Cadangan (PUSAT).
+   Fungsi mengambil data terbaru langsung dari Firestore sebelum mencetak,
+   sehingga hasil cetak sekolah tidak bergantung pada cache halaman. */
+async function cetakKunciJawaban(eid){
+  if(!D.aIn)return tt('Silakan login terlebih dahulu.','er');
+  const safeText=(v)=>String(v??'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  ld('Memuat kunci jawaban terbaru...');
+  try{
+    const snap=await soalR().doc(eid).get();
+    if(!snap.exists){hd();return tt('Paket soal tidak ditemukan di Server Cadangan.','er');}
+    const ex=normalizeExamRecord({id:snap.id,...snap.data()});
+    const qs=Array.isArray(ex.questions)?ex.questions.map(normalizeQuestion).filter(questionIsUsable):[];
+    if(!qs.length){hd();return tt('Paket soal belum memiliki soal yang dapat dicetak.','er');}
+
+    // Hanya kuncinya yang dicetak agar muat 1 lembar A4.
+    // 4 pasangan nomor+kunci per baris = sangat ringkas dan mudah diperiksa.
+    const pg=qs.map((q,i)=>({no:i+1,q})).filter(x=>x.q.type!=='essay');
+    const essay=qs.map((q,i)=>({no:i+1,q})).filter(x=>x.q.type==='essay');
+    const pairsPerRow=4;
+    let pgRows='';
+    for(let i=0;i<pg.length;i+=pairsPerRow){
+      const chunk=pg.slice(i,i+pairsPerRow);
+      while(chunk.length<pairsPerRow)chunk.push(null);
+      pgRows+=`<tr>${chunk.map(x=>{
+        if(!x)return '<td class="num empty"></td><td class="key empty"></td>';
+        const idx=Number(x.q.answer);
+        const label=(Number.isInteger(idx)&&idx>=0&&idx<OL_FULL.length)?OL_FULL[idx]:String(x.q.answer??'');
+        return `<td class="num">${x.no}</td><td class="key">${safeText(label)}</td>`;
+      }).join('')}</tr>`;
+    }
+    const essayRows=essay.length?essay.map(x=>`<tr><td class="enum">${x.no}</td><td class="essaykey">${safeText(x.q.key||'-')}</td></tr>`).join(''):'';
+
+    hd();
+    const win=window.open('','_blank','width=1100,height=800');
+    if(!win)return tt('Popup diblokir browser. Izinkan pop-up untuk mencetak kunci.','er');
+    const title=`KUNCI JAWABAN — ${ex.mapel||''} — ${examKelasLabel(ex)}`;
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safeText(title)}</title><style>
+      @page{size:A4 portrait;margin:7mm}
+      *{box-sizing:border-box}
+      body{font-family:Arial,sans-serif;margin:0;color:#111;font-size:10px}
+      h1{text-align:center;font-size:15px;margin:0 0 2px;text-transform:uppercase}
+      .sub{text-align:center;font-size:10px;margin-bottom:5px;font-weight:700}
+      .meta{display:flex;justify-content:space-between;gap:8px;border:1px solid #777;padding:4px 7px;margin-bottom:5px;font-size:8.5px}
+      .titlebar{font-weight:700;font-size:9px;margin:4px 0 2px}
+      table{width:100%;border-collapse:collapse;table-layout:fixed}
+      th,td{border:1px solid #333;padding:2px 3px;text-align:center;vertical-align:middle;line-height:1.05;height:18px}
+      th{background:#eee;font-weight:700;font-size:8.5px}
+      .num{width:4%;font-weight:700}.key{width:8%;font-weight:700;font-size:11px}.empty{background:#fff;border-color:#aaa}
+      .essaytbl{margin-top:3px}.enum{width:7%;font-weight:700}.essaykey{text-align:left;font-size:8.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .foot{margin-top:4px;font-size:7.5px;color:#555;text-align:center}
+      @media print{.no-print{display:none!important}tr{page-break-inside:avoid}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+    </style></head><body>
+      <h1>KUNCI JAWABAN</h1>
+      <div class="sub">${safeText(ex.mapel||'')} — ${safeText(examKelasLabel(ex))}</div>
+      <div class="meta"><span><b>Tanggal:</b> ${safeText(fmtTanggalHari(getExamScheduleDate(ex))||'-')}</span><span><b>Jumlah Soal:</b> ${qs.length}</span><span><b>PG:</b> ${pg.length}</span><span><b>Uraian:</b> ${essay.length}</span><span><b>Sumber:</b> Server Cadangan/Admin Pusat</span></div>
+      <div class="titlebar">KUNCI PILIHAN GANDA</div>
+      <table><thead><tr>${Array.from({length:pairsPerRow},()=>'<th class="num">No</th><th class="key">Kunci</th>').join('')}</tr></thead><tbody>${pgRows}</tbody></table>
+      ${essay.length?`<div class="titlebar">KUNCI URAIAN</div><table class="essaytbl"><thead><tr><th class="enum">No</th><th>Kunci Jawaban</th></tr></thead><tbody>${essayRows}</tbody></table>`:''}
+      <div class="foot">Kunci diambil otomatis dari paket soal terbaru pada Server Cadangan yang menjadi sumber bersama Admin Pusat, Admin Sekolah, dan Login Siswa.</div>
+      <script>window.onload=function(){setTimeout(function(){window.focus();window.print()},250)};<\/script>
+    </body></html>`);
+    win.document.close();
+    tt('Kunci jawaban siap dicetak dalam format 1 lembar A4 portrait.','ok');
+  }catch(e){hd();tt('Gagal mencetak kunci: '+(e.code||e.message),'er');}
 }
 
 /* ===== CETAK SOAL ADMIN PUSAT ===== */
@@ -4371,6 +4431,8 @@ async function editUjian(eid){
   /* Admin Pusat mengedit DRAF. Jika tidak ada draf, gunakan soal yang
      sedang tampil ke siswa. */
   const sourceQuestions=draftQs.length?draftQs:currentQs;
+  const keyLockedByJSON=ex.keyLockedByJSON===true || ex.answerKeySource==='json';
+  D._keyLockedByJSON=keyLockedByJSON;
   D.editQs=JSON.parse(JSON.stringify(sourceQuestions.map(normalizeQuestion)));
   if(!Array.isArray(D.editQs))D.editQs=[];
   D.editIdx=-1;
@@ -4776,6 +4838,9 @@ async function simpanSoal(eid){
     q.options=texts.map((t,i)=>{const img=imgs[i]||'';return img?{text:t,image:img}:t;});
 
     q.answer=parseInt($('eqAns').value)||0;
+    /* Nilai select editor adalah indeks 0-based: A=0, B=1, C=2, D=3.
+       Tandai agar normalisasi tidak mengubah B kembali menjadi A. */
+    q.answerIsZeroBased=true;
 
     if(q.answer>=q.options.length)q.answer=0;
 
@@ -5116,6 +5181,312 @@ async function hapusUjianPusat(eid){
 
 
 
+/* ===== UPLOAD KUNCI JAWABAN JSON =====
+   Fitur ini sengaja terpisah dari Import Soal.
+   Admin Pusat memilih Kelas + Mapel, lalu upload JSON kunci.
+   Kunci langsung menggantikan kunci pada paket yang cocok dan
+   tersimpan di Server Cadangan yang menjadi sumber soal Admin Sekolah/Siswa.
+   Format yang didukung:
+   {
+     "kelas": 4,
+     "mapel": "Matematika",
+     "answers": [
+       {"no":1,"answer":"B"},
+       {"no":2,"answer":"C"},
+       {"no":3,"key":"jawaban uraian"}
+     ]
+   }
+   Bisa juga memakai "kunci" sebagai alias "answers".
+   Nilai PG boleh A/B/C/D atau index 0/1/2/3.
+*/
+
+function showImportKunciJSON(){
+  if(!D.isPusat)return tt('Upload kunci JSON hanya dapat dilakukan di Admin Pusat.','er');
+
+  const kelasOpts=KL.map(k=>`<option value="${k.v}">Kelas ${k.l}</option>`).join('');
+  const mapelOpts=MP.filter(m=>!isSimulasiMapel(m.v)).map(m=>`<option value="${m.v}">${m.l}</option>`).join('');
+
+  oMo(`<div>
+    <div class="flex items-center justify-between mb-4">
+      <h3 style="font-size:1.15rem"><i class="fas fa-key mr-2" style="color:var(--pr)"></i>Upload Kunci Jawaban JSON</h3>
+      <button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button>
+    </div>
+
+    <div style="background:#EEF2FF;border:2px solid #818CF8;border-radius:12px;padding:12px;margin-bottom:14px;font-size:.8rem;color:#3730A3">
+      <b><i class="fas fa-circle-info mr-1"></i> Cara kerja:</b>
+      pilih <b>Kelas</b> dan <b>Mapel</b>, lalu upload file JSON kunci.
+      Kunci pada paket soal yang cocok akan <b>langsung diganti</b> tanpa mengubah teks/opsi soal.
+      Setelah disimpan, kunci terbaru langsung dipakai untuk penilaian.
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+      <div>
+        <label class="block mb-1 font-bold" style="font-size:.82rem">Kelas</label>
+        <select id="keyKelas" class="ip">
+          <option value="">-- Pilih Kelas --</option>
+          ${kelasOpts}
+          <option value="SIMULASI">Simulasi (Kelas 3–6)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block mb-1 font-bold" style="font-size:.82rem">Mata Pelajaran</label>
+        <select id="keyMapel" class="ip">
+          <option value="">-- Pilih Mapel --</option>
+          ${mapelOpts}
+        </select>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="block mb-1 font-bold" style="font-size:.82rem">File Kunci Jawaban (.json)</label>
+      <input type="file" id="keyJsonFile" accept=".json,application/json" class="ip" style="padding:10px"
+        onchange="loadKunciJSONFile(this)">
+    </div>
+
+    <textarea id="keyJsonTA" class="json-ta" placeholder='Contoh:
+{
+  "answers": [
+    {"no":1,"answer":"B"},
+    {"no":2,"answer":"C"},
+    {"no":3,"key":"2, 4, 6"}
+  ]
+}'></textarea>
+
+    <div id="keyJsonPreview" style="display:none;margin-top:12px"></div>
+
+    <div class="flex gap-2 mt-4">
+      <button class="bt bt3 bts" onclick="showContohKunciJSON()"><i class="fas fa-code"></i> Contoh</button>
+      <button class="bt bt1 bts flex-1 justify-center" onclick="validateAndUploadKunciJSON()"><i class="fas fa-key"></i> Validasi & Terapkan Kunci</button>
+    </div>
+  </div>`);
+}
+
+function loadKunciJSONFile(input){
+  const file=input&&input.files&&input.files[0];
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    $('keyJsonTA').value=e.target.result||'';
+    tt('File kunci berhasil dimuat.','in');
+  };
+  r.onerror=()=>tt('File JSON tidak dapat dibaca.','er');
+  r.readAsText(file);
+}
+
+function showContohKunciJSON(){
+  const contoh={
+    kelas:4,
+    mapel:"Matematika",
+    answers:[
+      {no:1,answer:"B"},
+      {no:2,answer:"C"},
+      {no:3,answer:"A"},
+      {no:4,answer:"D"},
+      {no:5,key:"Satu per dua"}
+    ]
+  };
+  oMo(`<div>
+    <div class="flex items-center justify-between mb-4">
+      <h3 style="font-size:1.1rem"><i class="fas fa-key mr-2" style="color:var(--pr)"></i>Contoh JSON Kunci</h3>
+      <button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button>
+    </div>
+    <div style="background:#FFF7ED;border:2px solid #FDBA74;border-radius:12px;padding:12px;margin-bottom:12px;font-size:.78rem;color:#9A3412">
+      <b>Catatan:</b> untuk PG gunakan A/B/C/D atau index 0/1/2/3.
+      Untuk uraian gunakan <b>key</b>. Nomor soal dimulai dari 1.
+    </div>
+    <textarea id="contohKunciTA" class="json-ta" readonly style="min-height:300px">${JSON.stringify(contoh,null,2)}</textarea>
+    <div class="flex gap-2 mt-3">
+      <button class="bt bt2 bts" onclick="navigator.clipboard.writeText($('contohKunciTA').value).then(()=>tt('Contoh disalin!'))"><i class="fas fa-copy"></i> Salin</button>
+      <button class="bt bt3 bts" onclick="cMo()">Tutup</button>
+    </div>
+  </div>`);
+}
+
+function normalizeKeyMapel(v){
+  return canonicalMapel(String(v||'').trim());
+}
+
+function normalizeKeyKelas(v){
+  if(String(v||'').toUpperCase()==='SIMULASI')return 'SIMULASI';
+  const n=parseInt(v,10);
+  return n>=1&&n<=6?n:null;
+}
+
+function normalizeUploadedAnswerValue(v){
+  if(v===undefined||v===null)return null;
+  if(typeof v==='number'&&Number.isFinite(v))return Math.max(0,Math.floor(v));
+  const s=String(v).trim().toUpperCase();
+  if(/^[A-Z]$/.test(s)){
+    const idx=OL_FULL.indexOf(s);
+    if(idx>=0)return idx;
+  }
+  if(/^\d+$/.test(s))return parseInt(s,10);
+  return null;
+}
+
+function extractUploadedKeyItems(data){
+  const pick=(x,n)=>{
+    const answer=x&&x.answer!==undefined?x.answer:(x&&x.jawaban!==undefined?x.jawaban:(x&&x.kunci!==undefined?x.kunci:(x&&x.correctAnswer!==undefined?x.correctAnswer:(x&&x.correct!==undefined?x.correct:x&&x.key))));
+    const key=x&&x.key!==undefined?x.key:(x&&x.kunci!==undefined?x.kunci:(x&&x.jawaban!==undefined?x.jawaban:(x&&x.answer!==undefined?x.answer:answer)));
+    return {no:Number((x&&x.no) ?? (x&&x.number) ?? (x&&x.nomor) ?? (x&&x.questionNumber) ?? n),answer,key};
+  };
+  let arr=Array.isArray(data)?data:(Array.isArray(data.answers)?data.answers:(Array.isArray(data.kunci)?data.kunci:(Array.isArray(data.questions)?data.questions:(Array.isArray(data.items)?data.items:null))));
+  if(arr)return arr.map((x,i)=>pick(x,i+1));
+  const obj=(data&&data.answers&&typeof data.answers==='object'&&!Array.isArray(data.answers))?data.answers:(data&&data.kunci&&typeof data.kunci==='object'&&!Array.isArray(data.kunci)?data.kunci:null);
+  if(obj)return Object.keys(obj).map(k=>({no:Number(k),answer:obj[k],key:obj[k]}));
+  return [];
+}
+
+function validateAndUploadKunciJSON(){
+  if(!D.isPusat)return tt('Upload kunci hanya dapat dilakukan di Admin Pusat.','er');
+
+  const kelasSel=normalizeKeyKelas($('keyKelas')?.value);
+  const mapelSel=normalizeKeyMapel($('keyMapel')?.value);
+  const raw=($('keyJsonTA')?.value||'').trim();
+  if(!kelasSel)return tt('Pilih Kelas terlebih dahulu.','er');
+  if(!mapelSel)return tt('Pilih Mapel terlebih dahulu.','er');
+  if(!raw)return tt('Upload atau paste file JSON kunci terlebih dahulu.','er');
+
+  let data;
+  try{data=JSON.parse(raw);}
+  catch(e){return tt('JSON kunci tidak valid.','er');}
+
+  const jsonKelas=normalizeKeyKelas(data&&data.kelas);
+  const jsonMapel=normalizeKeyMapel(data&&data.mapel);
+  if(jsonKelas&&String(jsonKelas)!==String(kelasSel))return tt(`Kelas JSON (${jsonKelas}) berbeda dengan pilihan Kelas (${kelasSel}).`,'er');
+  if(jsonMapel&&jsonMapel!==mapelSel)return tt(`Mapel JSON (${jsonMapel}) berbeda dengan pilihan Mapel (${mapelSel}).`,'er');
+
+  const items=extractUploadedKeyItems(data);
+  if(!items.length)return tt('JSON tidak memiliki "answers"/"kunci" yang dapat diproses.','er');
+
+  const clean=[];
+  const seen=new Set();
+  const errors=[];
+  items.forEach((it,i)=>{
+    const no=Number(it.no);
+    if(!Number.isInteger(no)||no<1)return errors.push(`Baris ${i+1}: nomor soal tidak valid.`);
+    if(seen.has(no))return errors.push(`Nomor soal ${no} muncul lebih dari satu kali.`);
+    seen.add(no);
+
+    const keyRaw=it.key;
+    const sourceAnswer=it.answer!==undefined&&it.answer!==null&&String(it.answer).trim()!==''?it.answer:keyRaw;
+    const answerIdx=normalizeUploadedAnswerValue(sourceAnswer);
+    const isTextKey=typeof keyRaw==='string' && answerIdx===null;
+
+    clean.push({
+      no,
+      answerIdx,
+      key:isTextKey?String(keyRaw).trim():String(it.key??'').trim()
+    });
+  });
+
+  if(errors.length)return tt('Kunci tidak valid: '+errors.join(' '),'er');
+
+  const targetK=kelasSel;
+  const targetM=mapelSel;
+  const matches=(D.ex||[]).filter(ex=>{
+    const ek=normalizeKeyKelas(ex.kelas);
+    const em=normalizeKeyMapel(ex.mapel);
+    return String(ek)===String(targetK)&&em===targetM;
+  });
+
+  if(!matches.length){
+    return tt(`Paket ${targetM} Kelas ${targetK} tidak ditemukan di Admin Pusat.`,'er');
+  }
+
+  const preview=`<div style="background:#F0FDF4;border:2px solid var(--ok);border-radius:12px;padding:14px">
+    <p style="font-weight:800;color:#166534;margin-bottom:7px"><i class="fas fa-check-circle mr-1"></i> Kunci siap diterapkan</p>
+    <p style="font-size:.8rem;color:#166534">${clean.length} nomor kunci · ${matches.length} paket ${targetM} Kelas ${targetK} akan diperbarui.</p>
+    <p style="font-size:.75rem;color:#166534;margin-top:5px">Soal, opsi, gambar, jadwal, dan ID soal tidak diubah. Hanya field kunci jawaban yang diganti.</p>
+  </div>`;
+  $('keyJsonPreview').innerHTML=preview+`<button class="bt bt1 bts w-full justify-center mt-3" onclick="doUploadKunciJSON()"><i class="fas fa-cloud-upload-alt"></i> Terapkan Kunci Sekarang</button>`;
+  $('keyJsonPreview').style.display='block';
+  window._pendingKeyImport={kelas:targetK,mapel:targetM,items:clean};
+  tt('Validasi kunci berhasil. Klik Terapkan Kunci Sekarang untuk mengganti kunci.','in');
+}
+
+async function applyUploadedKunciToExam(ex,items){
+  const qs=Array.isArray(ex.questions)?JSON.parse(JSON.stringify(ex.questions)):[];
+  const draft=Array.isArray(ex.draftQuestions)?JSON.parse(JSON.stringify(ex.draftQuestions)):null;
+  const byNo=new Map(items.map(x=>[x.no,x]));
+  let changed=0,skipped=0;
+
+  const applyTo=(list)=>{
+    if(!Array.isArray(list))return;
+    list.forEach((q,i)=>{
+      const item=byNo.get(i+1);
+      if(!item)return;
+      if(q.type==='essay'){
+        if(item.key!==''&&item.key!==null&&item.key!==undefined){
+          q.key=String(item.key);
+          changed++;
+        }else if(item.answerIdx!==null){
+          q.key=OL_FULL[item.answerIdx]||String(item.answerIdx);
+          changed++;
+        }else skipped++;
+      }else{
+        if(item.answerIdx===null){skipped++;return;}
+        const max=(Array.isArray(q.options)?q.options.length:0)-1;
+        if(item.answerIdx<0||item.answerIdx>max){skipped++;return;}
+        q.answer=item.answerIdx;
+        /* Kunci dari Upload JSON sudah dinormalisasi ke indeks 0-based:
+           A=0, B=1, C=2, D=3. Tandai agar normalizeQuestion tidak
+           menganggap angka tersebut sebagai nomor opsi 1-based. */
+        q.answerIsZeroBased=true;
+        changed++;
+      }
+    });
+  };
+
+  applyTo(qs);
+  if(draft)applyTo(draft);
+
+  if(changed===0)throw new Error('Tidak ada kunci yang cocok dengan nomor soal pada paket.');
+  const stamp=Date.now();
+  const payload={questions:qs,updatedAt:stamp,answerKeyUpdatedAt:stamp,answerKeySource:'json'};
+  if(draft){
+    payload.draftQuestions=draft;
+    payload.draftUpdatedAt=stamp;
+  }
+  await savePusatExamBoth(ex.id,payload,{merge:true});
+
+  ex.questions=qs;
+  ex.updatedAt=stamp;
+  ex.answerKeyUpdatedAt=stamp;
+  ex.answerKeySource='json';
+  if(draft){ex.draftQuestions=draft;ex.draftUpdatedAt=stamp;}
+  if(D.cEx===ex.id || D.editTargetNpsn===ex.id){
+    D._keyLockedByJSON=false;
+    const src=(draft&&draft.length)?draft:qs;
+    D.editQs=JSON.parse(JSON.stringify(src.map(normalizeQuestion)));
+  }
+  return {changed,skipped};
+}
+
+async function doUploadKunciJSON(){
+  if(!D.isPusat)return tt('Upload kunci hanya dapat dilakukan di Admin Pusat.','er');
+  const p=window._pendingKeyImport;
+  if(!p)return tt('Belum ada kunci yang divalidasi.','er');
+
+  D._savingExam=true;
+  ld(`Menerapkan kunci ${p.mapel} Kelas ${p.kelas}...`);
+  let totalChanged=0,totalSkipped=0,ok=0;
+  try{
+    for(const ex of (D.ex||[]).filter(ex=>String(normalizeKeyKelas(ex.kelas))===String(p.kelas)&&normalizeKeyMapel(ex.mapel)===p.mapel)){
+      const r=await applyUploadedKunciToExam(ex,p.items);
+      totalChanged+=r.changed;totalSkipped+=r.skipped;ok++;
+    }
+    window._pendingKeyImport=null;
+    D._savingExam=false;
+    hd();cMo();
+    tt(`Kunci berhasil diterapkan: ${totalChanged} jawaban pada ${ok} paket ${p.mapel} Kelas ${p.kelas}.`,'ok');
+    renderSoal($('aC'));
+  }catch(e){
+    D._savingExam=false;hd();
+    tt('Gagal menerapkan kunci: '+(e.code||e.message),'er');
+  }
+}
+
 /* ===== EXPORT / IMPORT JSON ===== */
 
 function exportExamJSON(eid){
@@ -5428,9 +5799,7 @@ function koreksiEssay(rid, npsn){
   if(pgArr.length){ 
     h+=`<h4 style="font-size:.9rem;margin-bottom:8px;color:var(--ac)"><i class="fas fa-list mr-1"></i> Pilihan Ganda — Soal No. 1 s.d. ${pgArr.length} — ubah jawaban jika perlu</h4><div style="max-height:280px;overflow-y:auto;margin-bottom:14px;padding-right:4px">`; 
     pgArr.forEach((g,i)=>{ 
-      g.studentAns=normalizePGAnswerValue(g.studentAns);
-      g.correctAns=normalizePGAnswerValue(g.correctAns);
-      const isRight = g.studentAns!==null && g.correctAns!==null && g.studentAns===g.correctAns; 
+      const isRight = g.studentAns===g.correctAns; 
       let opts = (g.options||[]).map((t,j)=>`<option value="${j}" ${g.studentAns===j?'selected':''}>${OL_FULL[j]}. ${t}</option>`).join(''); 
       opts += `<option value="" ${g.studentAns===null||g.studentAns===undefined?'selected':''}>-- Kosong --</option>`; 
       h+=`<div class="cd mb-2" style="padding:10px 12px"><p style="font-size:.82rem;font-weight:700;margin-bottom:6px">Soal No. ${i+1} &mdash; ${g.text}</p> 
@@ -5472,9 +5841,8 @@ async function simpanKoreksi(rid, npsn){
       const el=document.getElementById('pgAns'+i); 
       if(!el)return; 
       const v=el.value; 
-      g.studentAns = v==='' ? null : normalizePGAnswerValue(v);
-      g.correctAns = normalizePGAnswerValue(g.correctAns);
-      if(g.studentAns!==null && g.correctAns!==null && g.studentAns===g.correctAns)cor++; 
+      g.studentAns = v==='' ? null : parseInt(v); 
+      if(g.studentAns===g.correctAns)cor++; 
     }); 
   } 
   if(r.essays && r.essays.length){ 
