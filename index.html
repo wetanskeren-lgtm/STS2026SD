@@ -2824,8 +2824,24 @@ const BACKUP_PUSAT_EXAM_PATH=()=>backupDb.collection('schools').doc('PUSAT').col
 const PRIMARY_PUSAT_EXAM_PATH=()=>dbMigrationPrimary.collection('schools').doc('PUSAT').collection('exams');
 
 async function savePusatExamBoth(id,data,options={merge:true}){
+  /* Semua perubahan soal/kunci dari Admin Pusat harus menaikkan penanda
+     kunci agar Admin Sekolah selalu membaca versi terbaru. */
   const payload=JSON.parse(JSON.stringify(data));
+  if(Object.prototype.hasOwnProperty.call(data||{},'questions')){
+    payload.answerKeyUpdatedAt=Number(data.answerKeyUpdatedAt||Date.now());
+    payload.updatedAt=Number(data.updatedAt||payload.answerKeyUpdatedAt);
+  }
   return BACKUP_PUSAT_EXAM_PATH().doc(id).set(payload,options);
+}
+
+/* Ambil paket Pusat TERBARU langsung dari Firestore.
+   Dipakai Admin Sekolah saat membuka editor kunci agar tidak memakai D.ex
+   yang mungkin masih merupakan cache dari saat login. */
+async function getLatestPusatExam(examId){
+  if(!examId)return null;
+  const snap=await BACKUP_PUSAT_EXAM_PATH().doc(examId).get();
+  if(!snap.exists)return null;
+  return normalizeExamRecord({id:snap.id,...snap.data()});
 }
 
 async function getMergedPusatExams(){
@@ -4707,120 +4723,6 @@ function renderJadwal(c){
 }
 
 
-/* ================================================================
-   EDIT KUNCI FINAL — ADMIN PUSAT
-   - Kunci otomatis/hasil JSON tetap bisa diperiksa dan diedit manual.
-   - Perubahan langsung masuk ke Firestore paket PUSAT (questions).
-   - Tidak mengubah teks, opsi, atau gambar soal.
-   - answerKeyUpdatedAt dipakai siswa untuk menerima versi kunci terbaru.
-   ================================================================ */
-async function showEditKunciPusat(examId){
-  if(!D.isPusat)return tt('Edit kunci final hanya dapat dilakukan oleh Admin Pusat.','er');
-  ld('Memuat kunci terbaru dari Firestore...');
-  try{
-    const snap=await soalR().doc(examId).get();
-    if(!snap.exists){hd();return tt('Paket soal tidak ditemukan di Server Cadangan.','er');}
-    const ex=normalizeExamRecord({id:snap.id,...snap.data()});
-    const qs=Array.isArray(ex.questions)?ex.questions.map(normalizeQuestion).filter(questionIsUsable):[];
-    if(!qs.length){hd();return tt('Paket soal belum memiliki soal.','er');}
-    window._pusatKeyEditExamId=examId;
-    oMo(`<div>
-      <div class="flex items-center justify-between gap-3 mb-4">
-        <div>
-          <h3 style="font-size:1.15rem"><i class="fas fa-key mr-2" style="color:var(--pr)"></i>Edit Kunci Jawaban — Admin Pusat</h3>
-          <p style="font-size:.75rem;color:var(--mt);margin-top:4px">${escHasil(ex.mapel||'')} · ${escHasil(examKelasLabel(ex))} · ${qs.length} soal</p>
-        </div>
-        <button onclick="cMo()" style="background:none;border:none;font-size:1.35rem;cursor:pointer;color:var(--mt)"><i class="fas fa-xmark"></i></button>
-      </div>
-      <div style="background:#EEF2FF;border:2px solid #818CF8;border-radius:12px;padding:11px 13px;margin-bottom:14px;font-size:.76rem;color:#3730A3;line-height:1.5">
-        <b><i class="fas fa-circle-info mr-1"></i> Kunci final Admin Pusat.</b>
-        Kunci otomatis/JSON dapat diperiksa dan diubah satu per satu. Setelah disimpan, nilai baru langsung tersimpan ke Firestore dan menjadi kunci yang dipakai siswa.
-      </div>
-      <div id="pusatKeyEditorBody" style="max-height:58vh;overflow:auto;padding-right:3px"></div>
-      <div class="flex gap-2 mt-4 flex-wrap">
-        <button class="bt bt1 bts" onclick="savePusatKeyEdits('${examId}')"><i class="fas fa-save"></i> Simpan Kunci ke Firestore</button>
-        <button class="bt bt3 bts" onclick="cMo()">Batal</button>
-      </div>
-    </div>`);
-    renderPusatKeyEditor(qs);
-    hd();
-  }catch(e){hd();tt('Gagal memuat kunci: '+(e.code||e.message),'er');}
-}
-
-function renderPusatKeyEditor(qs){
-  const body=$('pusatKeyEditorBody');
-  if(!body)return;
-  const rows=qs.map((q,i)=>{
-    if(q.type==='essay'){
-      return `<div class="cd" style="padding:11px 13px;margin-bottom:8px;border-left:4px solid var(--pr)">
-        <div style="font-size:.78rem;font-weight:800;margin-bottom:5px">Soal ${i+1} · Uraian</div>
-        <div style="font-size:.76rem;color:var(--mt);margin-bottom:7px;white-space:pre-wrap">${escHasil(String(q.text||'')).slice(0,500)}</div>
-        <textarea class="ip pusat-key-input" data-qid="${escHasil(q.id||'')}" data-type="essay" rows="2" placeholder="Kunci jawaban uraian...">${escHasil(q.key||'')}</textarea>
-      </div>`;
-    }
-    const opts=Array.isArray(q.options)?q.options:[];
-    const current=normalizeStudentAnswer(q.answer);
-    const optionText=opts.map((o,j)=>typeof o==='object'&&o!==null?(o.text||''):String(o||'')).map(x=>escHasil(x)).join(' | ');
-    return `<div class="cd" style="padding:11px 13px;margin-bottom:8px;border-left:4px solid var(--ac2)">
-      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
-        <div style="font-size:.78rem;font-weight:800">Soal ${i+1} · Pilihan Ganda</div>
-        <span style="font-size:.7rem;font-weight:900;color:var(--ok)">Kunci saat ini: ${OL_FULL[current]||'-'}</span>
-      </div>
-      <div style="font-size:.76rem;color:var(--mt);margin:5px 0 7px;white-space:pre-wrap">${escHasil(String(q.text||'')).slice(0,500)}</div>
-      <div style="font-size:.7rem;color:var(--mt);margin-bottom:6px;line-height:1.45">${optionText}</div>
-      <select class="ip pusat-key-input" data-qid="${escHasil(q.id||'')}" data-type="pg" style="max-width:220px">
-        ${opts.map((o,j)=>`<option value="${j}" ${j===current?'selected':''}>${OL_FULL[j]||String.fromCharCode(65+j)} — ${escHasil(typeof o==='object'&&o!==null?(o.text||''):String(o||''))}</option>`).join('')}
-      </select>
-    </div>`;
-  }).join('');
-  body.innerHTML=rows||'<p style="padding:20px;text-align:center;color:var(--mt)">Tidak ada soal.</p>';
-}
-
-async function savePusatKeyEdits(examId){
-  if(!D.isPusat)return tt('Hanya Admin Pusat yang dapat mengubah kunci final.','er');
-  const inputs=[...document.querySelectorAll('#pusatKeyEditorBody .pusat-key-input')];
-  if(!inputs.length)return tt('Tidak ada kunci yang dapat disimpan.','er');
-  ld('Menyimpan kunci final ke Firestore...');
-  try{
-    const snap=await soalR().doc(examId).get();
-    if(!snap.exists){hd();return tt('Paket soal tidak ditemukan.','er');}
-    const ex=normalizeExamRecord({id:snap.id,...snap.data()});
-    const qs=Array.isArray(ex.questions)?JSON.parse(JSON.stringify(ex.questions)):[];
-    const byId=new Map(inputs.map(el=>[String(el.dataset.qid||''),el]));
-    let changed=0;
-    qs.forEach(q=>{
-      const el=byId.get(String(q&&q.id||''));
-      if(!el)return;
-      if(q.type==='essay'){
-        const val=String(el.value||'').trim();
-        if(String(q.key||'')!==val){q.key=val;changed++;}
-      }else{
-        const idx=parseInt(el.value,10);
-        if(Number.isInteger(idx)&&idx>=0&&idx<(Array.isArray(q.options)?q.options.length:0)){
-          if(normalizeStudentAnswer(q.answer)!==idx){q.answer=idx;changed++;}
-          q.answerIsZeroBased=true;
-        }
-      }
-    });
-    if(!changed){hd();return tt('Tidak ada perubahan kunci.','in');}
-    const stamp=Date.now();
-    const payload={questions:qs,updatedAt:stamp,answerKeyUpdatedAt:stamp,answerKeySource:'admin_pusat_manual'};
-    const draft=Array.isArray(ex.draftQuestions)?JSON.parse(JSON.stringify(ex.draftQuestions)):null;
-    if(draft){
-      const dmap=new Map(qs.map(q=>[String(q&&q.id||''),q]));
-      draft.forEach(q=>{const fresh=dmap.get(String(q&&q.id||''));if(!fresh)return;if(q.type==='essay')q.key=fresh.key||'';else{q.answer=fresh.answer;q.answerIsZeroBased=true;}});
-      payload.draftQuestions=draft;
-      payload.draftUpdatedAt=stamp;
-    }
-    await savePusatExamBoth(examId,payload,{merge:true});
-    const pos=D.ex.findIndex(e=>e.id===examId);
-    if(pos>=0){D.ex[pos]=normalizeExamRecord({...D.ex[pos],questions:qs,updatedAt:stamp,answerKeyUpdatedAt:stamp,answerKeySource:'admin_pusat_manual'});if(draft)D.ex[pos].draftQuestions=draft;}
-    hd();cMo();
-    tt(`${changed} kunci berhasil diperbarui. Kunci final sudah masuk Firestore dan akan dipakai untuk penilaian siswa.`,'ok');
-    renderSoal($('aC'));
-  }catch(e){hd();tt('Gagal menyimpan kunci: '+(e.code||e.message),'er');}
-}
-
 /* ===== EDIT KUNCI LOKAL ADMIN SEKOLAH ===== */
 function getSchoolKeyClasses(){
   const vals=[...new Set((D.ss||[]).map(s=>parseInt(s.kelas,10)).filter(k=>k>=1&&k<=6))].sort((a,b)=>a-b);
@@ -4832,9 +4734,24 @@ function getSchoolKeyRombels(kelas){
 }
 async function showEditKunciSekolah(examId,nis){
   if(D.isPusat)return tt('Edit kunci khusus dilakukan dari Admin Sekolah.','er');
-  let ex=D.ex.find(e=>e.id===examId);
+  if(!D.sch)return tt('Paket soal/sekolah tidak ditemukan. Pastikan paket soal sudah dimuat.','er');
+
+  /* PENTING: jangan memakai paket yang tersimpan di D.ex sebagai sumber utama.
+     Admin Pusat bisa saja baru saja memperbaiki kunci setelah Admin Sekolah login.
+     Ambil dokumen pusat terbaru langsung dari Firestore setiap kali editor kunci dibuka. */
+  let ex=null;
+  try{
+    ex=await getLatestPusatExam(examId);
+    if(ex){
+      const pos=D.ex.findIndex(e=>e.id===examId);
+      if(pos>=0)D.ex[pos]=ex;else D.ex.push(ex);
+    }
+  }catch(e){
+    console.warn('[KEY SYNC] Gagal mengambil paket pusat terbaru:',e);
+  }
+  if(!ex)ex=D.ex.find(e=>e.id===examId);
   if(!ex && D.rs) ex=D.rs.find(x=>x.examId===examId);
-  if(!ex||!D.sch)return tt('Paket soal/sekolah tidak ditemukan. Pastikan paket soal sudah dimuat.','er');
+  if(!ex)return tt('Paket soal/sekolah tidak ditemukan. Pastikan paket soal sudah dimuat.','er');
   if(!Array.isArray(ex.questions) && Array.isArray(ex.pg)) ex={...ex,questions:[...(ex.pg||[]),...(ex.essays||[])]};
   const classes=getSchoolKeyClasses();
   let targetK=parseInt(ex.kelas,10);
@@ -5049,8 +4966,19 @@ async function reloadEditKunciSekolah(examId){
 }
 async function renderEditKunciSekolah(examId,kelas,rombel,nis){
   const body=$('schoolKeyEditorBody');if(!body)return;
-  const ex=D.ex.find(e=>e.id===examId);if(!ex)return;
   body.innerHTML='<div class="spn"></div>';
+  /* Refresh lagi sebelum menggambar daftar kunci. Ini mencegah kunci lama
+     muncul jika paket pusat berubah ketika modal sudah terbuka. */
+  let ex=null;
+  try{
+    ex=await getLatestPusatExam(examId);
+    if(ex){
+      const pos=D.ex.findIndex(e=>e.id===examId);
+      if(pos>=0)D.ex[pos]=ex;else D.ex.push(ex);
+    }
+  }catch(e){console.warn('[KEY SYNC] Gagal refresh kunci pusat:',e);}
+  if(!ex)ex=D.ex.find(e=>e.id===examId);
+  if(!ex){body.innerHTML='<div style="color:var(--er);padding:10px">Paket soal tidak ditemukan.</div>';return;}
   try{
     const personOv=await loadPersonKeyOverride(D.sch.npsn,examId,kelas,rombel,nis);
     const schoolOv=personOv?null:await loadSchoolKeyOverride(D.sch.npsn,examId,kelas,rombel);
@@ -5270,7 +5198,7 @@ function renderSoal(c){
 
           <button class="bt bt1 btx" onclick="sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Sebar</button>
           ${isPendidikanPancasila(ex.mapel)?`<button class="bt btx" style="background:#DBEAFE;color:#1D4ED8" onclick="setPendidikanPancasilaVersion('${ex.id}','lama')">🟦 Lama</button><button class="bt btx" style="background:#DCFCE7;color:#15803D" onclick="setPendidikanPancasilaVersion('${ex.id}','baru')">🟩 Baru</button>`:''}
-          <button class="bt bt5 btx" onclick="showEditKunciPusat('${ex.id}')"><i class="fas fa-key"></i> Edit Kunci</button>
+          <button class="bt bt5 btx" onclick="showEditKunciSekolah('${ex.id}')"><i class="fas fa-key"></i> Edit Kunci Siswa</button>
            <button class="bt bt2 btx" onclick="cetakSoalPusat('${ex.id}')"><i class="fas fa-print"></i> Cetak Soal</button>
           <button class="bt bt5 btx" onclick="cetakKunciJawaban('${ex.id}')"><i class="fas fa-key"></i> Cetak Kunci</button>
 
