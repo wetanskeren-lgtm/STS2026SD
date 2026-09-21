@@ -4700,6 +4700,161 @@ async function showEditKunciSekolah(examId,nis){
   </div>`);
   await renderEditKunciSekolah(examId,targetK,targetR,targetNis);
 }
+
+/* ================================================================
+   UPLOAD KUNCI JSON — PER SISWA
+   Admin Sekolah dapat memasukkan seluruh kunci sekaligus, tidak
+   perlu mengubah soal satu per satu.
+   Format yang didukung:
+   1) {"answers":[{"no":1,"answer":"A"},{"no":2,"answer":"C"}]}
+   2) {"kunci":{"1":"A","2":"C"}}
+   3) [{"no":1,"answer":"A"},{"no":2,"answer":"C"}]
+   4) {"1":"A","2":"C"}
+   Untuk uraian gunakan answer/key berupa teks.
+   ================================================================ */
+function showUploadKunciSiswaJSON(){
+  const examId=$v('skExamId')||window._schoolKeyEditorExamId||'';
+  const kelas=parseInt($v('skKelas'),10);
+  const rombel=$v('skRombel')||'-';
+  const nis=$v('skNis')||'';
+  if(!examId||!nis)return tt('Pilih siswa terlebih dahulu.','er');
+  oMo(`<div>
+    <div class="flex items-center justify-between mb-4">
+      <div><h3 style="font-size:1.15rem"><i class="fas fa-file-import mr-2" style="color:var(--ac2)"></i>Upload Kunci JSON — Per Siswa</h3>
+      <p style="font-size:.74rem;color:var(--mt);margin-top:4px">Kunci akan diterapkan ke siswa yang sedang dipilih: <b>${escHasil(nis)}</b></p></div>
+      <button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button>
+    </div>
+    <div style="background:#EFF6FF;border:2px solid #BFDBFE;border-radius:12px;padding:11px 13px;margin-bottom:12px;font-size:.75rem;color:#1E3A8A;line-height:1.5">
+      <b>Masukkan semua kunci sekaligus.</b> Tidak perlu memilih jawaban satu per satu. Nomor soal mengikuti urutan soal pada paket ujian.
+    </div>
+    <input type="file" id="studentKeyJsonFile" accept=".json,application/json" class="ip" style="padding:10px"
+      onchange="loadKunciSiswaJSONFile(this)">
+    <textarea id="studentKeyJsonTA" class="json-ta" style="min-height:220px;margin-top:10px" placeholder='Contoh:
+{
+  "answers": [
+    {"no":1,"answer":"A"},
+    {"no":2,"answer":"C"},
+    {"no":3,"answer":"D"}
+  ]
+}'></textarea>
+    <div id="studentKeyJsonPreview" style="display:none;margin-top:10px"></div>
+    <div class="flex gap-2 mt-3">
+      <button class="bt bt3 bts" onclick="showContohKunciSiswaJSON()"><i class="fas fa-code"></i> Contoh</button>
+      <button class="bt bt1 bts flex-1 justify-center" onclick="applyKunciSiswaJSON('${escHasil(examId)}',${Number(kelas)||0},'${escHasil(rombel)}','${escHasil(nis)}')"><i class="fas fa-check"></i> Validasi &amp; Terapkan</button>
+    </div>
+  </div>`);
+}
+function loadKunciSiswaJSONFile(input){
+  const file=input&&input.files&&input.files[0];
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{const ta=$('studentKeyJsonTA');if(ta)ta.value=e.target.result||'';tt('File JSON kunci dimuat.','ok');};
+  r.onerror=()=>tt('File JSON tidak dapat dibaca.','er');
+  r.readAsText(file);
+}
+function showContohKunciSiswaJSON(){
+  const contoh={answers:[
+    {no:1,answer:'A'},
+    {no:2,answer:'C'},
+    {no:3,answer:'D'},
+    {no:31,key:'Jawaban uraian nomor 31'}
+  ]};
+  oMo(`<div>
+    <div class="flex items-center justify-between mb-4">
+      <h3 style="font-size:1.1rem"><i class="fas fa-code mr-2" style="color:var(--pr)"></i>Contoh JSON Kunci Siswa</h3>
+      <button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button>
+    </div>
+    <textarea class="json-ta" readonly style="min-height:300px">${JSON.stringify(contoh,null,2)}</textarea>
+    <p style="font-size:.72rem;color:var(--mt);margin-top:8px">PG dapat memakai A/B/C/D atau 0/1/2/3. Uraian memakai teks pada field <b>key</b> atau <b>answer</b>.</p>
+    <button class="bt bt1 w-full justify-center mt-3" onclick="cMo();showUploadKunciSiswaJSON()"><i class="fas fa-arrow-left"></i> Kembali</button>
+  </div>`);
+}
+function normalizeUploadedKeyValue(v,q){
+  if(q&&q.type==='essay')return String(v==null?'':v);
+  if(typeof v==='object'&&v!==null){
+    if(Object.prototype.hasOwnProperty.call(v,'answer'))v=v.answer;
+    else if(Object.prototype.hasOwnProperty.call(v,'key'))v=v.key;
+    else if(Object.prototype.hasOwnProperty.call(v,'jawaban'))v=v.jawaban;
+    else if(Object.prototype.hasOwnProperty.call(v,'kunci'))v=v.kunci;
+  }
+  if(typeof v==='number'&&Number.isFinite(v))return normalizeStudentAnswer(v);
+  const raw=String(v==null?'':v).trim();
+  if(!raw)return null;
+  const upper=raw.toUpperCase();
+  if(/^[A-Z]$/.test(upper)){
+    const idx=OL_FULL.findIndex(x=>String(x).toUpperCase()===upper);
+    if(idx>=0)return idx;
+  }
+  if(/^\d+$/.test(raw))return normalizeStudentAnswer(parseInt(raw,10));
+  return normalizeStudentAnswer(raw);
+}
+function parseKunciSiswaJSON(data){
+  let items=[];
+  if(Array.isArray(data))items=data;
+  else if(data&&Array.isArray(data.answers))items=data.answers;
+  else if(data&&Array.isArray(data.kunci))items=data.kunci;
+  else if(data&&data.answers&&typeof data.answers==='object')items=Object.entries(data.answers).map(([no,v])=>({no,answer:v}));
+  else if(data&&data.kunci&&typeof data.kunci==='object')items=Object.entries(data.kunci).map(([no,v])=>({no,answer:v}));
+  else if(data&&typeof data==='object')items=Object.entries(data).filter(([k])=>/^\d+$/.test(String(k))).map(([no,v])=>({no,answer:v}));
+  return items.map((it,i)=>{
+    if(it==null)return null;
+    if(typeof it!=='object')return {no:i+1,value:it};
+    const no=it.no??it.nomor??it.number??it.n;
+    const value=Object.prototype.hasOwnProperty.call(it,'key')?it.key:
+      (Object.prototype.hasOwnProperty.call(it,'answer')?it.answer:
+      (Object.prototype.hasOwnProperty.call(it,'jawaban')?it.jawaban:
+      (Object.prototype.hasOwnProperty.call(it,'kunci')?it.kunci:it.value)));
+    return {no:Number(no),value};
+  }).filter(x=>Number.isFinite(x.no));
+}
+async function applyKunciSiswaJSON(examId,kelas,rombel,nis){
+  const raw=($('studentKeyJsonTA')?.value||'').trim();
+  if(!raw)return tt('Upload atau paste JSON kunci terlebih dahulu.','er');
+  let data;
+  try{data=JSON.parse(raw);}catch(e){return tt('JSON kunci tidak valid.','er');}
+  const ex=D.ex.find(e=>e.id===examId);
+  if(!ex)return tt('Paket soal tidak ditemukan.','er');
+  const qs=Array.isArray(ex.questions)?ex.questions:[];
+  if(!qs.length)return tt('Paket soal tidak memiliki soal.','er');
+  const items=parseKunciSiswaJSON(data);
+  if(!items.length)return tt('JSON tidak memiliki daftar kunci yang bisa diproses.','er');
+
+  // Mulai dari kunci yang saat ini berlaku, lalu timpa nomor yang ada di JSON.
+  const baseOverride=await loadEffectiveKeyOverride(D.sch.npsn,examId,kelas,rombel,nis);
+  const keysByQuestionId=baseOverride&&baseOverride.keysByQuestionId
+    ? JSON.parse(JSON.stringify(baseOverride.keysByQuestionId))
+    : {};
+  let ok=0,notFound=0,invalid=[];
+  items.forEach(item=>{
+    const q=qs[item.no-1];
+    if(!q||!q.id){notFound++;return;}
+    const v=normalizeUploadedKeyValue(item.value,q);
+    if(q.type!=='essay'&&v===null){invalid.push(item.no);return;}
+    keysByQuestionId[q.id]=v;
+    ok++;
+  });
+  if(!ok)return tt('Tidak ada kunci valid yang dapat diterapkan.','er');
+
+  const docId=keyOverridePersonDocId(examId,kelas,rombel,nis);
+  const student=(D.ss||[]).find(st=>String(st.nis)===String(nis));
+  const payload={
+    examId,kelas:String(kelas),rombel:String(rombel||'-'),nis:String(nis),
+    studentName:student?.nama||'',schoolNpsn:D.sch.npsn,schoolName:D.sch.nama||'',
+    scopeType:'person',keysByQuestionId,updatedAt:Date.now(),updatedBy:'Admin Sekolah',
+    importSource:'json'
+  };
+  ld('Menerapkan kunci JSON untuk siswa...');
+  try{
+    await keyOverrideR(D.sch.npsn).doc(docId).set(payload,{merge:true});
+    D._schoolKeyOverrides=D._schoolKeyOverrides||{};
+    D._schoolKeyOverrides[String(D.sch.npsn)+'|'+docId]={id:docId,...payload};
+    hd();cMo();
+    tt(`${ok} kunci berhasil diupload untuk ${student?.nama||nis}${notFound?` · ${notFound} nomor tidak ditemukan`:''}${invalid.length?` · ${invalid.length} kunci tidak valid`:''}.`,'ok');
+    await showEditKunciSekolah(examId,nis);
+  }catch(e){
+    hd();tt('Gagal menerapkan kunci JSON: '+(e.code||e.message),'er');
+  }
+}
 async function reloadEditKunciSekolah(examId){
   const k=parseInt($v('skKelas'),10);
   let rb=$v('skRombel')||'-';
@@ -4740,12 +4895,15 @@ async function renderEditKunciSekolah(examId,kelas,rombel,nis){
         <select class="ip sk-key" data-qid="${escHasil(q.id)}" data-type="pg">${(q.options||[]).map((o,j)=>`<option value="${j}" ${cur===j?'selected':''}>${OL_FULL[j]}. ${escHasil(typeof o==='object'?(o.text||''):String(o))}</option>`).join('')}</select>
       </div>`;
     }).join('');
-    body.innerHTML=`<p style="font-size:.75rem;color:var(--mt);margin-bottom:9px">
+    window._schoolKeyEditorExamId=examId;
+    body.innerHTML=`<input type="hidden" id="skExamId" value="${escHasil(examId)}">
+    <p style="font-size:.75rem;color:var(--mt);margin-bottom:9px">
       ${personOv?'<b style="color:#166534">Kunci khusus siswa sudah ada.</b>':schoolOv?'<b style="color:#92400E">Belum ada kunci khusus siswa. Saat ini mengikuti kunci lokal sekolah/kelas/rombel.</b>':'<b>Belum ada kunci lokal. Nilai awal mengikuti kunci Admin Pusat.</b>'}
       ${qs.length} soal · Kelas ${kelas} · Rombel ${escHasil(rombel)} · NIS ${escHasil(nis||'-')}
     </p>
     <div style="max-height:52vh;overflow:auto;padding-right:3px">${rows}</div>
     <div class="flex gap-2 mt-4 flex-wrap">
+      <button class="bt bt2 bts" onclick="showUploadKunciSiswaJSON()"><i class="fas fa-file-upload"></i> Upload Kunci JSON</button>
       <button class="bt bt1 bts" onclick="saveSchoolKeyOverride('${examId}',${Number(kelas)},'${escHasil(String(rombel))}','${escHasil(String(nis||''))}')"><i class="fas fa-save"></i> Simpan Kunci Siswa</button>
       ${personOv?`<button class="bt bt3 bts" onclick="resetSchoolKeyOverride('${examId}',${Number(kelas)},'${escHasil(String(rombel))}','${escHasil(String(nis||''))}')"><i class="fas fa-rotate-left"></i> Kembalikan ke Kunci Sekolah/Pusat</button>`:''}
       <button class="bt bt3 bts" onclick="cMo()">Tutup</button>
@@ -7009,8 +7167,8 @@ async function hitungUlangHasilSiswa(rid,npsn){
     const snap=await soalR().doc(r.examId).get();
     if(!snap.exists){hd();return tt('Paket soal tidak ditemukan di Server Cadangan.','er');}
     const ex=normalizeExamRecord({id:snap.id,...snap.data()});
-    const schoolOverride=await loadSchoolKeyOverride(npsp,r.examId,r.kelas,r.rombel||'-');
-    const effectiveEx=applySchoolKeyOverride(ex,schoolOverride);
+    const effectiveOverride=await loadEffectiveKeyOverride(npsp,r.examId,r.kelas,r.rombel||'-',r.nis||'');
+    const effectiveEx=applySchoolKeyOverride(ex,effectiveOverride);
     const qs=Array.isArray(effectiveEx.questions)?effectiveEx.questions:[];
     if(!qs.length){hd();return tt('Paket soal tidak memiliki pertanyaan.','er');}
     let cor=0,updated=0;
