@@ -6448,6 +6448,15 @@ function labelGuruCetak(mapel, nama){
   if(/pjok|jasmani|olahraga/i.test(String(mapel||''))) return nm ? 'Guru PJOK: '+nm : 'Guru PJOK';
   return nm ? 'Guru Kelas: '+nm : 'Guru Kelas';
 }
+function jabatanGuruCetak(mapel){
+  if(/pai|agama/i.test(String(mapel||''))) return 'Guru PAI';
+  if(/pjok|jasmani|olahraga/i.test(String(mapel||''))) return 'Guru PJOK';
+  return 'Guru Kelas';
+}
+function namaGuruCetak(mapel, guru, fallback){
+  const nm = (guru&&guru.nama) || fallback || '';
+  return nm ? String(nm) : '';
+}
 function cssCetakPage(){
   return '<style>table{page-break-inside:auto}tr{page-break-inside:avoid !important;break-inside:avoid !important}thead{display:table-header-group}tfoot{display:table-footer-group}h3,.blok-cetak{page-break-inside:avoid;break-inside:avoid}</style>';
 }
@@ -6474,7 +6483,9 @@ async function cetakHasilSiswa(rid,npsn){
   const ps=Number(r.autoScore||0), escore=es.length?(r.essayScore??'-'):'-';
   const fs=Number(r.score||0),st=statusHasilCetak(r);
   const guru=getGuruFor(r.kelas,r.rombel,r.mapel);
-  const namaGuru=(r.guruNama||r.namaGuru||(guru&&guru.nama)||'');
+  /* Nama guru otomatis mengikuti penugasan berdasarkan mapel. */
+  const namaGuru=namaGuruCetak(r.mapel,guru,r.guruNama||r.namaGuru);
+  const jabatanGuru=jabatanGuruCetak(r.mapel);
 
   /* PG: tanpa teks soal. Tampilkan hanya huruf jawaban: A/B/C/D, lalu kunci dan hasil. */
   const hurufJawaban=v=>{
@@ -6511,7 +6522,7 @@ async function cetakHasilSiswa(rid,npsn){
     #pdHasilSiswa .pg-tabel td:nth-child(3),#pdHasilSiswa .pg-tabel th:nth-child(3){width:28%;text-align:center}
     #pdHasilSiswa .pg-tabel td:nth-child(4),#pdHasilSiswa .pg-tabel th:nth-child(4){width:18%;text-align:center}
     #pdHasilSiswa .blok-cetak{margin-top:5px!important}
-    #pdHasilSiswa .ttd{margin-top:10px!important}
+    #pdHasilSiswa .ttd{margin-top:16px!important;page-break-inside:avoid;break-inside:avoid}
    </style>
    <div style="text-align:center;border-bottom:2px double #222;padding-bottom:3px">
     <h2>${escHasil(sch.nama||'SEKOLAH').toUpperCase()}</h2><div>HASIL UJIAN SISWA</div>
@@ -6529,7 +6540,10 @@ async function cetakHasilSiswa(rid,npsn){
    ${pg.length?`<h3>A. PG — KUNCI & JAWABAN SISWA (tanpa soal)</h3><table class="pg-tabel" style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th>No</th><th>Jawaban Siswa</th><th>Kunci</th><th>Hasil</th></tr></thead><tbody>${pgr}</tbody></table>`:''}
    ${es.length?`<h3>B. URAIAN — SOAL, JAWABAN SISWA & NILAI</h3><table style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th style="width:5%">No</th><th>Soal Uraian</th><th>Jawaban Siswa</th><th style="width:12%">Nilai</th></tr></thead><tbody>${esr}</tbody></table>`:''}
    <p class="blok-cetak" style="padding:4px;border:1px solid #aaa"><b>Catatan:</b> ${catatanHasilCetak(r)}</p>
-   <div class="blok-cetak ttd" style="display:flex;justify-content:space-between;gap:20px"><div style="text-align:center;width:45%"><b>${escHasil(labelGuruCetak(r.mapel,namaGuru))}</b><div style="height:28px"></div>(....................................)</div><div style="text-align:center;width:45%">Majalengka, ${new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})}<br><b>Kepala Sekolah</b><div style="height:42px"></div>(....................................)</div></div>
+   <div class="blok-cetak ttd" style="display:flex;justify-content:space-between;align-items:flex-start;gap:28px;margin-top:16px!important;page-break-inside:avoid;break-inside:avoid">
+      <div style="text-align:center;width:45%;min-width:0"><b>${escHasil(jabatanGuru)}</b><div style="height:42px"></div><b>(........................................)</b></div>
+      <div style="text-align:center;width:45%;min-width:0"><div>Majalengka, ...............</div><b>Kepala Sekolah</b><div style="height:42px"></div>(........................................)</div>
+    </div>
   </div>`;
 
   tt('Membuat PDF...','in');
@@ -6647,9 +6661,9 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
       const avg = Math.round(siswa.reduce((a,r)=>a+(r.score||0),0)/siswa.length); 
        
       const gRk=getGuruFor(kelasData.kelas,rb,mapel); 
-      let labelGuru = gRk.nama ? 'Guru Kelas: '+gRk.nama : "Guru Kelas"; 
-      if(/agama|pai/i.test(mapel)) labelGuru = gRk.nama ? 'Guru PAI: '+gRk.nama : "Guru PAI"; 
-      else if(/pjok|jasmani|olahraga/i.test(mapel)) labelGuru = gRk.nama ? 'Guru PJOK: '+gRk.nama : 'Guru PJOK'; 
+      let labelGuru = labelGuruCetak(mapel,gRk.nama||''); 
+      let jabatanGuruRk = jabatanGuruCetak(mapel);
+      let namaGuruRk = namaGuruCetak(mapel,gRk,''); 
        
       html += `<p style="font-size:10pt;font-weight:700;margin:8px 0 4px">${mapel} <span style="font-weight:400;font-size:8pt">(Rata-rata: ${avg})</span></p>`; 
       html += `<table style="width:100%; border:2px solid #000; border-collapse:collapse; margin-bottom:12px;"> 
@@ -6694,18 +6708,18 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
       }); 
        
       html += `</tbody></table> 
-      <div class="blok-cetak ttd" style="margin-top:10px!important;margin-bottom:20px;display:flex;justify-content:space-between;gap:20px;page-break-inside:avoid;break-inside:avoid"> 
-        <div style="text-align:center;width:45%"> 
-          <b style="font-size:9pt">${escHasil(labelGuru)}</b>
-          <div style="height:28px"></div>
-          (....................................)
-        </div> 
-        <div style="text-align:center;width:45%"> 
-          Majalengka, ${new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})}<br>
+      <div class="blok-cetak ttd" style="margin-top:18px!important;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start;gap:28px;page-break-inside:avoid;break-inside:avoid">
+        <div style="text-align:center;width:45%;min-width:0">
+          <b style="font-size:9pt">${escHasil(jabatanGuruRk)}</b>
+          <div style="height:42px"></div>
+          <b style="font-size:9pt">${namaGuruRk ? escHasil(namaGuruRk)+', S.Pd' : 'Nama Guru, S.Pd'}</b>
+        </div>
+        <div style="text-align:center;width:45%;min-width:0">
+          <div>Majalengka, ...............</div>
           <b>Kepala Sekolah</b>
-          <div style="height:28px"></div>
-          (....................................)
-        </div> 
+          <div style="height:42px"></div>
+          (........................................)
+        </div>
       </div>`; 
     }); 
   }); 
