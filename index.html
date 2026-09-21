@@ -2348,7 +2348,7 @@ function maxOpts(kelas){ return kelas <= 2 ? 3 : 4; }
 
 
 
-let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],allSchools:[],allResults:[],cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1,editTargetNpsn:null,editKelas:3};
+let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],allSchools:[],allResults:[],cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1,editTargetNpsn:null,editKelas:3,_schoolKeyOverrides:{}};
 
 
 
@@ -2504,6 +2504,42 @@ function soalR(){return dbBackup.collection('schools').doc('PUSAT').collection('
 function rR(n){return db.collection('schools').doc(n).collection('results')}
 
 function wR(n){return db.collection('schools').doc(n).collection('students')}
+
+/* Kunci lokal Admin Sekolah: hanya sekolah + kelas + rombel terkait. */
+function keyOverrideDocId(examId,kelas,rombel){
+  return encodeURIComponent(String(examId||''))+'__'+encodeURIComponent(String(kelas||''))+'__'+encodeURIComponent(String(rombel||'-'));
+}
+function keyOverrideR(npsn){return db.collection('schools').doc(npsn).collection('answerKeyOverrides');}
+async function loadSchoolKeyOverride(npsn,examId,kelas,rombel){
+  const id=keyOverrideDocId(examId,kelas,rombel);
+  D._schoolKeyOverrides=D._schoolKeyOverrides||{};
+  const cacheKey=String(npsn)+'|'+id;
+  if(Object.prototype.hasOwnProperty.call(D._schoolKeyOverrides,cacheKey))return D._schoolKeyOverrides[cacheKey];
+  const snap=await keyOverrideR(npsn).doc(id).get();
+  const ov=snap.exists?{id:snap.id,...snap.data()}:null;
+  D._schoolKeyOverrides[cacheKey]=ov;
+  return ov;
+}
+function applySchoolKeyOverride(ex,ov){
+  if(!ex)return ex;
+  const out=JSON.parse(JSON.stringify(ex));
+  if(!ov)return out;
+  const byId=ov.keysByQuestionId||{};
+  out.questions=(Array.isArray(out.questions)?out.questions:[]).map(q=>{
+    const x={...q};
+    if(q&&q.id&&Object.prototype.hasOwnProperty.call(byId,q.id)){
+      const v=byId[q.id];
+      if(q.type==='essay')x.key=String(v==null?'':v);
+      else{const n=normalizeStudentAnswer(v);if(n!==null)x.answer=n;}
+    }
+    return x;
+  });
+  out.schoolKeyOverrideId=ov.id||'';
+  out.schoolKeyUpdatedAt=Number(ov.updatedAt||0);
+  out.schoolKeyScope=String(ov.kelas||'')+'|'+String(ov.rombel||'-');
+  return out;
+}
+function clearSchoolKeyOverrideCache(){D._schoolKeyOverrides={};}
 
 function $(id){return document.getElementById(id)}
 
@@ -2942,7 +2978,7 @@ async function logP(){
 
     D.sch={npsn:'PUSAT',nama:'Admin Pusat',kota:'Majalengka',prov:'Jawa Barat',isPusat:true};
 
-    D.aIn=true;D.isPusat=true;D.rs=[];D.ss=[];
+    D.aIn=true;D.isPusat=true;D.rs=[];D.ss=[];clearSchoolKeyOverrideCache();
     /* LOGIN RINGAN: jangan membaca seluruh hasil dan jangan menjalankan
        migrasi/dedupe otomatis setiap login. Itu membuat Firestore terus
        membaca koleksi besar dan dapat memicu resource-exhausted. */
@@ -2970,7 +3006,7 @@ async function logA(){
 
     if(sch.adminUser!==user||sch.adminPass!==pass){hd();return tt('Username atau password salah!','er')}
 
-    D.sch=sch;D.aIn=true;D.isPusat=false;
+    D.sch=sch;D.aIn=true;D.isPusat=false;clearSchoolKeyOverrideCache();
     /* Tidak ada lagi sinkronisasi soal ke koleksi sekolah dan tidak ada
        dedupe otomatis saat login. Soal dibaca langsung dari Server Cadangan. */
     await enforcePusatOnlySchoolExams(npsn);
@@ -2987,7 +3023,7 @@ async function logA(){
 
 
 
-function outA(e){if(e)e.preventDefault();clearUnsub();D.aIn=false;D.sch=null;D.isPusat=false;D.ex=[];D.rs=[];D.ss=[];D.allSchools=[];D.allResults=[];go('pH');tt('Keluar','in')}
+function outA(e){if(e)e.preventDefault();clearUnsub();D.aIn=false;D.sch=null;D.isPusat=false;clearSchoolKeyOverrideCache();D.ex=[];D.rs=[];D.ss=[];D.allSchools=[];D.allResults=[];go('pH');tt('Keluar','in')}
 
 
 
@@ -3260,9 +3296,10 @@ async function startEx(id){
   clearUnsub();
   D.studentOfflineMode=true;
 
-  // Gunakan versi soal/kunci terbaru dari Server Cadangan sebagai sumber utama.
-  // Data localStorage lama tidak boleh menggantikan paket terbaru dari Admin Pusat.
-  const lockedExam=JSON.parse(JSON.stringify(ex));
+  // Gunakan paket Pusat sebagai sumber soal, lalu terapkan override kunci
+  // lokal untuk sekolah + kelas + rombel siswa ini saja.
+  const schoolOverride=await loadSchoolKeyOverride(D.sch.npsn,ex.id,D.st.kelas,D.st.rombel||'-');
+  const lockedExam=applySchoolKeyOverride(ex,schoolOverride);
   D.cEx=lockedExam;D.cQ=0;D.tL=lockedExam.timeLimit*60;D.an={};
 
   const examKey='ujian_'+D.st.nis+'_'+lockedExam.id;
@@ -3271,9 +3308,12 @@ async function startEx(id){
     try{
       const parsed=JSON.parse(savedData);
       const localExam=parsed.exam;
-      const serverVersion=Math.max(Number(lockedExam.updatedAt||0),Number(lockedExam.answerKeyUpdatedAt||0));
-      const localVersion=localExam?Math.max(Number(localExam.updatedAt||0),Number(localExam.answerKeyUpdatedAt||0)):0;
-      const sameExam=localExam&&localExam.id===lockedExam.id&&Array.isArray(localExam.questions);
+      const serverVersion=Math.max(Number(lockedExam.updatedAt||0),Number(lockedExam.answerKeyUpdatedAt||0),Number(lockedExam.schoolKeyUpdatedAt||0));
+      const localVersion=localExam?Math.max(Number(localExam.updatedAt||0),Number(localExam.answerKeyUpdatedAt||0),Number(localExam.schoolKeyUpdatedAt||0)):0;
+      const localScope=localExam?String(localExam.schoolKeyScope||''):'';
+      const currentScope=String(lockedExam.schoolKeyScope||String(D.st.kelas)+'|'+String(D.st.rombel||'-'));
+      const sameScope=localScope===currentScope;
+      const sameExam=localExam&&localExam.id===lockedExam.id&&Array.isArray(localExam.questions)&&sameScope;
 
       if(sameExam && localVersion>=serverVersion){
         // Hanya pulihkan snapshot jika tidak lebih lama daripada versi server.
@@ -4583,6 +4623,126 @@ function renderJadwal(c){
 
 }
 
+
+/* ===== EDIT KUNCI LOKAL ADMIN SEKOLAH ===== */
+function getSchoolKeyClasses(){
+  const vals=[...new Set((D.ss||[]).map(s=>parseInt(s.kelas,10)).filter(k=>k>=1&&k<=6))].sort((a,b)=>a-b);
+  return vals.length?vals:[1,2,3,4,5,6];
+}
+function getSchoolKeyRombels(kelas){
+  const vals=[...new Set((D.ss||[]).filter(s=>String(s.kelas)===String(kelas)).map(s=>String(s.rombel||'-')))].sort();
+  return vals.length?vals:['-'];
+}
+async function showEditKunciSekolah(examId){
+  if(D.isPusat)return tt('Edit kunci khusus sekolah dilakukan dari Admin Sekolah.','er');
+  const ex=D.ex.find(e=>e.id===examId);
+  if(!ex||!D.sch)return tt('Paket soal/sekolah tidak ditemukan.','er');
+  const classes=getSchoolKeyClasses();
+  let targetK=isSimulasiExam(ex)?(classes.find(k=>[3,4,5,6].includes(k))||3):parseInt(ex.kelas,10);
+  if(!classes.includes(targetK))targetK=classes[0];
+  const rombels=getSchoolKeyRombels(targetK),targetR=rombels[0]||'-';
+  oMo(`<div>
+    <div class="flex items-center justify-between gap-3 mb-4">
+      <div><h3 style="font-size:1.15rem"><i class="fas fa-key mr-2" style="color:var(--pr)"></i>Edit Kunci Jawaban — Khusus Sekolah</h3>
+      <p style="font-size:.75rem;color:var(--mt);margin-top:4px">${ex.mapel} · ${examKelasLabel(ex)}</p></div>
+      <button onclick="cMo()" style="background:none;border:none;font-size:1.35rem;cursor:pointer;color:var(--mt)"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div style="background:#EFF6FF;border:2px solid #BFDBFE;border-radius:12px;padding:11px 13px;margin-bottom:14px;font-size:.76rem;color:#1E3A8A">
+      <b><i class="fas fa-shield-halved mr-1"></i> Kunci lokal sekolah.</b>
+      Perubahan hanya berlaku di <b>${escHasil(D.sch.nama||D.sch.npsn)}</b>, untuk <b>Kelas + Rombel</b> yang dipilih. Sekolah lain tidak berubah.
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div><label class="block mb-1 font-bold" style="font-size:.8rem">Kelas</label>
+        <select id="skKelas" class="ip" onchange="reloadEditKunciSekolah('${examId}')">
+          ${classes.map(k=>`<option value="${k}" ${String(k)===String(targetK)?'selected':''}>Kelas ${k}</option>`).join('')}
+        </select>
+      </div>
+      <div><label class="block mb-1 font-bold" style="font-size:.8rem">Rombel</label>
+        <select id="skRombel" class="ip" onchange="reloadEditKunciSekolah('${examId}')">
+          ${rombels.map(r=>`<option value="${escHasil(r)}" ${r===targetR?'selected':''}>Rombel ${escHasil(r)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div id="schoolKeyEditorBody"><div class="spn"></div></div>
+  </div>`);
+  await renderEditKunciSekolah(examId,targetK,targetR);
+}
+async function reloadEditKunciSekolah(examId){
+  const k=parseInt($v('skKelas'),10);
+  let rb=$v('skRombel')||'-';
+  const rombels=getSchoolKeyRombels(k),sel=$('skRombel');
+  if(sel){
+    sel.innerHTML=rombels.map(r=>`<option value="${escHasil(r)}">${escHasil(r)}</option>`).join('');
+    if(!rombels.includes(rb))rb=rombels[0]||'-';
+    sel.value=rb;
+  }
+  await renderEditKunciSekolah(examId,k,sel?sel.value:rb);
+}
+async function renderEditKunciSekolah(examId,kelas,rombel){
+  const body=$('schoolKeyEditorBody');if(!body)return;
+  const ex=D.ex.find(e=>e.id===examId);if(!ex)return;
+  body.innerHTML='<div class="spn"></div>';
+  try{
+    const ov=await loadSchoolKeyOverride(D.sch.npsn,examId,kelas,rombel);
+    const byId=ov&&ov.keysByQuestionId?ov.keysByQuestionId:{},qs=Array.isArray(ex.questions)?ex.questions:[];
+    const rows=qs.map((q,i)=>{
+      const current=Object.prototype.hasOwnProperty.call(byId,q.id)?byId[q.id]:(q.type==='essay'?(q.key||''):q.answer);
+      if(q.type==='essay')return `<div class="cd" style="padding:11px 13px;margin-bottom:8px;border-color:#E2E8F0">
+        <div style="font-size:.78rem;font-weight:800;margin-bottom:6px">No. ${i+1} <span style="font-weight:500;color:var(--mt)">Uraian</span></div>
+        <div style="font-size:.76rem;margin-bottom:7px;line-height:1.45">${escHasil(q.text||'')}</div>
+        <textarea class="ip sk-key" data-qid="${escHasil(q.id)}" data-type="essay" rows="2" placeholder="Kunci jawaban uraian...">${escHasil(current==null?'':String(current))}</textarea>
+      </div>`;
+      const max=Math.max(2,(q.options||[]).length),cur=normalizeStudentAnswer(current);
+      return `<div class="cd" style="padding:11px 13px;margin-bottom:8px;border-color:#E2E8F0">
+        <div style="font-size:.78rem;font-weight:800;margin-bottom:6px">No. ${i+1}</div>
+        <div style="font-size:.76rem;margin-bottom:7px;line-height:1.45">${escHasil(q.text||'')}</div>
+        <select class="ip sk-key" data-qid="${escHasil(q.id)}" data-type="pg">
+          ${Array.from({length:max},(_,j)=>`<option value="${j}" ${cur===j?'selected':''}>${OL_FULL[j]||String.fromCharCode(65+j)}</option>`).join('')}
+        </select>
+      </div>`;
+    }).join('');
+    body.innerHTML=`<p style="font-size:.75rem;color:var(--mt);margin-bottom:9px">
+      ${ov?'<b style="color:#166534">Kunci lokal sudah ada.</b>':'Belum ada kunci lokal. Nilai awal mengikuti kunci Admin Pusat.'}
+      ${qs.length} soal · Kelas ${kelas} · Rombel ${escHasil(rombel)}
+    </p>
+    <div style="max-height:52vh;overflow:auto;padding-right:3px">${rows}</div>
+    <div class="flex gap-2 mt-4 flex-wrap">
+      <button class="bt bt1 bts" onclick="saveSchoolKeyOverride('${examId}',${Number(kelas)},'${escHasil(String(rombel))}')"><i class="fas fa-save"></i> Simpan Kunci Lokal</button>
+      ${ov?`<button class="bt bt3 bts" onclick="resetSchoolKeyOverride('${examId}',${Number(kelas)},'${escHasil(String(rombel))}')"><i class="fas fa-rotate-left"></i> Kembalikan ke Pusat</button>`:''}
+      <button class="bt bt3 bts" onclick="cMo()">Tutup</button>
+    </div>`;
+  }catch(e){body.innerHTML=`<div class="cd" style="color:var(--er)">Gagal memuat kunci: ${escHasil(e.message||e)}</div>`;}
+}
+async function saveSchoolKeyOverride(examId,kelas,rombel){
+  if(D.isPusat||!D.sch)return;
+  const els=[...document.querySelectorAll('#schoolKeyEditorBody .sk-key')],keysByQuestionId={};
+  els.forEach(el=>{if(el.dataset.qid)keysByQuestionId[el.dataset.qid]=el.dataset.type==='essay'?(el.value||''):normalizeStudentAnswer(el.value);});
+  const docId=keyOverrideDocId(examId,kelas,rombel),payload={
+    examId,kelas:String(kelas),rombel:String(rombel||'-'),schoolNpsn:D.sch.npsn,schoolName:D.sch.nama||'',
+    keysByQuestionId,updatedAt:Date.now(),updatedBy:'Admin Sekolah'
+  };
+  ld('Menyimpan kunci lokal sekolah...');
+  try{
+    await keyOverrideR(D.sch.npsn).doc(docId).set(payload,{merge:true});
+    D._schoolKeyOverrides[String(D.sch.npsn)+'|'+docId]={id:docId,...payload};
+    hd();
+    tt(`Kunci disimpan khusus ${D.sch.nama||'sekolah'} · Kelas ${kelas} Rombel ${rombel}. Sekolah lain tidak berubah.`,'ok');
+    await renderEditKunciSekolah(examId,kelas,rombel);
+  }catch(e){hd();tt('Gagal menyimpan kunci lokal: '+(e.code||e.message),'er');}
+}
+async function resetSchoolKeyOverride(examId,kelas,rombel){
+  if(!D.sch)return;
+  if(!confirm(`Kembalikan kunci Kelas ${kelas} Rombel ${rombel} ke kunci Admin Pusat?`))return;
+  ld('Menghapus kunci lokal...');
+  try{
+    const docId=keyOverrideDocId(examId,kelas,rombel);
+    await keyOverrideR(D.sch.npsn).doc(docId).delete();
+    delete D._schoolKeyOverrides[String(D.sch.npsn)+'|'+docId];
+    hd();tt('Kunci lokal dihapus. Siswa kembali memakai kunci Admin Pusat.','ok');
+    await renderEditKunciSekolah(examId,kelas,rombel);
+  }catch(e){hd();tt('Gagal menghapus kunci lokal: '+(e.code||e.message),'er');}
+}
+
 function renderSoal(c){
 
   if(!D.soalFilter)D.soalFilter={kelas:'',mapel:''};
@@ -4591,7 +4751,7 @@ function renderSoal(c){
 
   let h=`<div class="asu"><div class="flex items-center justify-between flex-wrap gap-3 mb-6">
 
-    <div><h2 style="font-size:1.5rem;margin-bottom:2px">Kelola Soal</h2><p style="color:var(--mt);font-size:.85rem">${D.isPusat?'Buat dan kelola semua soal dari Admin Pusat.':'Soal sepenuhnya dikelola Admin Pusat dan diterima otomatis.'}</p></div>
+    <div><h2 style="font-size:1.5rem;margin-bottom:2px">Kelola Soal</h2><p style="color:var(--mt);font-size:.85rem">${D.isPusat?'Buat dan kelola semua soal dari Admin Pusat.':'Soal berasal dari Admin Pusat. Admin Sekolah dapat menyesuaikan kunci secara lokal berdasarkan Kelas + Rombel tanpa mengubah sekolah lain.'}</p></div>
 
     <div class="flex gap-2 flex-wrap">
 
@@ -4735,7 +4895,8 @@ function renderSoal(c){
           
 
           <button class="bt bt1 btx" onclick="sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Sebar</button>
-          <button class="bt bt2 btx" onclick="cetakSoalPusat('${ex.id}')"><i class="fas fa-print"></i> Cetak Soal</button>
+          <button class="bt bt5 btx" onclick="showEditKunciSekolah('${ex.id}')"><i class="fas fa-key"></i> Edit Kunci Sekolah</button>
+           <button class="bt bt2 btx" onclick="cetakSoalPusat('${ex.id}')"><i class="fas fa-print"></i> Cetak Soal</button>
           <button class="bt bt5 btx" onclick="cetakKunciJawaban('${ex.id}')"><i class="fas fa-key"></i> Cetak Kunci</button>
 
           <button class="bt bt4 btx" onclick="hapusUjianPusat('${ex.id}')"><i class="fas fa-trash"></i></button>`;
@@ -6801,13 +6962,15 @@ async function hitungUlangHasilSiswa(rid,npsn){
   if(!r)return tt('Hasil siswa tidak ditemukan.','er');
   if(!r.pg||!r.pg.length)return tt('Tidak ada jawaban pilihan ganda untuk dihitung ulang.','er');
   if(!r.examId)return tt('ID paket ujian pada hasil siswa tidak ditemukan.','er');
-  if(!confirm(`Hitung ulang nilai ${r.nama} dengan kunci jawaban terbaru dari Admin Pusat?`))return;
+  if(!confirm(`Hitung ulang nilai ${r.nama} dengan kunci jawaban yang berlaku untuk Kelas ${r.kelas} Rombel ${r.rombel||'-'} di sekolah ini?`))return;
   ld('Mengambil kunci terbaru...');
   try{
     const snap=await soalR().doc(r.examId).get();
     if(!snap.exists){hd();return tt('Paket soal tidak ditemukan di Server Cadangan.','er');}
     const ex=normalizeExamRecord({id:snap.id,...snap.data()});
-    const qs=Array.isArray(ex.questions)?ex.questions:[];
+    const schoolOverride=await loadSchoolKeyOverride(npsp,r.examId,r.kelas,r.rombel||'-');
+    const effectiveEx=applySchoolKeyOverride(ex,schoolOverride);
+    const qs=Array.isArray(effectiveEx.questions)?effectiveEx.questions:[];
     if(!qs.length){hd();return tt('Paket soal tidak memiliki pertanyaan.','er');}
     let cor=0,updated=0;
     r.pg.forEach((g,i)=>{
