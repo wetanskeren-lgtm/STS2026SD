@@ -20,6 +20,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 
@@ -1248,6 +1249,8 @@ service cloud.firestore {
 
       <button class="bt bt3" onclick="go('pLSA')" style="padding:15px 34px"><i class="fas fa-school"></i> Admin Sekolah</button>
 
+      <button class="bt bt5" onclick="openQRLogin()" style="padding:15px 34px"><i class="fas fa-qrcode"></i> Barcode Masuk Aplikasi</button>
+
     </div>
 
     <div id="serverPicker" style="display:block!important;margin-top:22px;position:relative;z-index:20;">
@@ -1322,6 +1325,20 @@ service cloud.firestore {
 </div>
 
 
+
+<!-- MODAL BARCODE / QR UNTUK MASUK APLIKASI -->
+<div id="qrLoginModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.72);backdrop-filter:blur(5px);align-items:center;justify-content:center;padding:18px">
+  <div class="cd asu" style="width:100%;max-width:390px;text-align:center;background:#fff;position:relative;padding:24px 20px;border-radius:24px">
+    <button type="button" onclick="closeQRLogin()" aria-label="Tutup" style="position:absolute;right:12px;top:10px;width:36px;height:36px;border:0;border-radius:50%;background:#f1f5f9;cursor:pointer;font-size:18px">&times;</button>
+    <div style="font-size:2rem;color:var(--ac);margin-bottom:4px"><i class="fas fa-qrcode"></i></div>
+    <h2 style="font-size:1.3rem;font-weight:800">Barcode Masuk Aplikasi</h2>
+    <p style="font-size:.78rem;color:var(--mt);margin:6px 0 16px">Scan barcode ini menggunakan kamera HP untuk membuka aplikasi.</p>
+    <div id="qrLoginCode" style="width:220px;height:220px;margin:0 auto 14px;padding:10px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;display:flex;align-items:center;justify-content:center"></div>
+    <div id="qrLoginUrl" style="font-size:.68rem;color:var(--mt);word-break:break-all;margin-bottom:14px"></div>
+    <button type="button" class="bt bt2" onclick="copyQRLoginUrl()" style="margin:auto"><i class="fas fa-copy"></i> Salin Link Aplikasi</button>
+    <p id="qrLoginNote" style="font-size:.68rem;color:#b45309;margin-top:12px"></p>
+  </div>
+</div>
 
 <!-- LOGIN ADMIN PUSAT -->
 
@@ -1565,6 +1582,45 @@ const DASH_PHOTOS=[
 
 
 
+
+function getAppLoginUrl(){
+  // Saat sudah di-hosting, QR otomatis memakai alamat aplikasi yang sedang dibuka.
+  // Jika file dibuka lokal, QR akan memakai URL halaman saat ini sehingga pengguna
+  // perlu meng-host file ini agar dapat dibuka dari HP lain.
+  try{return window.location.href.split('#')[0];}catch(e){return ''; }
+}
+
+function openQRLogin(){
+  const modal=$('qrLoginModal');
+  const box=$('qrLoginCode');
+  const url=getAppLoginUrl();
+  if(!modal||!box)return;
+  box.innerHTML='';
+  if(!url || url.startsWith('file:')){
+    box.innerHTML='<div style="font-size:.72rem;color:#b45309;padding:20px">Host/upload aplikasi terlebih dahulu agar barcode bisa dipindai dari HP.</div>';
+    $('qrLoginUrl').textContent=url||'URL aplikasi belum tersedia';
+    $('qrLoginNote').textContent='Setelah aplikasi dipasang di Firebase Hosting, buka aplikasi dari alamat https://... lalu barcode akan otomatis mengikuti alamat tersebut.';
+  }else{
+    new QRCode(box,{text:url,width:200,height:200,colorDark:'#111827',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
+    $('qrLoginUrl').textContent=url;
+    $('qrLoginNote').textContent='Barcode mengarah ke halaman masuk aplikasi ini.';
+  }
+  modal.style.display='flex';
+}
+
+function closeQRLogin(){
+  const modal=$('qrLoginModal');
+  if(modal)modal.style.display='none';
+}
+
+async function copyQRLoginUrl(){
+  const url=getAppLoginUrl();
+  if(!url)return tt('Link aplikasi belum tersedia.','er');
+  try{await navigator.clipboard.writeText(url);tt('Link aplikasi berhasil disalin!');}
+  catch(e){tt(url);}
+}
+
+window.addEventListener('keydown',e=>{if(e.key==='Escape')closeQRLogin();});
 
 function maxOpts(kelas){ return kelas <= 2 ? 3 : 4; }
 
