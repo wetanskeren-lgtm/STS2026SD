@@ -2520,6 +2520,27 @@ async function loadSchoolKeyOverride(npsn,examId,kelas,rombel){
   D._schoolKeyOverrides[cacheKey]=ov;
   return ov;
 }
+async function loadPersonKeyOverride(npsn,examId,kelas,rombel,nis){
+  if(!nis)return null;
+  const id=keyOverridePersonDocId(examId,kelas,rombel,nis);
+  D._schoolKeyOverrides=D._schoolKeyOverrides||{};
+  const cacheKey=String(npsn)+'|'+id;
+  if(Object.prototype.hasOwnProperty.call(D._schoolKeyOverrides,cacheKey))return D._schoolKeyOverrides[cacheKey];
+  const snap=await keyOverrideR(npsn).doc(id).get();
+  const ov=snap.exists?{id:snap.id,...snap.data()}:null;
+  D._schoolKeyOverrides[cacheKey]=ov;
+  return ov;
+}
+function keyOverridePersonDocId(examId,kelas,rombel,nis){
+  return keyOverrideDocId(examId,kelas,rombel)+'__NIS__'+encodeURIComponent(String(nis||''));
+}
+async function loadEffectiveKeyOverride(npsn,examId,kelas,rombel,nis){
+  const person=await loadPersonKeyOverride(npsn,examId,kelas,rombel,nis);
+  if(person){person.scopeType='person';return person;}
+  const school=await loadSchoolKeyOverride(npsn,examId,kelas,rombel);
+  if(school){school.scopeType='school';return school;}
+  return null;
+}
 function applySchoolKeyOverride(ex,ov){
   if(!ex)return ex;
   const out=JSON.parse(JSON.stringify(ex));
@@ -2536,7 +2557,8 @@ function applySchoolKeyOverride(ex,ov){
   });
   out.schoolKeyOverrideId=ov.id||'';
   out.schoolKeyUpdatedAt=Number(ov.updatedAt||0);
-  out.schoolKeyScope=String(ov.kelas||'')+'|'+String(ov.rombel||'-');
+  out.schoolKeyScope=String(ov.kelas||'')+'|'+String(ov.rombel||'-')+'|'+String(ov.nis||'');
+  out.schoolKeyScopeType=String(ov.scopeType||'school');
   return out;
 }
 function clearSchoolKeyOverrideCache(){D._schoolKeyOverrides={};}
@@ -3298,7 +3320,7 @@ async function startEx(id){
 
   // Gunakan paket Pusat sebagai sumber soal, lalu terapkan override kunci
   // lokal untuk sekolah + kelas + rombel siswa ini saja.
-  const schoolOverride=await loadSchoolKeyOverride(D.sch.npsn,ex.id,D.st.kelas,D.st.rombel||'-');
+  const schoolOverride=await loadEffectiveKeyOverride(D.sch.npsn,ex.id,D.st.kelas,D.st.rombel||'-',D.st.nis||'');
   const lockedExam=applySchoolKeyOverride(ex,schoolOverride);
   D.cEx=lockedExam;D.cQ=0;D.tL=lockedExam.timeLimit*60;D.an={};
 
@@ -3311,7 +3333,7 @@ async function startEx(id){
       const serverVersion=Math.max(Number(lockedExam.updatedAt||0),Number(lockedExam.answerKeyUpdatedAt||0),Number(lockedExam.schoolKeyUpdatedAt||0));
       const localVersion=localExam?Math.max(Number(localExam.updatedAt||0),Number(localExam.answerKeyUpdatedAt||0),Number(localExam.schoolKeyUpdatedAt||0)):0;
       const localScope=localExam?String(localExam.schoolKeyScope||''):'';
-      const currentScope=String(lockedExam.schoolKeyScope||String(D.st.kelas)+'|'+String(D.st.rombel||'-'));
+      const currentScope=String(lockedExam.schoolKeyScope||String(D.st.kelas)+'|'+String(D.st.rombel||'-')+'|'+String(D.st.nis||''));
       const sameScope=localScope===currentScope;
       const sameExam=localExam&&localExam.id===lockedExam.id&&Array.isArray(localExam.questions)&&sameScope;
 
@@ -4633,28 +4655,34 @@ function getSchoolKeyRombels(kelas){
   const vals=[...new Set((D.ss||[]).filter(s=>String(s.kelas)===String(kelas)).map(s=>String(s.rombel||'-')))].sort();
   return vals.length?vals:['-'];
 }
-async function showEditKunciSekolah(examId){
-  if(D.isPusat)return tt('Edit kunci khusus sekolah dilakukan dari Admin Sekolah.','er');
-  const ex=D.ex.find(e=>e.id===examId);
-  if(!ex||!D.sch)return tt('Paket soal/sekolah tidak ditemukan.','er');
+async function showEditKunciSekolah(examId,nis){
+  if(D.isPusat)return tt('Edit kunci khusus dilakukan dari Admin Sekolah.','er');
+  let ex=D.ex.find(e=>e.id===examId);
+  if(!ex && D.rs) ex=D.rs.find(x=>x.examId===examId);
+  if(!ex||!D.sch)return tt('Paket soal/sekolah tidak ditemukan. Pastikan paket soal sudah dimuat.','er');
+  if(!Array.isArray(ex.questions) && Array.isArray(ex.pg)) ex={...ex,questions:[...(ex.pg||[]),...(ex.essays||[])]};
   const classes=getSchoolKeyClasses();
-  let targetK=isSimulasiExam(ex)?(classes.find(k=>[3,4,5,6].includes(k))||3):parseInt(ex.kelas,10);
+  let targetK=parseInt(ex.kelas,10);
+  if(isSimulasiExam(ex))targetK=classes.find(k=>[3,4,5,6].includes(k))||3;
   if(!classes.includes(targetK))targetK=classes[0];
-  const rombels=getSchoolKeyRombels(targetK),targetR=rombels[0]||'-';
+  const rombels=getSchoolKeyRombels(targetK);
+  let targetR=String(rombels[0]||'-'),targetNis=String(nis||'');
+  const students=(D.ss||[]).filter(s=>String(s.kelas)===String(targetK)&&String(s.rombel||'-')===targetR).sort((a,b)=>String(a.nama||'').localeCompare(String(b.nama||'')));
+  if(!targetNis && students.length)targetNis=String(students[0].nis||'');
   oMo(`<div>
     <div class="flex items-center justify-between gap-3 mb-4">
-      <div><h3 style="font-size:1.15rem"><i class="fas fa-key mr-2" style="color:var(--pr)"></i>Edit Kunci Jawaban — Khusus Sekolah</h3>
-      <p style="font-size:.75rem;color:var(--mt);margin-top:4px">${ex.mapel} · ${examKelasLabel(ex)}</p></div>
+      <div><h3 style="font-size:1.15rem"><i class="fas fa-key mr-2" style="color:var(--pr)"></i>Edit Kunci Jawaban — Per Siswa</h3>
+      <p style="font-size:.75rem;color:var(--mt);margin-top:4px">${escHasil(ex.mapel||'')} · ${escHasil(examKelasLabel(ex))}</p></div>
       <button onclick="cMo()" style="background:none;border:none;font-size:1.35rem;cursor:pointer;color:var(--mt)"><i class="fas fa-xmark"></i></button>
     </div>
     <div style="background:#EFF6FF;border:2px solid #BFDBFE;border-radius:12px;padding:11px 13px;margin-bottom:14px;font-size:.76rem;color:#1E3A8A">
-      <b><i class="fas fa-shield-halved mr-1"></i> Kunci lokal sekolah.</b>
-      Perubahan hanya berlaku di <b>${escHasil(D.sch.nama||D.sch.npsn)}</b>, untuk <b>Kelas + Rombel</b> yang dipilih. Sekolah lain tidak berubah.
+      <b><i class="fas fa-user-lock mr-1"></i> Kunci khusus per siswa.</b>
+      Perubahan hanya berlaku untuk <b>sekolah ini + kelas + rombel + siswa yang dipilih</b>. Siswa lain dan sekolah lain tidak berubah.
     </div>
-    <div class="grid grid-cols-2 gap-3 mb-4">
+    <div class="grid grid-cols-3 gap-3 mb-4">
       <div><label class="block mb-1 font-bold" style="font-size:.8rem">Kelas</label>
         <select id="skKelas" class="ip" onchange="reloadEditKunciSekolah('${examId}')">
-          ${classes.map(k=>`<option value="${k}" ${String(k)===String(targetK)?'selected':''}>Kelas ${k}</option>`).join('')}
+          ${classes.map(k=>`<option value="${k}" ${k===targetK?'selected':''}>Kelas ${k}</option>`).join('')}
         </select>
       </div>
       <div><label class="block mb-1 font-bold" style="font-size:.8rem">Rombel</label>
@@ -4662,28 +4690,41 @@ async function showEditKunciSekolah(examId){
           ${rombels.map(r=>`<option value="${escHasil(r)}" ${r===targetR?'selected':''}>Rombel ${escHasil(r)}</option>`).join('')}
         </select>
       </div>
+      <div><label class="block mb-1 font-bold" style="font-size:.8rem">Siswa</label>
+        <select id="skNis" class="ip" onchange="reloadEditKunciSekolah('${examId}')">
+          ${students.length?students.map(s=>`<option value="${escHasil(String(s.nis||''))}" ${String(s.nis||'')===targetNis?'selected':''}>${escHasil(s.nama||s.nis||'Tanpa nama')} — ${escHasil(String(s.nis||''))}</option>`).join(''):`<option value="">Belum ada siswa pada kelas/rombel ini</option>`}
+        </select>
+      </div>
     </div>
     <div id="schoolKeyEditorBody"><div class="spn"></div></div>
   </div>`);
-  await renderEditKunciSekolah(examId,targetK,targetR);
+  await renderEditKunciSekolah(examId,targetK,targetR,targetNis);
 }
 async function reloadEditKunciSekolah(examId){
   const k=parseInt($v('skKelas'),10);
   let rb=$v('skRombel')||'-';
-  const rombels=getSchoolKeyRombels(k),sel=$('skRombel');
-  if(sel){
-    sel.innerHTML=rombels.map(r=>`<option value="${escHasil(r)}">${escHasil(r)}</option>`).join('');
+  const rombels=getSchoolKeyRombels(k),selR=$('skRombel');
+  if(selR){
+    selR.innerHTML=rombels.map(r=>`<option value="${escHasil(r)}">${escHasil(r)}</option>`).join('');
     if(!rombels.includes(rb))rb=rombels[0]||'-';
-    sel.value=rb;
+    selR.value=rb;
   }
-  await renderEditKunciSekolah(examId,k,sel?sel.value:rb);
+  const students=(D.ss||[]).filter(s=>String(s.kelas)===String(k)&&String(s.rombel||'-')===String(rb)).sort((a,b)=>String(a.nama||'').localeCompare(String(b.nama||'')));
+  const selN=$('skNis'),oldN=selN?String(selN.value||''):'';
+  if(selN){
+    selN.innerHTML=students.length?students.map(s=>`<option value="${escHasil(String(s.nis||''))}">${escHasil(s.nama||s.nis||'Tanpa nama')} — ${escHasil(String(s.nis||''))}</option>`).join(''):`<option value="">Belum ada siswa pada kelas/rombel ini</option>`;
+    selN.value=students.some(s=>String(s.nis||'')===oldN)?oldN:(students[0]?String(students[0].nis||''):'');
+  }
+  await renderEditKunciSekolah(examId,k,selR?selR.value:rb,selN?selN.value:'');
 }
-async function renderEditKunciSekolah(examId,kelas,rombel){
+async function renderEditKunciSekolah(examId,kelas,rombel,nis){
   const body=$('schoolKeyEditorBody');if(!body)return;
   const ex=D.ex.find(e=>e.id===examId);if(!ex)return;
   body.innerHTML='<div class="spn"></div>';
   try{
-    const ov=await loadSchoolKeyOverride(D.sch.npsn,examId,kelas,rombel);
+    const personOv=await loadPersonKeyOverride(D.sch.npsn,examId,kelas,rombel,nis);
+    const schoolOv=personOv?null:await loadSchoolKeyOverride(D.sch.npsn,examId,kelas,rombel);
+    const ov=personOv||schoolOv;
     const byId=ov&&ov.keysByQuestionId?ov.keysByQuestionId:{},qs=Array.isArray(ex.questions)?ex.questions:[];
     const rows=qs.map((q,i)=>{
       const current=Object.prototype.hasOwnProperty.call(byId,q.id)?byId[q.id]:(q.type==='essay'?(q.key||''):q.answer);
@@ -4692,57 +4733,57 @@ async function renderEditKunciSekolah(examId,kelas,rombel){
         <div style="font-size:.76rem;margin-bottom:7px;line-height:1.45">${escHasil(q.text||'')}</div>
         <textarea class="ip sk-key" data-qid="${escHasil(q.id)}" data-type="essay" rows="2" placeholder="Kunci jawaban uraian...">${escHasil(current==null?'':String(current))}</textarea>
       </div>`;
-      const max=Math.max(2,(q.options||[]).length),cur=normalizeStudentAnswer(current);
+      const cur=normalizeStudentAnswer(current);
       return `<div class="cd" style="padding:11px 13px;margin-bottom:8px;border-color:#E2E8F0">
-        <div style="font-size:.78rem;font-weight:800;margin-bottom:6px">No. ${i+1}</div>
+        <div style="font-size:.78rem;font-weight:800;margin-bottom:6px">No. ${i+1} <span style="font-weight:500;color:var(--mt)">Pilihan Ganda</span></div>
         <div style="font-size:.76rem;margin-bottom:7px;line-height:1.45">${escHasil(q.text||'')}</div>
-        <select class="ip sk-key" data-qid="${escHasil(q.id)}" data-type="pg">
-          ${Array.from({length:max},(_,j)=>`<option value="${j}" ${cur===j?'selected':''}>${OL_FULL[j]||String.fromCharCode(65+j)}</option>`).join('')}
-        </select>
+        <select class="ip sk-key" data-qid="${escHasil(q.id)}" data-type="pg">${(q.options||[]).map((o,j)=>`<option value="${j}" ${cur===j?'selected':''}>${OL_FULL[j]}. ${escHasil(typeof o==='object'?(o.text||''):String(o))}</option>`).join('')}</select>
       </div>`;
     }).join('');
     body.innerHTML=`<p style="font-size:.75rem;color:var(--mt);margin-bottom:9px">
-      ${ov?'<b style="color:#166534">Kunci lokal sudah ada.</b>':'Belum ada kunci lokal. Nilai awal mengikuti kunci Admin Pusat.'}
-      ${qs.length} soal · Kelas ${kelas} · Rombel ${escHasil(rombel)}
+      ${personOv?'<b style="color:#166534">Kunci khusus siswa sudah ada.</b>':schoolOv?'<b style="color:#92400E">Belum ada kunci khusus siswa. Saat ini mengikuti kunci lokal sekolah/kelas/rombel.</b>':'<b>Belum ada kunci lokal. Nilai awal mengikuti kunci Admin Pusat.</b>'}
+      ${qs.length} soal · Kelas ${kelas} · Rombel ${escHasil(rombel)} · NIS ${escHasil(nis||'-')}
     </p>
     <div style="max-height:52vh;overflow:auto;padding-right:3px">${rows}</div>
     <div class="flex gap-2 mt-4 flex-wrap">
-      <button class="bt bt1 bts" onclick="saveSchoolKeyOverride('${examId}',${Number(kelas)},'${escHasil(String(rombel))}')"><i class="fas fa-save"></i> Simpan Kunci Lokal</button>
-      ${ov?`<button class="bt bt3 bts" onclick="resetSchoolKeyOverride('${examId}',${Number(kelas)},'${escHasil(String(rombel))}')"><i class="fas fa-rotate-left"></i> Kembalikan ke Pusat</button>`:''}
+      <button class="bt bt1 bts" onclick="saveSchoolKeyOverride('${examId}',${Number(kelas)},'${escHasil(String(rombel))}','${escHasil(String(nis||''))}')"><i class="fas fa-save"></i> Simpan Kunci Siswa</button>
+      ${personOv?`<button class="bt bt3 bts" onclick="resetSchoolKeyOverride('${examId}',${Number(kelas)},'${escHasil(String(rombel))}','${escHasil(String(nis||''))}')"><i class="fas fa-rotate-left"></i> Kembalikan ke Kunci Sekolah/Pusat</button>`:''}
       <button class="bt bt3 bts" onclick="cMo()">Tutup</button>
     </div>`;
   }catch(e){body.innerHTML=`<div class="cd" style="color:var(--er)">Gagal memuat kunci: ${escHasil(e.message||e)}</div>`;}
 }
-async function saveSchoolKeyOverride(examId,kelas,rombel){
+async function saveSchoolKeyOverride(examId,kelas,rombel,nis){
   if(D.isPusat||!D.sch)return;
+  if(!nis)return tt('Pilih siswa terlebih dahulu.','er');
   const els=[...document.querySelectorAll('#schoolKeyEditorBody .sk-key')],keysByQuestionId={};
   els.forEach(el=>{if(el.dataset.qid)keysByQuestionId[el.dataset.qid]=el.dataset.type==='essay'?(el.value||''):normalizeStudentAnswer(el.value);});
-  const docId=keyOverrideDocId(examId,kelas,rombel),payload={
-    examId,kelas:String(kelas),rombel:String(rombel||'-'),schoolNpsn:D.sch.npsn,schoolName:D.sch.nama||'',
+  const docId=keyOverridePersonDocId(examId,kelas,rombel,nis),student=(D.ss||[]).find(s=>String(s.nis)===String(nis)),payload={
+    examId,kelas:String(kelas),rombel:String(rombel||'-'),nis:String(nis),studentName:student?.nama||'',
+    schoolNpsn:D.sch.npsn,schoolName:D.sch.nama||'',scopeType:'person',
     keysByQuestionId,updatedAt:Date.now(),updatedBy:'Admin Sekolah'
   };
-  ld('Menyimpan kunci lokal sekolah...');
+  ld('Menyimpan kunci khusus siswa...');
   try{
     await keyOverrideR(D.sch.npsn).doc(docId).set(payload,{merge:true});
     D._schoolKeyOverrides[String(D.sch.npsn)+'|'+docId]={id:docId,...payload};
     hd();
-    tt(`Kunci disimpan khusus ${D.sch.nama||'sekolah'} · Kelas ${kelas} Rombel ${rombel}. Sekolah lain tidak berubah.`,'ok');
-    await renderEditKunciSekolah(examId,kelas,rombel);
-  }catch(e){hd();tt('Gagal menyimpan kunci lokal: '+(e.code||e.message),'er');}
+    tt(`Kunci disimpan khusus ${student?.nama||'siswa'} · Kelas ${kelas} Rombel ${rombel}. Siswa lain tidak berubah.`,'ok');
+    await renderEditKunciSekolah(examId,kelas,rombel,nis);
+  }catch(e){hd();tt('Gagal menyimpan kunci khusus siswa: '+(e.code||e.message),'er');}
 }
-async function resetSchoolKeyOverride(examId,kelas,rombel){
-  if(!D.sch)return;
-  if(!confirm(`Kembalikan kunci Kelas ${kelas} Rombel ${rombel} ke kunci Admin Pusat?`))return;
-  ld('Menghapus kunci lokal...');
+async function resetSchoolKeyOverride(examId,kelas,rombel,nis){
+  if(!D.sch||!nis)return;
+  if(!confirm(`Kembalikan kunci siswa NIS ${nis} ke kunci sekolah/kelas/rombel atau Admin Pusat?`))return;
+  ld('Menghapus kunci khusus siswa...');
   try{
-    const docId=keyOverrideDocId(examId,kelas,rombel);
+    const docId=keyOverridePersonDocId(examId,kelas,rombel,nis);
     await keyOverrideR(D.sch.npsn).doc(docId).delete();
     delete D._schoolKeyOverrides[String(D.sch.npsn)+'|'+docId];
-    hd();tt('Kunci lokal dihapus. Siswa kembali memakai kunci Admin Pusat.','ok');
-    await renderEditKunciSekolah(examId,kelas,rombel);
-  }catch(e){hd();tt('Gagal menghapus kunci lokal: '+(e.code||e.message),'er');}
+    hd();
+    tt('Kunci khusus siswa dikembalikan ke kunci sekolah/pusat.','ok');
+    await renderEditKunciSekolah(examId,kelas,rombel,nis);
+  }catch(e){hd();tt('Gagal mengembalikan kunci: '+(e.code||e.message),'er');}
 }
-
 function renderSoal(c){
 
   if(!D.soalFilter)D.soalFilter={kelas:'',mapel:''};
@@ -4895,7 +4936,7 @@ function renderSoal(c){
           
 
           <button class="bt bt1 btx" onclick="sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Sebar</button>
-          <button class="bt bt5 btx" onclick="showEditKunciSekolah('${ex.id}')"><i class="fas fa-key"></i> Edit Kunci Sekolah</button>
+          <button class="bt bt5 btx" onclick="showEditKunciSekolah('${ex.id}')"><i class="fas fa-key"></i> Edit Kunci Siswa</button>
            <button class="bt bt2 btx" onclick="cetakSoalPusat('${ex.id}')"><i class="fas fa-print"></i> Cetak Soal</button>
           <button class="bt bt5 btx" onclick="cetakKunciJawaban('${ex.id}')"><i class="fas fa-key"></i> Cetak Kunci</button>
 
@@ -7017,23 +7058,29 @@ async function koreksiEssay(rid, npsn){
     r = D.rs.find(x=>x.id===rid); 
   } 
   if(!r) return;
-  // Pastikan tampilan koreksi memakai kunci lokal sekolah + kelas + rombel yang berlaku.
+  // Gunakan kunci paling spesifik: per siswa -> sekolah/kelas/rombel.
   if(!D.isPusat && r.examId){
     try{
-      const ov=await loadSchoolKeyOverride(D.sch.npsn,r.examId,r.kelas,r.rombel||'-');
-      if(ov) applySchoolKeyOverride({questions:[...(r.pg||[]),...(r.essays||[])]},ov);
-      // Terapkan langsung ke jawaban PG/uraian pada hasil agar koreksi dan simpan nilai konsisten.
-      if(ov?.pg){
-        (r.pg||[]).forEach((g,i)=>{if(ov.pg[i]!==undefined)g.correctAns=ov.pg[i];});
+      const ov=await loadEffectiveKeyOverride(D.sch.npsn,r.examId,r.kelas,r.rombel||'-',r.nis||'');
+      if(ov){
+        const qs=[...(r.pg||[]),...(r.essays||[])];
+        const keyed=applySchoolKeyOverride({questions:qs},ov).questions||[];
+        (r.pg||[]).forEach((g,i)=>{if(keyed[i]&&keyed[i].answer!==undefined)g.correctAns=keyed[i].answer;});
+        (r.essays||[]).forEach((e,i)=>{const q=keyed[(r.pg||[]).length+i];if(q&&q.key!==undefined)e.key=q.key;});
       }
-      if(ov?.essay){
-        (r.essays||[]).forEach((e,i)=>{if(ov.essay[i]!==undefined)e.key=ov.essay[i];});
-      }
-    }catch(e){ console.warn('[KUNCI LOKAL KOREKSI]',e); }
+    }catch(e){ console.warn('[KUNCI LOKAL/PER SISWA KOREKSI]',e); }
   }
   const pgArr = r.pg || []; 
   const esArr = r.essays || []; 
   let h=`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-pen mr-2" style="color:var(--pr)"></i>Koreksi — ${r.nama} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(${r.mapel} · Kelas ${r.kelas} Rombel ${r.rombel||'-'})</span></h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>`; 
+
+  if(!D.isPusat){
+    h+=`<div style="margin:0 0 14px;padding:12px 14px;border:2px solid #C7D2FE;border-radius:12px;background:#EEF2FF;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div><div style="font-size:.84rem;font-weight:800;color:#312E81"><i class="fas fa-key mr-1"></i> Kunci Jawaban Per Siswa</div>
+      <div style="font-size:.72rem;color:#4F46E5;margin-top:3px">${escHasil(r.nama||'Siswa')} · NIS ${escHasil(String(r.nis||'-'))} · Kelas ${r.kelas} · Rombel ${r.rombel||'-'} — hanya berlaku untuk siswa ini.</div></div>
+      <button class="bt bt1" onclick="showEditKunciSekolah('${r.examId}','${escHasil(String(r.nis||''))}')" style="white-space:nowrap"><i class="fas fa-key"></i> Edit Kunci Siswa</button>
+    </div>`;
+  }
  
   if(pgArr.length){ 
     h+=`<h4 style="font-size:.9rem;margin-bottom:8px;color:var(--ac)"><i class="fas fa-list mr-1"></i> Pilihan Ganda — Soal No. 1 s.d. ${pgArr.length} — ubah jawaban jika perlu</h4><div style="max-height:280px;overflow-y:auto;margin-bottom:14px;padding-right:4px">`; 
@@ -7060,12 +7107,6 @@ async function koreksiEssay(rid, npsn){
   } 
  
   if(!pgArr.length && !esArr.length){ h+=`<p style="color:var(--mt);text-align:center;padding:12px">Tidak ada jawaban untuk dikoreksi.</p>`; } 
-  if(!D.isPusat){
-    h+=`<div style="margin:10px 0 12px;padding:10px 12px;border:1px dashed var(--bd);border-radius:10px;background:var(--bg)">
-      <div style="font-size:.76rem;color:var(--mt);margin-bottom:7px"><b>Kunci Jawaban Sekolah</b> — berlaku hanya untuk sekolah ini, Kelas ${r.kelas} Rombel ${r.rombel||'-'}.</div>
-      <button class="bt bt5" onclick="showEditKunciSekolah('${r.examId}')"><i class="fas fa-key"></i> Edit Kunci Sekolah</button>
-    </div>`;
-  }
   h+=`<button class="bt bt1 w-full justify-center" onclick="simpanKoreksi('${rid}','${npsn}')"><i class="fas fa-save"></i> Simpan Koreksi</button></div>`; 
   oMo(h); 
   /* Resolusi gambar uraian via blob cache (URL .json RTDB tidak bisa dimuat langsung oleh <img>) */ 
