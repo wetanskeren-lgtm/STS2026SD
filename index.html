@@ -7008,7 +7008,7 @@ async function hitungUlangHasilSiswa(rid,npsn){
 }
 
  
-function koreksiEssay(rid, npsn){ 
+async function koreksiEssay(rid, npsn){ 
   let r; 
   if(D.isPusat){ 
     r = D.allResults.find(x=>x.id===rid && x.schoolNpsn===npsn); 
@@ -7016,7 +7016,21 @@ function koreksiEssay(rid, npsn){
   } else { 
     r = D.rs.find(x=>x.id===rid); 
   } 
-  if(!r) return; 
+  if(!r) return;
+  // Pastikan tampilan koreksi memakai kunci lokal sekolah + kelas + rombel yang berlaku.
+  if(!D.isPusat && r.examId){
+    try{
+      const ov=await loadSchoolKeyOverride(D.sch.npsn,r.examId,r.kelas,r.rombel||'-');
+      if(ov) applySchoolKeyOverride({questions:[...(r.pg||[]),...(r.essays||[])]},ov);
+      // Terapkan langsung ke jawaban PG/uraian pada hasil agar koreksi dan simpan nilai konsisten.
+      if(ov?.pg){
+        (r.pg||[]).forEach((g,i)=>{if(ov.pg[i]!==undefined)g.correctAns=ov.pg[i];});
+      }
+      if(ov?.essay){
+        (r.essays||[]).forEach((e,i)=>{if(ov.essay[i]!==undefined)e.key=ov.essay[i];});
+      }
+    }catch(e){ console.warn('[KUNCI LOKAL KOREKSI]',e); }
+  }
   const pgArr = r.pg || []; 
   const esArr = r.essays || []; 
   let h=`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-pen mr-2" style="color:var(--pr)"></i>Koreksi — ${r.nama} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(${r.mapel} · Kelas ${r.kelas} Rombel ${r.rombel||'-'})</span></h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>`; 
@@ -7046,6 +7060,12 @@ function koreksiEssay(rid, npsn){
   } 
  
   if(!pgArr.length && !esArr.length){ h+=`<p style="color:var(--mt);text-align:center;padding:12px">Tidak ada jawaban untuk dikoreksi.</p>`; } 
+  if(!D.isPusat){
+    h+=`<div style="margin:10px 0 12px;padding:10px 12px;border:1px dashed var(--bd);border-radius:10px;background:var(--bg)">
+      <div style="font-size:.76rem;color:var(--mt);margin-bottom:7px"><b>Kunci Jawaban Sekolah</b> — berlaku hanya untuk sekolah ini, Kelas ${r.kelas} Rombel ${r.rombel||'-'}.</div>
+      <button class="bt bt5" onclick="showEditKunciSekolah('${r.examId}')"><i class="fas fa-key"></i> Edit Kunci Sekolah</button>
+    </div>`;
+  }
   h+=`<button class="bt bt1 w-full justify-center" onclick="simpanKoreksi('${rid}','${npsn}')"><i class="fas fa-save"></i> Simpan Koreksi</button></div>`; 
   oMo(h); 
   /* Resolusi gambar uraian via blob cache (URL .json RTDB tidak bisa dimuat langsung oleh <img>) */ 
