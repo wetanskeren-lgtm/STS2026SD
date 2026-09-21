@@ -1094,6 +1094,11 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 @media(max-width:768px){#pH .front-gallery{grid-template-columns:repeat(2,1fr);gap:8px}#pH .front-gallery .fg-item{height:95px}#pH .front-gallery .fg-item:last-child{grid-column:span 2;max-width:50%;justify-self:center}}
 
 
+
+/* Foto siswa */
+.student-photo-thumb{width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd);display:block;margin:auto;background:var(--bg)}
+.student-photo-large{width:82px;height:82px;border-radius:16px;object-fit:cover;border:3px solid var(--bd);box-shadow:0 6px 18px rgba(0,0,0,.12)}
+
 /* ============================================================
    HOME UI — DESAIN MENGIKUTI REFERENSI GAMBAR
    Tidak mengubah fungsi JavaScript halaman lain.
@@ -2157,6 +2162,8 @@ function cMo(){$('moO').classList.remove('on')}
 
 function canonicalMapel(v){
   const x=String(v??'').replace(/\s+/g,' ').trim();
+  // Pend. Pancasila dan Pendidikan Pancasila dianggap SATU mapel.
+  if(/^(pend\.?\s*pancasila|pendidikan\s+pancasila)$/i.test(x))return 'Pendidikan Pancasila';
   if(/^pai(\s+dan\s+bp)?$/i.test(x))return 'PAI';
   if(/^simulasi$/i.test(x))return 'Simulasi';
   return x;
@@ -2399,7 +2406,10 @@ async function loadAllResults(){
 
     const rSnap=await rR(s.npsn).get();
 
-    const items=rSnap.docs.map(d=>({id:d.id,...d.data(),schoolName:s.nama,schoolNpsn:s.npsn}));
+    const items=rSnap.docs.map(d=>{
+      const data=d.data();
+      return {id:d.id,...data,mapel:canonicalMapel(data.mapel),schoolName:s.nama,schoolNpsn:s.npsn};
+    });
 
     D.allResults.push(...items);
 
@@ -2510,7 +2520,10 @@ async function loadD(npsn){
     wR(npsn).get()
   ]);
   D.ex=exDocs.map(normalizeExamRecord);
-  D.rs=b.docs.map(d=>({id:d.id,...d.data()}));
+  D.rs=b.docs.map(d=>{
+    const data=d.data();
+    return {id:d.id,...data,mapel:canonicalMapel(data.mapel)};
+  });
   D.ss=c.docs.map(d=>({id:d.id,...d.data()}));
 }
 
@@ -3559,7 +3572,7 @@ async function finEx(){
 
   const hasEssay=essays.length>0;const pgOnly=ex.questions.length-essays.length;const autoScore=pgOnly>0?Math.round(cor/pgOnly*100):0;const finalScore=hasEssay?0:autoScore;const tu=ex.timeLimit*60-D.tL;
 
-  const r={id:uid(),examId:ex.id,kelas:s.kelas,rombel:s.rombel||'-',mapel:ex.mapel,nama:s.nama,nis:s.nis,score:finalScore,autoScore,essayScore:hasEssay?0:undefined,correct:cor,total:ex.questions.length,essays,pg:pgList,timeUsed:tu,timestamp:Date.now()};
+  const r={id:uid(),examId:ex.id,kelas:s.kelas,rombel:s.rombel||'-',mapel:canonicalMapel(ex.mapel),nama:s.nama,nis:s.nis,foto:s.foto||'',score:finalScore,autoScore,essayScore:hasEssay?0:undefined,correct:cor,total:ex.questions.length,essays,pg:pgList,timeUsed:tu,timestamp:Date.now()};
 
   
 
@@ -3773,7 +3786,7 @@ async function cPDF(rid, npsn){
 
   if(!r) return tt('Hasil tidak ditemukan!','er');
 
-  const stu=D.ss.find(s=>s.nis===r.nis);const ortu=stu?stu.ortu:'-';const sch=D.sch;
+  const stu=D.ss.find(s=>s.nis===r.nis);const ortu=stu?stu.ortu:'-';if(stu&&!r.foto)r.foto=stu.foto||'';const sch=D.sch;
 
   const d=new Date(r.timestamp),tgl=d.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
 
@@ -6358,7 +6371,10 @@ function renderHasil(c){
     c.innerHTML=h;return; 
   } 
  
-  const list=listAll.filter(r=>String(r.kelas)===String(fk)&&(r.rombel||'-')===fr&&r.mapel===fm); 
+  const list=listAll.filter(r=>String(r.kelas)===String(fk)&&(r.rombel||'-')===fr&&canonicalMapel(r.mapel)===canonicalMapel(fm)).map(r=>{
+    const stu=(D.ss||[]).find(s=>String(s.nis)===String(r.nis));
+    return {...r,foto:r.foto||stu?.foto||''};
+  }); 
   if(list.length===0){ 
     h+=`<div class="cd" style="text-align:center;padding:40px"><p style="color:var(--mt)">Belum ada hasil untuk <b>${fm}</b> &mdash; Kelas ${fk} Rombel ${fr}.</p></div></div>`;c.innerHTML=h;return; 
   } 
@@ -6375,13 +6391,13 @@ function renderHasil(c){
   Object.values(grouped).forEach(g=>{ 
     const gAvg=Math.round(g.items.reduce((a,r)=>a+(r.score||0),0)/g.items.length); 
     h+=`<div class="cd mb-4" style="padding:18px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><p style="font-weight:800">${D.isPusat?`<i class="fas fa-school mr-2" style="color:var(--ac)"></i>${g.schoolName} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(NPSN: ${g.schoolNpsn})</span>`:`<i class="fas fa-list-ol mr-2" style="color:var(--ac)"></i>Daftar Nilai Siswa`}</p><p style="font-size:.75rem;color:var(--mt)">${g.items.length} siswa &middot; Rata-rata: ${gAvg}</p></div> 
-    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">PG</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Uraian</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Akhir</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`; 
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Foto</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">PG</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Uraian</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Akhir</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`; 
     g.items.sort((a,b)=>(b.score||0)-(a.score||0)).forEach((r,i)=>{ 
       const sc=r.score||0;let stC,stL; 
       if(r.essays&&r.essays.length>0){const isGraded=r.essays.every(e=>e.graded===true);if(isGraded){if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}}else{stC='var(--inf)';stL='Menunggu';}} 
       else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';} 
       const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-'; 
-      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
+      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
     h+=`</tbody></table></div></div>`;}); 
   h+=`</div>`;c.innerHTML=h; 
 } 
@@ -6609,8 +6625,8 @@ function renderSiswa(c){
       h+=`<div class="cd mb-4" style="padding:16px"><h3 style="font-size:1rem;margin-bottom:10px"><i class="fas fa-graduation-cap mr-2" style="color:var(--ac)"></i>Kelas ${k} (${byKelas[k].length})</h3>`; 
       Object.keys(byRombel).sort().forEach(rb=>{ 
         const list=byRombel[rb].sort((a,b)=>a.nama.localeCompare(b.nama)); 
-        h+=`<p style="font-size:.8rem;font-weight:800;color:var(--ac2);margin:10px 0 6px">Rombel ${rb} (${list.length})</p><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">NIS</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Ortu</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`; 
-        list.forEach(s=>{h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${s.nis}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${s.nama}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${s.ortu||'-'}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center"><button class="bt bt2 btx" onclick="showTambahSiswa(D.ss.find(x=>x.nis==='${s.nis}'))" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-edit"></i></button><button class="bt bt4 btx" onclick="doHapusSiswa('${s.nis}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button></div></td></tr>`;}); 
+        h+=`<p style="font-size:.8rem;font-weight:800;color:var(--ac2);margin:10px 0 6px">Rombel ${rb} (${list.length})</p><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Foto</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">NIS</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Ortu</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`; 
+        list.forEach(s=>{h+=`<tr><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${s.foto?`<img src="${s.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${s.nis}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${s.nama}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${s.ortu||'-'}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center"><button class="bt bt2 btx" onclick="showTambahSiswa(D.ss.find(x=>x.nis==='${s.nis}'))" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-edit"></i></button><button class="bt bt4 btx" onclick="doHapusSiswa('${s.nis}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button></div></td></tr>`;}); 
         h+=`</tbody></table></div>`; 
       }); 
       h+=`</div>`; 
@@ -6624,17 +6640,18 @@ function showTambahSiswa(edit){
   oMo(`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-user-plus mr-2" style="color:var(--ac)"></i>${edit?'Edit':'Tambah'} Siswa</h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div> 
     <div class="grid grid-cols-3 gap-3 mb-3"><div><label class="block mb-1 font-bold" style="font-size:.82rem">NIS *</label><input id="swNIS" class="ip" ${edit?'readonly style="opacity:.6"':''} value="${edit?edit.nis:''}"></div><div><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas *</label><select id="swKelas" class="ip">${KL.map(k=>`<option value="${k.v}" ${edit&&edit.kelas===k.v?'selected':''}>Kelas ${k.l}</option>`).join('')}</select></div><div><label class="block mb-1 font-bold" style="font-size:.82rem">Rombel *</label><input id="swRombel" class="ip" value="${edit?(edit.rombel||'A'):'A'}" placeholder="A / B / 1 / bebas"></div></div> 
     <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Nama *</label><input id="swNama" class="ip" value="${edit?edit.nama:''}"></div> 
-    <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Ortu/Wali</label><input id="swOrtu" class="ip" value="${edit?edit.ortu||'':''}"></div> 
+    <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Ortu/Wali</label><input id="swOrtu" class="ip" value="${edit?edit.ortu||'':''}"></div>
+    <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem"><i class="fas fa-camera mr-1"></i>Foto Siswa</label><input id="swFoto" class="ip" type="url" value="${edit?edit.foto||'':''}" placeholder="Tempel URL foto siswa (https://...)"><p style="font-size:.7rem;color:var(--mt);margin-top:4px">Foto akan tampil pada Data Siswa dan Hasil Ujian.</p></div>
     <div class="mb-4"><label class="block mb-1 font-bold" style="font-size:.82rem">Password *</label><input id="swPwd" class="ip" type="text" value="${edit?edit.password:'siswa123'}"></div> 
     <button class="bt bt1 w-full justify-center" onclick="simpanSiswa('${edit?edit.nis:''}')"><i class="fas fa-save"></i> ${edit?'Update':'Simpan'}</button></div>`); 
 } 
  
 async function simpanSiswa(oldNis){ 
-  const nis=$v('swNIS'),kelas=parseInt($('swKelas').value),rombel=$('swRombel').value,nama=$v('swNama'),ortu=$v('swOrtu'),password=$v('swPwd'); 
+  const nis=$v('swNIS'),kelas=parseInt($('swKelas').value),rombel=$('swRombel').value,nama=$v('swNama'),ortu=$v('swOrtu'),foto=$v('swFoto'),password=$v('swPwd'); 
   if(!nis||!nama||!password)return tt('NIS, Nama, Password wajib!','er');ld('Menyimpan...');try{ 
-    if(oldNis){await dualDocUpdate('schools/'+D.sch.npsn+'/students',oldNis,{kelas,rombel,nama,ortu,password});const idx=D.ss.findIndex(s=>s.nis===oldNis);if(idx>=0)D.ss[idx]={...D.ss[idx],kelas,rombel,nama,ortu,password};hd();cMo();renderSiswa($('aC'));tt('Diperbarui!');} 
+    if(oldNis){await dualDocUpdate('schools/'+D.sch.npsn+'/students',oldNis,{kelas,rombel,nama,ortu,foto,password});const idx=D.ss.findIndex(s=>s.nis===oldNis);if(idx>=0)D.ss[idx]={...D.ss[idx],kelas,rombel,nama,ortu,foto,password};hd();cMo();renderSiswa($('aC'));tt('Diperbarui!');} 
     else{const existing=await wR(D.sch.npsn).doc(nis).get();if(existing.exists){hd();return tt('NIS sudah ada!','er');} 
-      await dualDocSet('schools/'+D.sch.npsn+'/students',nis,{nis,kelas,rombel,nama,ortu,password,createdAt:Date.now()},{merge:false});D.ss.push({id:nis,nis,kelas,rombel,nama,ortu,password,createdAt:Date.now()});hd();cMo();renderSiswa($('aC'));tt('Ditambahkan!');} 
+      await dualDocSet('schools/'+D.sch.npsn+'/students',nis,{nis,kelas,rombel,nama,ortu,foto,password,createdAt:Date.now()},{merge:false});D.ss.push({id:nis,nis,kelas,rombel,nama,ortu,foto,password,createdAt:Date.now()});hd();cMo();renderSiswa($('aC'));tt('Ditambahkan!');} 
   }catch(e){hd();tt('Gagal: '+e.message,'er')} 
 } 
 async function doHapusSiswa(nis){ld('Menghapus...');try{await dualDocDelete('schools/'+D.sch.npsn+'/students',nis);D.ss=D.ss.filter(s=>s.nis!==nis);hd();renderSiswa($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}} 
@@ -6679,8 +6696,9 @@ async function doImportSiswaJSON(){
       batch.set(wR(D.sch.npsn).doc(nis),studentData);
       batchOther.set(otherActiveDb().collection('schools').doc(D.sch.npsn).collection('students').doc(nis),studentData); 
       const idx=D.ss.findIndex(x=>x.nis===nis); 
-      if(idx>=0)D.ss[idx]={...D.ss[idx],kelas,rombel,nama:s.nama,ortu,password:pwd}; 
-      else D.ss.push({id:nis,nis,kelas,rombel,nama:s.nama,ortu,password:pwd,createdAt:Date.now()}); 
+      const fotoImport=s.foto||s.fotoSiswa||s.photo||'';
+      if(idx>=0)D.ss[idx]={...D.ss[idx],kelas,rombel,nama:s.nama,ortu,foto:fotoImport||D.ss[idx].foto||'',password:pwd}; 
+      else D.ss.push({id:nis,nis,kelas,rombel,nama:s.nama,ortu,foto:fotoImport,password:pwd,createdAt:Date.now()}); 
     }); 
     const commits=await Promise.allSettled([batch.commit(),batchOther.commit()]);
     if(commits.every(r=>r.status==='rejected'))throw commits[0].reason;
