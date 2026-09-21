@@ -451,6 +451,11 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 
 .tag-pusat{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:6px;background:rgba(99,102,241,.1);color:var(--pr);font-size:.7rem;font-weight:700;margin-left:6px}
 
+.tag-version{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:7px;font-size:.7rem;font-weight:900;margin-left:6px;white-space:nowrap}
+.tag-version-old{background:#DBEAFE;color:#1D4ED8;border:1px solid #93C5FD}
+.tag-version-new{background:#DCFCE7;color:#15803D;border:1px solid #86EFAC}
+.tag-version-unset{background:#FEF3C7;color:#92400E;border:1px solid #FCD34D}
+
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -2374,6 +2379,61 @@ function canonicalMapel(v){
   if(/^simulasi$/i.test(x))return 'Simulasi';
   return x;
 }
+
+/* ============================================================
+   VERSI SOAL KHUSUS PENDIDIKAN PANCASILA
+   - Hanya mapel Pendidikan Pancasila yang memakai penanda Lama/Baru.
+   - Penanda disimpan pada DOKUMEN PAKET, bukan pada nomor soal.
+   - Ini mencegah kunci JSON diterapkan ke paket Pancasila versi lain.
+   ============================================================ */
+function isPendidikanPancasila(v){
+  return canonicalMapel(v)==='Pendidikan Pancasila';
+}
+function normalizeExamVersion(v){
+  const x=String(v??'').trim().toLowerCase();
+  if(x==='lama'||x==='old')return 'lama';
+  if(x==='baru'||x==='new')return 'baru';
+  return '';
+}
+function examVersion(ex){
+  if(!isPendidikanPancasila(ex&&ex.mapel))return '';
+  return normalizeExamVersion(ex&&ex.examVersion);
+}
+function examVersionLabel(ex,compact=false){
+  if(!isPendidikanPancasila(ex&&ex.mapel))return '';
+  const v=examVersion(ex);
+  if(v==='lama')return compact?'🟦 SOAL LAMA':'🟦 SOAL LAMA';
+  if(v==='baru')return compact?'🟩 SOAL BARU':'🟩 SOAL BARU';
+  return '⚠️ BELUM DITANDAI';
+}
+function examVersionBadge(ex){
+  if(!isPendidikanPancasila(ex&&ex.mapel))return '';
+  const v=examVersion(ex);
+  if(v==='lama')return '<span class="tag-version tag-version-old">🟦 SOAL LAMA</span>';
+  if(v==='baru')return '<span class="tag-version tag-version-new">🟩 SOAL BARU</span>';
+  return '<span class="tag-version tag-version-unset">⚠️ BELUM DITANDAI</span>';
+}
+function examVersionPrintLabel(ex){
+  return isPendidikanPancasila(ex&&ex.mapel)?examVersionLabel(ex):'';
+}
+async function setPendidikanPancasilaVersion(eid,version){
+  if(!D.isPusat)return tt('Penanda versi soal hanya dapat diubah oleh Admin Pusat.','er');
+  const ex=D.ex.find(e=>e.id===eid); if(!ex)return;
+  if(!isPendidikanPancasila(ex.mapel))return tt('Penanda Lama/Baru hanya untuk Pendidikan Pancasila.','er');
+  const v=normalizeExamVersion(version);
+  if(!v)return tt('Versi soal tidak valid.','er');
+  const label=v==='lama'?'🟦 SOAL LAMA':'🟩 SOAL BARU';
+  if(!confirm(`Tandai paket ${ex.mapel} ${examKelasLabel(ex)} sebagai ${label}?\n\nPenanda ini juga dipakai saat memilih kunci JSON agar kunci tidak masuk ke versi lain.`))return;
+  ld('Menyimpan penanda versi soal...');
+  try{
+    const stamp=Date.now();
+    await savePusatExamBoth(eid,{examVersion:v,examVersionUpdatedAt:stamp},{merge:true});
+    ex.examVersion=v; ex.examVersionUpdatedAt=stamp;
+    hd();
+    tt(`${label} berhasil disimpan.`, 'ok');
+    renderSoal($('aC'));
+  }catch(e){hd();tt('Gagal menyimpan versi soal: '+(e.code||e.message),'er');}
+}
 function normalizeQuestionList(value){
   if(Array.isArray(value))return value;
   if(value&&typeof value==='object'){
@@ -2454,7 +2514,8 @@ function normalizeExamRecord(ex){
   const m=canonicalMapel(ex.mapel);
   const questions=normalizeQuestionList(ex.questions).map(normalizeQuestion);
   const draft=ex.draftQuestions==null?ex.draftQuestions:normalizeQuestionList(ex.draftQuestions).map(normalizeQuestion);
-  return {...ex,mapel:m,questions,draftQuestions:draft};
+  const examVersion=isPendidikanPancasila(m)?normalizeExamVersion(ex.examVersion):'';
+  return {...ex,mapel:m,questions,draftQuestions:draft,examVersion};
 }
 function gm(v){const m=canonicalMapel(v);return MP.find(x=>x.v===m)||{ic:'fa-file',c:'#666',l:m}}
 
@@ -5071,7 +5132,7 @@ function renderSoal(c){
 
           <div>
 
-            <p style="font-weight:800;font-size:1rem">${ex.mapel} ${hasImg?'<span class="tag-img"><i class="fas fa-image"></i></span>':''}${isFromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Dari Pusat</span>':''}${D.isPusat&&ex.draftQuestions?`<span class="tag-pusat" style="background:rgba(245,158,11,.12);color:#b45309"><i class="fas fa-file-pen"></i> Ada Draf — belum dipublikasikan</span>`:''}</p>
+            <p style="font-weight:800;font-size:1rem">${ex.mapel} ${hasImg?'<span class="tag-img"><i class="fas fa-image"></i></span>':''}${isFromPusat?'<span class="tag-pusat"><i class="fas fa-user-shield"></i> Dari Pusat</span>':''}${examVersionBadge(ex)}${D.isPusat&&ex.draftQuestions?`<span class="tag-pusat" style="background:rgba(245,158,11,.12);color:#b45309"><i class="fas fa-file-pen"></i> Ada Draf — belum dipublikasikan</span>`:''}</p>
 
             <p style="font-size:.78rem;color:var(--mt)">${examKelasLabel(ex)} · ${mo} opsi · ${ex.questions.length} soal · ${ex.timeLimit}m</p><p style="font-size:.7rem;font-weight:800;color:${examStatus(ex)[1]};margin-top:3px"><i class="fas ${examStatus(ex)[2]} mr-1"></i>${examStatus(ex)[0]} · ${fmtTanggalHari(getExamScheduleDate(ex))}</p>
 
@@ -5094,6 +5155,7 @@ function renderSoal(c){
           
 
           <button class="bt bt1 btx" onclick="sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Sebar</button>
+          ${isPendidikanPancasila(ex.mapel)?`<button class="bt btx" style="background:#DBEAFE;color:#1D4ED8" onclick="setPendidikanPancasilaVersion('${ex.id}','lama')">🟦 Lama</button><button class="bt btx" style="background:#DCFCE7;color:#15803D" onclick="setPendidikanPancasilaVersion('${ex.id}','baru')">🟩 Baru</button>`:''}
           <button class="bt bt5 btx" onclick="showEditKunciSekolah('${ex.id}')"><i class="fas fa-key"></i> Edit Kunci Siswa</button>
            <button class="bt bt2 btx" onclick="cetakSoalPusat('${ex.id}')"><i class="fas fa-print"></i> Cetak Soal</button>
           <button class="bt bt5 btx" onclick="cetakKunciJawaban('${ex.id}')"><i class="fas fa-key"></i> Cetak Kunci</button>
@@ -5160,7 +5222,8 @@ async function cetakKunciJawaban(eid){
     hd();
     const win=window.open('','_blank','width=1100,height=800');
     if(!win)return tt('Popup diblokir browser. Izinkan pop-up untuk mencetak kunci.','er');
-    const title=`KUNCI JAWABAN — ${ex.mapel||''} — ${examKelasLabel(ex)}`;
+    const versionPrint=examVersionPrintLabel(ex);
+    const title=`KUNCI JAWABAN — ${ex.mapel||''} — ${examKelasLabel(ex)}${versionPrint?' — '+versionPrint:''}`;
     win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safeText(title)}</title><style>
       @page{size:A4 portrait;margin:7mm}
       *{box-sizing:border-box}
@@ -5178,8 +5241,8 @@ async function cetakKunciJawaban(eid){
       @media print{.no-print{display:none!important}tr{page-break-inside:avoid}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
     </style></head><body>
       <h1>KUNCI JAWABAN</h1>
-      <div class="sub">${safeText(ex.mapel||'')} — ${safeText(examKelasLabel(ex))}</div>
-      <div class="meta"><span><b>Tanggal:</b> ${safeText(fmtTanggalHari(getExamScheduleDate(ex))||'-')}</span><span><b>Jumlah Soal:</b> ${qs.length}</span><span><b>PG:</b> ${pg.length}</span><span><b>Uraian:</b> ${essay.length}</span><span><b>Sumber:</b> Server Cadangan/Admin Pusat</span></div>
+      <div class="sub">${safeText(ex.mapel||'')} — ${safeText(examKelasLabel(ex))}${versionPrint?` — ${safeText(versionPrint)}`:''}</div>
+      <div class="meta"><span><b>Tanggal:</b> ${safeText(fmtTanggalHari(getExamScheduleDate(ex))||'-')}</span><span><b>Jumlah Soal:</b> ${qs.length}</span><span><b>PG:</b> ${pg.length}</span><span><b>Uraian:</b> ${essay.length}</span>${versionPrint?`<span><b>Versi:</b> ${safeText(versionPrint)}</span>`:''}<span><b>Sumber:</b> Server Cadangan/Admin Pusat</span></div>
       <div class="titlebar">KUNCI PILIHAN GANDA</div>
       <table><thead><tr>${Array.from({length:pairsPerRow},()=>'<th class="num">No</th><th class="key">Kunci</th>').join('')}</tr></thead><tbody>${pgRows}</tbody></table>
       ${essay.length?`<div class="titlebar">KUNCI URAIAN</div><table class="essaytbl"><thead><tr><th class="enum">No</th><th>Kunci Jawaban</th></tr></thead><tbody>${essayRows}</tbody></table>`:''}
@@ -5274,6 +5337,7 @@ async function cetakSoalPusat(eid){
     return html;
   }).join('');
 
+  const versionPrint=examVersionPrintLabel(ex);
   const printKelas=String(examKelasLabel(ex)||'').toLowerCase();
   const isKelas12=/(^|\s|kelas\s*)(1|2)(?:\s|$)/i.test(printKelas) || /\bkelas\s*[12]\b/i.test(printKelas);
   const printBodyClass=isKelas12?'grade-1-2':'grade-3-6';
@@ -5319,8 +5383,8 @@ async function cetakSoalPusat(eid){
   </style></head><body class="${printBodyClass}">
   <div class="head">
     <div class="school">${esc((D.sch&&D.sch.nama)||'SEKOLAH')}</div>
-    <div class="title">${esc(ex.mapel)} — ${esc(examKelasLabel(ex))}</div>
-    <div class="meta">Paket Soal · ${qs.length} Soal · Waktu ${esc(ex.timeLimit||'')} Menit</div>
+    <div class="title">${esc(ex.mapel)} — ${esc(examKelasLabel(ex))}${versionPrint?` — ${esc(versionPrint)}`:''}</div>
+    <div class="meta">Paket Soal · ${qs.length} Soal · Waktu ${esc(ex.timeLimit||'')} Menit${versionPrint?` · ${esc(versionPrint)}`:''}</div>
   </div>
   ${body}
   <div class="footer">Dicetak dari Admin Pusat</div>
@@ -5685,7 +5749,7 @@ function renderEditSoal(ex){
 
       <div style="width:40px;height:40px;border-radius:10px;background:${m.c}15;color:${m.c};display:flex;align-items:center;justify-content:center"><i class="fas ${m.ic}"></i></div>
 
-      <div><h2 style="font-size:1.2rem;line-height:1.2">${ex.mapel} — Kelas ${ex.kelas}</h2><p style="font-size:.78rem;color:var(--mt)">${Array.isArray(D.editQs)?D.editQs.length:0} soal · ${ex.timeLimit}m · <b style="color:var(--ac)">${mo} opsi (A-${OL_FULL[mo-1]})</b> · <span style="color:var(--pr)">[Draf otomatis]</span></p></div>
+      <div><h2 style="font-size:1.2rem;line-height:1.2">${ex.mapel} — Kelas ${ex.kelas} ${examVersionBadge(ex)}</h2><p style="font-size:.78rem;color:var(--mt)">${Array.isArray(D.editQs)?D.editQs.length:0} soal · ${ex.timeLimit}m · <b style="color:var(--ac)">${mo} opsi (A-${OL_FULL[mo-1]})</b> · <span style="color:var(--pr)">[Draf otomatis]</span></p>${isPendidikanPancasila(ex.mapel)?`<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="bt btx" style="background:#DBEAFE;color:#1D4ED8" onclick="setPendidikanPancasilaVersion('${ex.id}','lama')">🟦 Tandai Lama</button><button class="bt btx" style="background:#DCFCE7;color:#15803D" onclick="setPendidikanPancasilaVersion('${ex.id}','baru')">🟩 Tandai Baru</button></div>`:''}</div>
 
     </div>
 
@@ -6454,7 +6518,25 @@ function showImportKunciJSON(){
           ${mapelOpts}
         </select>
       </div>
+      <div id="keyVersionWrap" style="display:none">
+        <label class="block mb-1 font-bold" style="font-size:.82rem">Versi Pendidikan Pancasila</label>
+        <select id="keyVersion" class="ip">
+          <option value="">-- Pilih Versi --</option>
+          <option value="lama">🟦 SOAL LAMA</option>
+          <option value="baru">🟩 SOAL BARU</option>
+        </select>
+        <p style="font-size:.7rem;color:#92400E;margin-top:4px">Wajib dipilih agar kunci tidak masuk ke versi Pancasila yang lain.</p>
+      </div>
     </div>
+    <script>
+      setTimeout(function(){
+        const km=document.getElementById('keyMapel'),wrap=document.getElementById('keyVersionWrap');
+        if(km&&wrap){
+          const sync=function(){wrap.style.display=isPendidikanPancasila(km.value)?'block':'none';};
+          km.addEventListener('change',sync); sync();
+        }
+      },0);
+    <\/script>
 
     <div class="mb-3">
       <label class="block mb-1 font-bold" style="font-size:.82rem">File Kunci Jawaban (.json)</label>
@@ -6584,9 +6666,11 @@ function validateAndUploadKunciJSON(){
 
   const kelasSel=normalizeKeyKelas($('keyKelas')?.value);
   const mapelSel=normalizeKeyMapel($('keyMapel')?.value);
+  const versionSel=isPendidikanPancasila(mapelSel)?normalizeExamVersion($('keyVersion')?.value):'';
   const raw=($('keyJsonTA')?.value||'').trim();
   if(!kelasSel)return tt('Pilih Kelas terlebih dahulu.','er');
   if(!mapelSel)return tt('Pilih Mapel terlebih dahulu.','er');
+  if(isPendidikanPancasila(mapelSel)&&!versionSel)return tt('Untuk Pendidikan Pancasila, pilih 🟦 SOAL LAMA atau 🟩 SOAL BARU terlebih dahulu.','er');
   if(!raw)return tt('Upload atau paste file JSON kunci terlebih dahulu.','er');
 
   let data;
@@ -6629,7 +6713,9 @@ function validateAndUploadKunciJSON(){
   const matches=(D.ex||[]).filter(ex=>{
     const ek=normalizeKeyKelas(ex.kelas);
     const em=normalizeKeyMapel(ex.mapel);
-    return String(ek)===String(targetK)&&em===targetM;
+    if(String(ek)!==String(targetK)||em!==targetM)return false;
+    if(isPendidikanPancasila(targetM))return examVersion(ex)===versionSel;
+    return true;
   });
 
   if(!matches.length){
@@ -6643,7 +6729,7 @@ function validateAndUploadKunciJSON(){
   </div>`;
   $('keyJsonPreview').innerHTML=preview+`<button class="bt bt1 bts w-full justify-center mt-3" onclick="doUploadKunciJSON()"><i class="fas fa-cloud-upload-alt"></i> Terapkan Kunci Sekarang</button>`;
   $('keyJsonPreview').style.display='block';
-  window._pendingKeyImport={kelas:targetK,mapel:targetM,items:clean};
+  window._pendingKeyImport={kelas:targetK,mapel:targetM,version:versionSel,items:clean};
   tt('Validasi kunci berhasil. Klik Terapkan Kunci Sekarang untuk mengganti kunci.','in');
 }
 
@@ -6714,7 +6800,11 @@ async function doUploadKunciJSON(){
   ld(`Menerapkan kunci ${p.mapel} Kelas ${p.kelas}...`);
   let totalChanged=0,totalSkipped=0,ok=0;
   try{
-    for(const ex of (D.ex||[]).filter(ex=>String(normalizeKeyKelas(ex.kelas))===String(p.kelas)&&normalizeKeyMapel(ex.mapel)===p.mapel)){
+    for(const ex of (D.ex||[]).filter(ex=>{
+      if(String(normalizeKeyKelas(ex.kelas))!==String(p.kelas)||normalizeKeyMapel(ex.mapel)!==p.mapel)return false;
+      if(isPendidikanPancasila(p.mapel))return examVersion(ex)===p.version;
+      return true;
+    })){
       const r=await applyUploadedKunciToExam(ex,p.items);
       totalChanged+=r.changed;totalSkipped+=r.skipped;ok++;
     }
@@ -6735,7 +6825,7 @@ function exportExamJSON(eid){
 
   const ex=D.ex.find(e=>e.id===eid);if(!ex)return;
 
-  const data={mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,questions:ex.questions.map(q=>{const obj={text:q.text,type:q.type||'pg'};if(q.image)obj.image=q.image;if(q.type==='essay'){obj.key=q.key||'';}else{obj.options=q.options.map(o=>typeof o==='object'?{text:o.text||'',image:o.image||''}:o);obj.answer=q.answer;}return obj;})};
+  const data={mapel:ex.mapel,kelas:ex.kelas,timeLimit:ex.timeLimit,...(isPendidikanPancasila(ex.mapel)&&examVersion(ex)?{examVersion:examVersion(ex)}:{}),questions:ex.questions.map(q=>{const obj={text:q.text,type:q.type||'pg'};if(q.image)obj.image=q.image;if(q.type==='essay'){obj.key=q.key||'';}else{obj.options=q.options.map(o=>typeof o==='object'?{text:o.text||'',image:o.image||''}:o);obj.answer=q.answer;}return obj;})};
 
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`Soal_${ex.mapel}_K${examKelasShort(ex)}.json`;a.click();URL.revokeObjectURL(url);tt('JSON diunduh!');
 
@@ -6845,7 +6935,8 @@ async function doImportJSON(){
     if(freshEx.some(ex=>examDedupKey(ex)===key))return tt('Import dibatalkan: paket soal yang sama sudah ada.','in');
   }catch(_e){}
   const id=uid(),now=Date.now();
-  const exam={id,mapel:canonicalMapel(data.mapel),kelas,timeLimit:data.timeLimit||60,questions,createdAt:now,publishedAt:now,sharedTo:[]};
+  const importedVersion=isPendidikanPancasila(data.mapel)?normalizeExamVersion(data.examVersion):'';
+  const exam={id,mapel:canonicalMapel(data.mapel),kelas,timeLimit:data.timeLimit||60,questions,createdAt:now,publishedAt:now,sharedTo:[],...(importedVersion?{examVersion:importedVersion,examVersionUpdatedAt:now}:{})};
   ld('Mengimport & Menyimpan Permanen...');
   try{
     const targetNpsn=D.isPusat?'PUSAT':D.sch.npsn;
