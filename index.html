@@ -3239,7 +3239,8 @@ async function startEx(id){
   clearUnsub();
   D.studentOfflineMode=true;
 
-  // Kunci snapshot soal di perangkat. Setelah ini perubahan Firestore tidak mengubah ujian.
+  // Gunakan versi soal/kunci terbaru dari Server Cadangan sebagai sumber utama.
+  // Data localStorage lama tidak boleh menggantikan paket terbaru dari Admin Pusat.
   const lockedExam=JSON.parse(JSON.stringify(ex));
   D.cEx=lockedExam;D.cQ=0;D.tL=lockedExam.timeLimit*60;D.an={};
 
@@ -3248,11 +3249,31 @@ async function startEx(id){
   if(savedData){
     try{
       const parsed=JSON.parse(savedData);
-      if(parsed.exam && parsed.exam.questions && parsed.exam.id===lockedExam.id) D.cEx=parsed.exam;
-      D.an=parsed.an||{};
-      D.tL=Number.isFinite(parsed.tL)?parsed.tL:(D.cEx.timeLimit*60);
-      D.cQ=Math.max(0,Math.min(Number(parsed.cQ)||0,D.cEx.questions.length-1));
-      tt('Ujian offline dipulihkan dari perangkat.','in');
+      const localExam=parsed.exam;
+      const serverVersion=Math.max(Number(lockedExam.updatedAt||0),Number(lockedExam.answerKeyUpdatedAt||0));
+      const localVersion=localExam?Math.max(Number(localExam.updatedAt||0),Number(localExam.answerKeyUpdatedAt||0)):0;
+      const sameExam=localExam&&localExam.id===lockedExam.id&&Array.isArray(localExam.questions);
+
+      if(sameExam && localVersion>=serverVersion){
+        // Hanya pulihkan snapshot jika tidak lebih lama daripada versi server.
+        D.cEx=localExam;
+        D.an=parsed.an||{};
+        D.tL=Number.isFinite(parsed.tL)?parsed.tL:(D.cEx.timeLimit*60);
+        D.cQ=Math.max(0,Math.min(Number(parsed.cQ)||0,D.cEx.questions.length-1));
+        tt('Ujian offline dipulihkan dari perangkat.','in');
+      }else if(parsed.an && typeof parsed.an==='object'){
+        // Versi soal/kunci berubah: pakai paket server terbaru, tetapi pertahankan
+        // jawaban siswa yang sudah tersimpan berdasarkan ID soal.
+        const oldAnswers=parsed.an;
+        const oldQuestions=Array.isArray(localExam?.questions)?localExam.questions:[];
+        const answerById={};
+        oldQuestions.forEach((q,i)=>{if(q&&q.id&&oldAnswers[i]!==undefined)answerById[q.id]=oldAnswers[i];});
+        D.cEx=lockedExam;
+        D.an={};
+        D.cEx.questions.forEach((q,i)=>{if(q&&q.id&&answerById[q.id]!==undefined)D.an[i]=answerById[q.id];});
+        D.cQ=0;
+        tt('Versi soal/kunci terbaru dari Admin Pusat digunakan. Jawaban tersimpan dipertahankan.','in');
+      }
     }catch(e){D.an={};D.cQ=0;}
   }
 
