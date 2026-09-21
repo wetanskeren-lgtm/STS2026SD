@@ -2754,7 +2754,9 @@ function liveExamUpdate(){
 
   const fresh=D.ex.find(e=>e.id===D.cEx.id);if(!fresh)return;
 
-  if(JSON.stringify(fresh.questions)===JSON.stringify(D.cEx.questions))return;
+  if(JSON.stringify(fresh.questions)===JSON.stringify(D.cEx.questions) &&
+     Number(fresh.updatedAt||0)===Number(D.cEx.updatedAt||0) &&
+     Number(fresh.answerKeyUpdatedAt||0)===Number(D.cEx.answerKeyUpdatedAt||0))return;
 
   const newAn={};
 
@@ -2770,10 +2772,30 @@ function liveExamUpdate(){
 
   if(D.cQ>=D.cEx.questions.length)D.cQ=0;
 
-  tt('Soal diperbarui oleh Admin — jawaban Anda tetap tersimpan','in');
+  tt('Soal/kunci diperbarui oleh Admin — jawaban Anda tetap tersimpan','in');
 
   if(!$('moO').classList.contains('on'))rQ();
 
+}
+
+/* Listener ringan: hanya 1 dokumen paket yang sedang dikerjakan siswa.
+   Tidak membuka listener seluruh koleksi sehingga tetap hemat Firestore. */
+function attachStudentExamLiveListener(examId){
+  if(!examId)return;
+  try{
+    const unsub=soalR().doc(examId).onSnapshot(snap=>{
+      if(!snap.exists)return;
+      const fresh=normalizeExamRecord({id:snap.id,...snap.data()});
+      const pos=D.ex.findIndex(e=>e.id===examId);
+      if(pos>=0)D.ex[pos]=fresh;else D.ex.push(fresh);
+      liveExamUpdate();
+    },err=>{
+      console.warn('[SYNC] Listener paket ujian terputus:',err);
+    });
+    addUnsub(unsub);
+  }catch(e){
+    console.warn('[SYNC] Gagal memasang listener paket ujian:',e);
+  }
 }
 
 /* Refresh tampilan admin tanpa mengganggu layar edit soal / modal */
@@ -2829,10 +2851,9 @@ async function syncPusatExamsToSchool(npsn){
 /* ================================================================
    MODE HEMAT FIRESTORE
    ---------------------------------------------------------------
-   Tidak memakai onSnapshot sama sekali untuk data aplikasi. Semua data
-   besar dibaca satu kali saat diperlukan. Ini menghilangkan listener yang
-   terus aktif, reconnect/backoff, dan pembacaan ulang koleksi besar yang
-   menjadi pemicu utama error resource-exhausted.
+   Tidak memakai listener seluruh koleksi. Listener realtime hanya dipasang
+   pada 1 dokumen paket ujian yang sedang dikerjakan siswa, sehingga perubahan
+   kunci/soal tetap bisa diterima tanpa membuka listener koleksi besar.
    ================================================================ */
 function attachLiveListeners(npsn){
   clearUnsub();
@@ -3284,6 +3305,10 @@ async function startEx(id){
   autoSaveLocal();
   hd();
   rQ();sT();
+
+  /* Setelah ujian dibuka, pantau hanya paket ini. Jika Admin Pusat
+     mengganti kunci/soal, perangkat siswa menerima versi terbaru otomatis. */
+  attachStudentExamLiveListener(D.cEx.id);
 }
 
 function autoSaveLocal(){
@@ -4272,7 +4297,17 @@ function aTab(t,el){
 
   const c=$('aC');
 
-  if(t==='d')renderDash(c);else if(t==='s')renderSoal(c);else if(t==='j')renderJadwal(c);else if(t==='h')renderHasil(c);
+  if(t==='d')renderDash(c);
+  else if(t==='s'){
+    renderSoal(c);
+    if(!D.isPusat){
+      getMergedPusatExams().then(docs=>{
+        D.ex=docs.map(normalizeExamRecord);
+        renderSoal(c);
+      }).catch(e=>console.warn('[SYNC] Gagal memuat versi soal terbaru:',e));
+    }
+  }
+  else if(t==='j')renderJadwal(c);else if(t==='h')renderHasil(c);
 
   else if(t==='w')renderSiswa(c);else if(t==='k')renderDaftarSekolah(c);else if(t==='c')renderSetting(c);
 
