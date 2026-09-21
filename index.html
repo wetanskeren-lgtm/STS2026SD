@@ -6673,7 +6673,7 @@ function renderHasil(c){
       if(r.essays&&r.essays.length>0){const isGraded=r.essays.every(e=>e.graded===true);if(isGraded){if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}}else{stC='var(--inf)';stL='Menunggu';}} 
       else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';} 
       const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-'; 
-      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
+      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
     h+=`</tbody></table></div></div>`;}); 
   h+=`</div>`;c.innerHTML=h; 
 } 
@@ -6795,6 +6795,55 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
   box.style.left='-9999px';box.style.zIndex='-1'; 
 } 
 async function doHapusHasil(rid,npsn){ld('Menghapus...');try{await Promise.allSettled([rR(npsn).doc(rid).delete(),(db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).delete()]);if(!D.isPusat){D.rs=D.rs.filter(r=>r.id!==rid);}else{D.allResults=D.allResults.filter(r=>r.id!==rid);}hd();renderHasil($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}} 
+async function hitungUlangHasilSiswa(rid,npsn){
+  if(D.isPusat)return tt('Fitur Hitung Ulang hanya tersedia untuk Admin Sekolah.','er');
+  const r=D.rs.find(x=>x.id===rid);
+  if(!r)return tt('Hasil siswa tidak ditemukan.','er');
+  if(!r.pg||!r.pg.length)return tt('Tidak ada jawaban pilihan ganda untuk dihitung ulang.','er');
+  if(!r.examId)return tt('ID paket ujian pada hasil siswa tidak ditemukan.','er');
+  if(!confirm(`Hitung ulang nilai ${r.nama} dengan kunci jawaban terbaru dari Admin Pusat?`))return;
+  ld('Mengambil kunci terbaru...');
+  try{
+    const snap=await soalR().doc(r.examId).get();
+    if(!snap.exists){hd();return tt('Paket soal tidak ditemukan di Server Cadangan.','er');}
+    const ex=normalizeExamRecord({id:snap.id,...snap.data()});
+    const qs=Array.isArray(ex.questions)?ex.questions:[];
+    if(!qs.length){hd();return tt('Paket soal tidak memiliki pertanyaan.','er');}
+    let cor=0,updated=0;
+    r.pg.forEach((g,i)=>{
+      let q=null;
+      if(g&&g.id)q=qs.find(x=>x&&x.id===g.id);
+      if(!q)q=qs[i];
+      if(!q)return;
+      const newKey=normalizeStudentAnswer(q.answer);
+      if(g.correctAns!==newKey)updated++;
+      g.correctAns=newKey;
+      if(sameStudentAnswer(g.studentAns,g.correctAns))cor++;
+    });
+    const pgCount=r.pg.length;
+    r.correct=cor;
+    r.autoScore=pgCount>0?Math.round(cor/pgCount*100):0;
+    const essayAvg=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?Number(r.essayScore)||0:Math.round(r.essays.reduce((a,e)=>a+(Number(e.score)||0),0)/r.essays.length)):0;
+    let finalScore;
+    if(pgCount>0&&r.essays&&r.essays.length>0)finalScore=Math.round(r.autoScore*0.5+essayAvg*0.5);
+    else if(r.essays&&r.essays.length>0)finalScore=essayAvg;
+    else finalScore=r.autoScore;
+    r.essayScore=essayAvg;
+    r.score=finalScore;
+    r.recalculatedAt=Date.now();
+    r.recalculatedBy='Admin Sekolah';
+    ld('Menyimpan nilai terbaru...');
+    const payload={pg:r.pg||[],correct:r.correct,autoScore:r.autoScore,essayScore:r.essayScore,score:r.score,recalculatedAt:r.recalculatedAt,recalculatedBy:r.recalculatedBy};
+    await Promise.allSettled([
+      rR(npsn).doc(rid).update(payload),
+      (db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).update(payload)
+    ]);
+    hd();
+    renderHasil($('aC'));
+    tt(`Nilai ${r.nama} berhasil dihitung ulang. ${updated} kunci diperbarui · Nilai PG: ${r.autoScore} · Nilai akhir: ${r.score}`,'ok');
+  }catch(e){hd();tt('Gagal menghitung ulang: '+e.message,'er');console.error('[HITUNG ULANG]',e);}
+}
+
  
 function koreksiEssay(rid, npsn){ 
   let r; 
