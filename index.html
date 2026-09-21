@@ -7340,6 +7340,61 @@ async function hitungUlangHasilSiswa(rid,npsn){
 }
 
  
+async function sinkronKunciTerbaruKeHasil(r,npsn){
+  if(!r || !r.examId || !r.pg || !r.pg.length) return 0;
+  try{
+    // Selalu ambil paket TERBARU dari Firestore Pusat.
+    // Jangan memakai correctAns yang tersimpan di hasil lama.
+    const snap=await soalR().doc(r.examId).get();
+    if(!snap.exists) return 0;
+    const ex=normalizeExamRecord({id:snap.id,...snap.data()});
+    const effectiveOverride=await loadEffectiveKeyOverride(npsn,r.examId,r.kelas,r.rombel||'-',r.nis||'');
+    const effectiveEx=applySchoolKeyOverride(ex,effectiveOverride);
+    const qs=Array.isArray(effectiveEx.questions)?effectiveEx.questions:[];
+    if(!qs.length) return 0;
+
+    let updated=0,cor=0;
+    (r.pg||[]).forEach((g,i)=>{
+      let q=null;
+      if(g&&g.id) q=qs.find(x=>x&&x.id===g.id);
+      if(!q){
+        // Fallback untuk hasil lama yang ID soalnya tidak sama.
+        q=qs.find(x=>x&&String(x.text||'').trim()===String(g.text||'').trim()) || qs[i];
+      }
+      if(!q || q.answer===undefined) return;
+      const newKey=normalizeStudentAnswer(q.answer);
+      if(normalizeStudentAnswer(g.correctAns)!==newKey) updated++;
+      g.correctAns=newKey;
+      if(sameStudentAnswer(g.studentAns,g.correctAns)) cor++;
+    });
+
+    if(updated>0){
+      const pgCount=r.pg.length;
+      r.correct=cor;
+      r.autoScore=pgCount?Math.round(cor/pgCount*100):0;
+      const essayAvg=(r.essays&&r.essays.length)
+        ? (r.essayScore!==undefined ? Number(r.essayScore)||0 : Math.round(r.essays.reduce((a,e)=>a+(Number(e.score)||0),0)/r.essays.length))
+        : 0;
+      r.essayScore=essayAvg;
+      r.score=(pgCount&&r.essays&&r.essays.length)
+        ? Math.round(r.autoScore*0.5+essayAvg*0.5)
+        : (r.essays&&r.essays.length ? essayAvg : r.autoScore);
+      r.recalculatedAt=Date.now();
+      r.recalculatedBy='Admin Sekolah — Kunci Admin Pusat';
+
+      const payload={pg:r.pg||[],correct:r.correct,autoScore:r.autoScore,essayScore:r.essayScore,score:r.score,recalculatedAt:r.recalculatedAt,recalculatedBy:r.recalculatedBy};
+      await Promise.allSettled([
+        rR(npsn).doc(r.id).update(payload),
+        (db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(r.id).update(payload)
+      ]);
+    }
+    return updated;
+  }catch(e){
+    console.warn('[SINKRON KUNCI PUSAT KE HASIL]',e);
+    return 0;
+  }
+}
+
 async function koreksiEssay(rid, npsn){ 
   let r; 
   if(D.isPusat){ 
@@ -7349,6 +7404,17 @@ async function koreksiEssay(rid, npsn){
     r = D.rs.find(x=>x.id===rid); 
   } 
   if(!r) return;
+  // PENTING: hasil lama menyimpan correctAns saat siswa submit.
+  // Sebelum menampilkan koreksi, ambil kunci terbaru dari Admin Pusat
+  // lalu perbarui hasil siswa tersebut. Dengan begitu soal lama yang sudah
+  // diperbaiki kuncinya tidak lagi menampilkan kunci lama.
+  if(!D.isPusat && r.examId){
+    const changed=await sinkronKunciTerbaruKeHasil(r,npsn);
+    if(changed>0){
+      renderHasil($('aC'));
+      tt(`${changed} kunci soal diperbarui dari Admin Pusat.`,'ok');
+    }
+  }
   // Gunakan kunci paling spesifik: per siswa -> sekolah/kelas/rombel.
   if(!D.isPusat && r.examId){
     try{
