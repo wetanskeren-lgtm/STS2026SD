@@ -1047,6 +1047,154 @@ select.ip{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 
 }
 
+
+/* ============================================================
+   TEKS BERJALAN DASHBOARD DEPAN
+   - tepat di bawah pilihan fitur
+   - teks hitam/kontras pada latar putih
+   - ukuran besar dan tebal
+   - 42 detik per putaran
+   - berhenti saat kursor diarahkan ke teks
+   ============================================================ */
+#pH .home-marquee-wrap{
+  width:min(1390px,100%);
+  margin:18px auto 0;
+  padding:0 2px;
+  position:relative;
+  z-index:4;
+}
+
+#pH .home-marquee-title{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  margin-bottom:8px;
+  color:#07152f !important;
+  font-family:'Nunito',sans-serif;
+  font-size:18px;
+  font-weight:900;
+  letter-spacing:.2px;
+}
+
+#pH .home-marquee-title i{
+  color:#0756c9;
+  font-size:20px;
+}
+
+#pH .home-marquee{
+  width:100%;
+  overflow:hidden;
+  border:2px solid rgba(7,21,47,.14);
+  border-radius:15px;
+  background:rgba(255,255,255,.96);
+  box-shadow:0 7px 22px rgba(23,54,112,.12);
+  cursor:default;
+  padding:13px 0;
+  position:relative;
+}
+
+#pH .home-marquee::before,
+#pH .home-marquee::after{
+  content:"";
+  position:absolute;
+  top:0;
+  bottom:0;
+  width:45px;
+  z-index:2;
+  pointer-events:none;
+}
+
+#pH .home-marquee::before{
+  left:0;
+  background:linear-gradient(90deg,#fff,rgba(255,255,255,0));
+}
+
+#pH .home-marquee::after{
+  right:0;
+  background:linear-gradient(270deg,#fff,rgba(255,255,255,0));
+}
+
+#pH .home-marquee-track{
+  display:flex;
+  align-items:center;
+  width:max-content;
+  white-space:nowrap;
+  will-change:transform;
+  animation:homeMarquee42 42s linear infinite;
+}
+
+#pH .home-marquee:hover .home-marquee-track{
+  animation-play-state:paused;
+}
+
+#pH .home-marquee-item{
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  padding:0 28px;
+  color:#000 !important;
+  font-family:'Nunito',sans-serif;
+  font-size:20px;
+  font-weight:900;
+  line-height:1.35;
+  text-shadow:none !important;
+}
+
+#pH .home-marquee-item i{
+  color:#0756c9 !important;
+  font-size:19px;
+  flex:0 0 auto;
+}
+
+#pH .home-marquee-item small{
+  color:#334155 !important;
+  font-size:14px;
+  font-weight:800;
+  margin-left:2px;
+}
+
+#pH .home-marquee-sep{
+  color:#0756c9 !important;
+  font-size:18px;
+  font-weight:900;
+}
+
+@keyframes homeMarquee42{
+  from{transform:translate3d(0,0,0)}
+  to{transform:translate3d(-50%,0,0)}
+}
+
+@media(max-width:900px){
+  #pH .home-marquee-wrap{margin-top:14px}
+  #pH .home-marquee-title{font-size:16px}
+  #pH .home-marquee-item{font-size:17px;padding:0 20px}
+  #pH .home-marquee-item small{font-size:12px}
+}
+
+@media(max-width:600px){
+  #pH .home-marquee{
+    border-radius:12px;
+    padding:10px 0;
+  }
+  #pH .home-marquee-title{
+    font-size:14px;
+    margin-bottom:6px;
+  }
+  #pH .home-marquee-item{
+    font-size:16px;
+    padding:0 16px;
+  }
+  #pH .home-marquee-item small{font-size:11px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  #pH .home-marquee-track{
+    animation:none !important;
+    transform:none !important;
+  }
+}
+
 @media(prefers-reduced-motion:reduce){
 
   *,*::before,*::after{
@@ -1794,6 +1942,64 @@ service cloud.firestore {
       </button>
 
     </div>
+
+    <!-- TEKS BERJALAN ASESMEN BERBASIS DIGITAL + KUTIPAN KI HADJAR DEWANTARA -->
+    <section class="home-marquee-wrap" aria-label="Informasi Asesmen Berbasis Digital">
+      <div class="home-marquee-title">
+        <i class="fas fa-graduation-cap"></i>
+        <span>Asesmen Berbasis Digital</span>
+      </div>
+      <div class="home-marquee" id="homeMarquee">
+        <div class="home-marquee-track">
+          <span class="home-marquee-item">
+            <i class="fas fa-laptop-code"></i>
+            Asesmen Berbasis Digital: pembelajaran dan penilaian yang tertib, transparan, dan mudah diakses.
+          </span>
+          <span class="home-marquee-sep">✦</span>
+          <span class="home-marquee-item">
+            <i class="fas fa-quote-left"></i>
+            “Ing ngarsa sung tulada, ing madya mangun karsa, tut wuri handayani.”
+            <small>— Ki Hadjar Dewantara</small>
+          </span>
+          <span class="home-marquee-sep">✦</span>
+          <span class="home-marquee-item">
+            <i class="fas fa-quote-left"></i>
+            “Pendidikan menuntun segala kekuatan kodrat yang ada pada anak-anak...”
+            <small>— Ki Hadjar Dewantara, rumusan yang diringkas dari pemikiran beliau</small>
+          </span>
+          <span class="home-marquee-sep">✦</span>
+          <span class="home-marquee-item">
+            <i class="fas fa-quote-left"></i>
+            “Setiap orang menjadi guru, setiap rumah menjadi sekolah.”
+            <small>— sering diatribusikan kepada Ki Hadjar Dewantara; atribusi tidak dicantumkan sebagai kutipan primer terverifikasi</small>
+          </span>
+
+          <!-- Duplikasi untuk gerak tanpa jeda -->
+          <span class="home-marquee-item">
+            <i class="fas fa-laptop-code"></i>
+            Asesmen Berbasis Digital: pembelajaran dan penilaian yang tertib, transparan, dan mudah diakses.
+          </span>
+          <span class="home-marquee-sep">✦</span>
+          <span class="home-marquee-item">
+            <i class="fas fa-quote-left"></i>
+            “Ing ngarsa sung tulada, ing madya mangun karsa, tut wuri handayani.”
+            <small>— Ki Hadjar Dewantara</small>
+          </span>
+          <span class="home-marquee-sep">✦</span>
+          <span class="home-marquee-item">
+            <i class="fas fa-quote-left"></i>
+            “Pendidikan menuntun segala kekuatan kodrat yang ada pada anak-anak...”
+            <small>— Ki Hadjar Dewantara, rumusan yang diringkas dari pemikiran beliau</small>
+          </span>
+          <span class="home-marquee-sep">✦</span>
+          <span class="home-marquee-item">
+            <i class="fas fa-quote-left"></i>
+            “Setiap orang menjadi guru, setiap rumah menjadi sekolah.”
+            <small>— sering diatribusikan kepada Ki Hadjar Dewantara; atribusi tidak dicantumkan sebagai kutipan primer terverifikasi</small>
+          </span>
+        </div>
+      </div>
+    </section>
 
     <!-- Tetap tersedia untuk fungsi pemilihan server, tetapi dibuat minimal
          agar tampilan utama mengikuti desain pada gambar. -->
