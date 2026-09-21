@@ -4733,7 +4733,7 @@ function getSchoolKeyRombels(kelas){
   return vals.length?vals:['-'];
 }
 async function showEditKunciSekolah(examId,nis){
-  if(D.isPusat)return tt('Edit kunci khusus dilakukan dari Admin Sekolah.','er');
+  if(D.isPusat){ editUjian(examId); return; }
   if(!D.sch)return tt('Paket soal/sekolah tidak ditemukan. Pastikan paket soal sudah dimuat.','er');
 
   /* PENTING: jangan memakai paket yang tersimpan di D.ex sebagai sumber utama.
@@ -5198,7 +5198,7 @@ function renderSoal(c){
 
           <button class="bt bt1 btx" onclick="sebarKeSekolah('${ex.id}')"><i class="fas fa-share-alt"></i> Sebar</button>
           ${isPendidikanPancasila(ex.mapel)?`<button class="bt btx" style="background:#DBEAFE;color:#1D4ED8" onclick="setPendidikanPancasilaVersion('${ex.id}','lama')">🟦 Lama</button><button class="bt btx" style="background:#DCFCE7;color:#15803D" onclick="setPendidikanPancasilaVersion('${ex.id}','baru')">🟩 Baru</button>`:''}
-          <button class="bt bt5 btx" onclick="showEditKunciSekolah('${ex.id}')"><i class="fas fa-key"></i> Edit Kunci Siswa</button>
+          <button class="bt bt5 btx" onclick="editUjian('${ex.id}')"><i class="fas fa-key"></i> Edit Kunci Pusat</button>
            <button class="bt bt2 btx" onclick="cetakSoalPusat('${ex.id}')"><i class="fas fa-print"></i> Cetak Soal</button>
           <button class="bt bt5 btx" onclick="cetakKunciJawaban('${ex.id}')"><i class="fas fa-key"></i> Cetak Kunci</button>
 
