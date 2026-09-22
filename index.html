@@ -2353,7 +2353,8 @@ function maxOpts(kelas){ return kelas <= 2 ? 3 : 4; }
 
 
 
-let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],allSchools:[],allResults:[],cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1,editTargetNpsn:null,editKelas:3,_schoolKeyOverrides:{}};
+let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],allSchools:[],allResults:[],cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1,editTargetNpsn:null,editKelas:3,_schoolKeyOverrides:{},
+  antiCheat:{active:false,violations:0,lastViolation:0,submitting:false,cleanup:null}};
 
 
 
@@ -3369,6 +3370,209 @@ function examStatus(ex){
 
 
 
+/* ================================================================
+   ANTI CURANG SISWA — KHUSUS KELAS 4, 5, 6
+   ----------------------------------------------------------------
+   Browser tidak dapat menjamin 100% pencegahan kecurangan (misalnya
+   foto dengan HP lain), tetapi fitur ini menutup jalur kecurangan
+   yang dapat dikendalikan dari halaman web:
+   - Copy / paste / cut / context menu / drag text
+   - Ctrl/Cmd+A/C/V/X/S/P/F dan F12 / DevTools shortcut umum
+   - Keluar tab/aplikasi (visibility/blur)
+   - Keluar fullscreen
+   - Tombol Back browser
+   - Print
+   - Peringatan pelanggaran + auto-kirim setelah pelanggaran berulang
+   ----------------------------------------------------------------
+   Kelas 1-3 TIDAK terkena aturan ini.
+   ================================================================ */
+
+function antiCheatEnabled(){
+  const k=Number(D.st?.kelas);
+  return !!D.cEx && [4,5,6].includes(k);
+}
+
+function antiCheatCleanup(){
+  const ac=D.antiCheat;
+  if(!ac)return;
+  try{
+    if(typeof ac.cleanup==='function')ac.cleanup();
+  }catch(_e){}
+  ac.active=false;
+  ac.cleanup=null;
+  ac.violations=0;
+  ac.submitting=false;
+}
+
+function antiCheatViolation(reason){
+  const ac=D.antiCheat;
+  if(!ac.active || ac.submitting || !D.cEx)return;
+  const now=Date.now();
+  if(now-(ac.lastViolation||0)<1200)return;
+  ac.lastViolation=now;
+  ac.violations=(ac.violations||0)+1;
+
+  autoSaveLocal();
+
+  const n=ac.violations;
+  if(n>=2){
+    ac.submitting=true;
+    try{if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});}catch(_e){}
+    oMo(`<div class="text-center">
+      <div style="font-size:2.8rem;color:var(--er);margin-bottom:10px"><i class="fas fa-user-shield"></i></div>
+      <h3 style="margin-bottom:8px">Ujian Dikunci</h3>
+      <p style="color:var(--mt);font-size:.86rem;line-height:1.55;margin-bottom:16px">
+        Sistem mendeteksi <b>lebih dari satu pelanggaran</b> saat ujian.
+        Untuk menjaga kejujuran ujian, jawaban yang sudah dikerjakan akan
+        langsung dikirim dan ujian ditutup.
+      </p>
+      <p style="font-size:.75rem;color:var(--er);font-weight:800">Pelanggaran: ${n}</p>
+    </div>`);
+    setTimeout(()=>{
+      cMo();
+      if(D.cEx && D.st) finEx();
+    },1800);
+    return;
+  }
+
+  oMo(`<div class="text-center">
+    <div style="font-size:2.8rem;color:#f59e0b;margin-bottom:10px"><i class="fas fa-triangle-exclamation"></i></div>
+    <h3 style="margin-bottom:8px">Peringatan Anti Curang</h3>
+    <p style="color:var(--mt);font-size:.86rem;line-height:1.55;margin-bottom:10px">
+      Sistem mendeteksi aktivitas yang tidak diperbolehkan:
+      <b>${String(reason||'aktivitas di luar halaman ujian')}</b>.
+    </p>
+    <p style="font-size:.8rem;color:var(--er);font-weight:900">Peringatan 1 dari 2.</p>
+    <p style="font-size:.72rem;color:var(--mt);margin-top:8px">Tetap berada di halaman ujian sampai selesai.</p>
+  </div>`);
+}
+
+function antiCheatStart(){
+  if(!antiCheatEnabled())return;
+  antiCheatCleanup();
+
+  const ac=D.antiCheat;
+  ac.active=true;
+  ac.violations=0;
+  ac.lastViolation=0;
+  ac.submitting=false;
+
+  const handlers=[];
+  const on=(target,event,fn,opts)=>{target.addEventListener(event,fn,opts);handlers.push(()=>target.removeEventListener(event,fn,opts));};
+
+  // Blokir copy/paste/cut/context menu/drag/selection.
+  ['copy','paste','cut'].forEach(ev=>on(document,ev,e=>{
+    e.preventDefault();
+    antiCheatViolation(ev.toUpperCase());
+  },true));
+  on(document,'contextmenu',e=>{
+    e.preventDefault();
+    antiCheatViolation('klik kanan');
+  },true);
+  on(document,'dragstart',e=>{
+    e.preventDefault();
+    antiCheatViolation('drag teks/gambar');
+  },true);
+  on(document,'selectstart',e=>{
+    // Jangan ganggu textarea jawaban uraian.
+    if(!e.target.closest('textarea,input'))e.preventDefault();
+  },true);
+
+  // Shortcut yang umum dipakai untuk menyalin, mencetak, membuka DevTools, dsb.
+  on(document,'keydown',e=>{
+    const k=String(e.key||'').toLowerCase();
+    const ctrl=e.ctrlKey||e.metaKey;
+    const blocked =
+      (ctrl && ['a','c','v','x','s','p','u','f'].includes(k)) ||
+      (e.ctrlKey&&e.shiftKey&&['i','j','c'].includes(k)) ||
+      k==='f12' || k==='printscreen';
+    if(blocked){
+      e.preventDefault();
+      e.stopPropagation();
+      antiCheatViolation('shortcut keyboard');
+    }
+  },true);
+
+  // Keluar dari tab/jendela ujian dianggap pelanggaran.
+  let hiddenTimer=null;
+  const onVisibility=()=>{
+    if(!ac.active)return;
+    if(document.hidden){
+      clearTimeout(hiddenTimer);
+      hiddenTimer=setTimeout(()=>antiCheatViolation('keluar dari halaman ujian / pindah tab'),250);
+    }
+  };
+  on(document,'visibilitychange',onVisibility,true);
+
+  on(window,'blur',()=>{
+    if(!ac.active)return;
+    setTimeout(()=>{
+      if(ac.active && !document.hasFocus())antiCheatViolation('jendela ujian kehilangan fokus');
+    },350);
+  },true);
+
+  // Fullscreen: siswa kelas 4-6 wajib tetap fullscreen.
+  const enterFS=async()=>{
+    try{
+      if(!document.fullscreenElement && document.documentElement.requestFullscreen){
+        await document.documentElement.requestFullscreen();
+      }
+    }catch(_e){}
+  };
+  const onFS=()=>{
+    if(ac.active && !document.fullscreenElement){
+      antiCheatViolation('keluar dari mode layar penuh');
+      setTimeout(enterFS,300);
+    }
+  };
+  on(document,'fullscreenchange',onFS,true);
+  setTimeout(enterFS,250);
+
+  // Cegah tombol Back selama ujian.
+  try{
+    history.pushState({antiCheatExam:true},'',location.href);
+    const onPop=()=>{
+      if(!ac.active)return;
+      history.pushState({antiCheatExam:true},'',location.href);
+      antiCheatViolation('mencoba keluar dengan tombol Back');
+    };
+    on(window,'popstate',onPop,true);
+  }catch(_e){}
+
+  // Peringatan saat mencoba menutup/reload halaman.
+  const onBeforeUnload=e=>{
+    if(!ac.active)return;
+    e.preventDefault();
+    e.returnValue='Ujian sedang berlangsung. Jangan keluar dari halaman ujian.';
+    return e.returnValue;
+  };
+  on(window,'beforeunload',onBeforeUnload,true);
+
+  // Blokir print dari halaman ujian.
+  const onBeforePrint=()=>{if(ac.active)antiCheatViolation('mencoba mencetak halaman ujian');};
+  on(window,'beforeprint',onBeforePrint,true);
+
+  // Tambahkan kelas CSS untuk menonaktifkan seleksi pada area ujian.
+  const styleId='antiCheatStudentStyle';
+  if(!document.getElementById(styleId)){
+    const st=document.createElement('style');
+    st.id=styleId;
+    st.textContent=`#pEX.anti-cheat-active{-webkit-user-select:none!important;user-select:none!important}
+      #pEX.anti-cheat-active textarea,#pEX.anti-cheat-active input{-webkit-user-select:text!important;user-select:text!important}`;
+    document.head.appendChild(st);
+  }
+  $('pEX')?.classList.add('anti-cheat-active');
+
+  ac.cleanup=()=>{
+    clearTimeout(hiddenTimer);
+    handlers.splice(0).forEach(fn=>{try{fn();}catch(_e){}});
+    $('pEX')?.classList.remove('anti-cheat-active');
+    try{
+      if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
+    }catch(_e){}
+  };
+}
+
 /* ===== UJIAN MODE OFFLINE MURNI ===== */
 
 async function startEx(id){
@@ -3444,6 +3648,9 @@ async function startEx(id){
   autoSaveLocal();
   hd();
   rQ();sT();
+
+  // Anti curang aktif otomatis hanya untuk Kelas 4, 5, dan 6.
+  antiCheatStart();
 
   /* Setelah ujian dibuka, pantau hanya paket ini. Jika Admin Pusat
      mengganti kunci/soal, perangkat siswa menerima versi terbaru otomatis. */
@@ -3931,6 +4138,8 @@ async function saveResultBoth(npsn,rid,data){
 
 async function finEx(){
 
+  if(D.antiCheat?.submitting===false)D.antiCheat.submitting=true;
+  antiCheatCleanup();
   clearInterval(D.tI);
 
   const ex=D.cEx,s=D.st;let cor=0;let essays=[];
