@@ -2238,9 +2238,6 @@ service cloud.firestore {
   <div class="w-full max-w-3xl mx-auto px-4 py-5 d-flex flex-col" style="flex:1 1 0; min-height:0; overflow-y:auto;">
 
     <div class="pb mb-5"><div class="pf" id="eP" style="width:0%;background:var(--ac)"></div></div>
-    <div id="antiCheatBanner" style="margin:-8px 0 14px;padding:9px 12px;border:2px solid #F59E0B;border-radius:12px;background:#FFF7ED;color:#9A3412;font-size:.74rem;font-weight:800;text-align:center;">
-      🔒 MODE ANTI CURANG AKTIF — Jangan membuka tab baru, Google, aplikasi lain, atau meninggalkan halaman ujian. Pelanggaran 3x akan otomatis menyelesaikan dan mengirim jawaban.
-    </div>
 
     <div id="eA" style="flex:1;"></div>
 
@@ -2356,9 +2353,7 @@ function maxOpts(kelas){ return kelas <= 2 ? 3 : 4; }
 
 
 
-let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],allSchools:[],allResults:[],hasilLoaded:false,hasilLoading:false,allResultsLoaded:false,cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1,editTargetNpsn:null,editKelas:3,_schoolKeyOverrides:{},
-  antiCheat:{active:false,violations:0,max:3,submitting:false,graceUntil:0,handlersBound:false,lastReason:'',lastAt:0}
-};
+let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],allSchools:[],allResults:[],cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1,editTargetNpsn:null,editKelas:3,_schoolKeyOverrides:{}};
 
 
 
@@ -2729,50 +2724,22 @@ async function loadAllSchools(){
 }
 
 async function loadAllResults(){
-  if(D.allResultsLoaded && Array.isArray(D.allResults))return D.allResults;
+
   D.allResults=[];
+
   for(const s of D.allSchools){
+
     const rSnap=await rR(s.npsn).get();
+
     const items=rSnap.docs.map(d=>{
       const data=d.data();
       return {id:d.id,...data,mapel:canonicalMapel(data.mapel),schoolName:s.nama,schoolNpsn:s.npsn};
     });
+
     D.allResults.push(...items);
-  }
-  D.allResults=dedupeResults(D.allResults);
-  D.allResultsLoaded=true;
-  return D.allResults;
-}
 
-/* Hasil ujian sengaja tidak dimuat saat login. Data baru diambil ketika
-   Admin membuka menu Hasil Ujian. Setelah berhasil dimuat, filter/tombol
-   di menu tersebut hanya bekerja dari cache agar tidak membaca Firestore
-   berulang-ulang setiap kali filter berubah. */
-async function loadHasilData(force=false){
-  if(!D.aIn || !D.sch)return [];
-  if(D.hasilLoading)return D._hasilPromise||[];
-  if(!force && D.hasilLoaded){
-    return D.isPusat?(D.allResults||[]):(D.rs||[]);
   }
 
-  const npsn=D.sch.npsn;
-  D.hasilLoading=true;
-  D._hasilPromise=(async()=>{
-    if(D.isPusat){
-      await loadAllResults();
-    }else{
-      const snap=await rR(npsn).get();
-      D.rs=dedupeResults(snap.docs.map(d=>{
-        const data=d.data();
-        return {id:d.id,...data,mapel:canonicalMapel(data.mapel)};
-      }));
-    }
-    D.hasilLoaded=true;
-    return D.isPusat?(D.allResults||[]):(D.rs||[]);
-  })();
-
-  try{return await D._hasilPromise;}
-  finally{D.hasilLoading=false;D._hasilPromise=null;}
 }
 
 
@@ -2888,19 +2855,16 @@ async function loadPusatExams(){
 }
 
 async function loadD(npsn){
-  /* Saat login sekolah, hasil ujian TIDAK ikut dibaca. Ini sengaja dibuat
-     ringan agar login tetap cepat. Hasil akan diambil oleh loadHasilData()
-     ketika menu Hasil Ujian dibuka. */
-  const [exDocs,c]=await Promise.all([
+  const [exDocs,b,c]=await Promise.all([
     getMergedPusatExams(),
+    rR(npsn).get(),
     wR(npsn).get()
   ]);
   D.ex=exDocs.map(normalizeExamRecord);
-  D.rs=[];
-  D.hasilLoaded=false;
-  D.hasilLoading=false;
-  D.allResults=[];
-  D.allResultsLoaded=false;
+  D.rs=b.docs.map(d=>{
+    const data=d.data();
+    return {id:d.id,...data,mapel:canonicalMapel(data.mapel)};
+  });
   D.ss=c.docs.map(d=>({id:d.id,...d.data()}));
 }
 
@@ -3113,7 +3077,7 @@ async function logP(){
 
     D.sch={npsn:'PUSAT',nama:'Admin Pusat',kota:'Majalengka',prov:'Jawa Barat',isPusat:true};
 
-    D.aIn=true;D.isPusat=true;D.rs=[];D.ss=[];D.allResults=[];D.hasilLoaded=false;D.hasilLoading=false;D.allResultsLoaded=false;D._hasilPromise=null;clearSchoolKeyOverrideCache();
+    D.aIn=true;D.isPusat=true;D.rs=[];D.ss=[];clearSchoolKeyOverrideCache();
     /* LOGIN RINGAN: jangan membaca seluruh hasil dan jangan menjalankan
        migrasi/dedupe otomatis setiap login. Itu membuat Firestore terus
        membaca koleksi besar dan dapat memicu resource-exhausted. */
@@ -3142,32 +3106,15 @@ async function logA(){
     if(sch.adminUser!==user||sch.adminPass!==pass){hd();return tt('Username atau password salah!','er')}
 
     D.sch=sch;D.aIn=true;D.isPusat=false;clearSchoolKeyOverrideCache();
-    D.rs=[];D.allResults=[];D.hasilLoaded=false;D.hasilLoading=false;D.allResultsLoaded=false;D._hasilPromise=null;
-    /* LOGIN CEPAT:
-       Jangan menunggu seluruh paket soal + seluruh hasil + seluruh siswa selesai
-       dibaca sebelum dashboard ditampilkan. Cukup verifikasi akun, tampilkan
-       dashboard, lalu muat data besar di belakang layar. Ini menghilangkan
-       loading/muter panjang saat koleksi soal atau hasil sudah banyak. */
+    /* Tidak ada lagi sinkronisasi soal ke koleksi sekolah dan tidak ada
+       dedupe otomatis saat login. Soal dibaca langsung dari Server Cadangan. */
     await enforcePusatOnlySchoolExams(npsn);
-    attachLiveListeners(npsn);
-    hd();
-    go('pAD');
-    $('aSN2').textContent=sch.nama;$('navSch').style.display='none';
-    aTab('d',document.querySelector('#aSB a'));
-    tt('Selamat datang, Admin '+sch.nama+'! Data sedang dimuat di latar belakang.','in');
+    await loadD(npsn);
+    attachLiveListeners(npsn);hd();go('pAD');
 
-    /* Data berat dimuat setelah dashboard sudah tampil. */
-    loadD(npsn).then(()=>{
-      if(D.aIn && D.sch && String(D.sch.npsn)===String(npsn)){
-        const active=document.querySelector('#aSB a.on');
-        if(active) aTab(['d','s','j','h','w','k','c'][[...document.querySelectorAll('#aSB a')].indexOf(active)]||'d',active);
-      }
-    }).catch(e=>{
-      console.error('[LOGIN SEKOLAH] Gagal memuat data lanjutan:',e);
-      if(D.aIn && D.sch && String(D.sch.npsn)===String(npsn)){
-        tt('Login berhasil, tetapi sebagian data belum termuat. Silakan klik menu yang diperlukan atau muat ulang.','in');
-      }
-    });
+    $('aSN2').textContent=sch.nama;$('navSch').style.display='none';
+
+    aTab('d',document.querySelector('#aSB a'));tt('Selamat datang, Admin '+sch.nama+'!');
 
   }catch(e){hd();tt('Gagal: '+e.message,'er')}
 
@@ -3175,7 +3122,7 @@ async function logA(){
 
 
 
-function outA(e){if(e)e.preventDefault();clearUnsub();D.aIn=false;D.sch=null;D.isPusat=false;clearSchoolKeyOverrideCache();D.ex=[];D.rs=[];D.ss=[];D.allSchools=[];D.allResults=[];D.hasilLoaded=false;D.hasilLoading=false;D.allResultsLoaded=false;D._hasilPromise=null;go('pH');tt('Keluar','in')}
+function outA(e){if(e)e.preventDefault();clearUnsub();D.aIn=false;D.sch=null;D.isPusat=false;clearSchoolKeyOverrideCache();D.ex=[];D.rs=[];D.ss=[];D.allSchools=[];D.allResults=[];go('pH');tt('Keluar','in')}
 
 
 
@@ -3331,7 +3278,7 @@ async function logS(){
 
 }
 
-function outS(){antiCheatStop();clearUnsub();D.studentOnlineReady=false;D.studentOfflineMode=false;D.st=null;D.sch=null;['sN','sK','sR','sI','sM','sW'].forEach(i=>$(i).value='');$('sLKA').style.display='none';go('pH')}
+function outS(){clearUnsub();D.studentOnlineReady=false;D.studentOfflineMode=false;D.st=null;D.sch=null;['sN','sK','sR','sI','sM','sW'].forEach(i=>$(i).value='');$('sLKA').style.display='none';go('pH')}
 
 
 
@@ -3422,200 +3369,6 @@ function examStatus(ex){
 
 
 
-/* ============================================================
-   ANTI CURANG SISWA KELAS 4–6
-   - Ujian Kelas 4, 5, dan 6 tetap berada di halaman aplikasi.
-   - Kelas 1–3 tidak menggunakan fitur anti-curang ini.
-   - Perpindahan tab/jendela, keluar fullscreen, dan shortcut umum
-     yang membuka/meninggalkan halaman dihitung sebagai pelanggaran.
-   - Peringatan maksimal 3x. Pelanggaran ke-3 otomatis mengirim jawaban.
-   - Browser tetap memiliki batasan keamanan: Alt+Tab/penutupan paksa
-     oleh sistem operasi tidak dapat diblokir oleh JavaScript.
-   ============================================================ */
-function antiCheatClassApplies(){
-  /* Anti-curang hanya untuk siswa Kelas 4, 5, dan 6.
-     Kelas 1, 2, dan 3 tetap menggunakan alur ujian sebelumnya. */
-  const k=String(D.st&&D.st.kelas!==undefined?D.st.kelas:'').trim();
-  return ['4','5','6'].includes(k);
-}
-
-function antiCheatIsExamActive(){
-  return !!(D.antiCheat && D.antiCheat.active && D.cEx && D.st && antiCheatClassApplies());
-}
-
-function antiCheatSetGrace(ms=1800){
-  if(D.antiCheat) D.antiCheat.graceUntil=Date.now()+ms;
-}
-
-function antiCheatEnterFullscreen(){
-  try{
-    const el=document.documentElement;
-    if(document.fullscreenElement)return;
-    const fn=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
-    if(fn){
-      const p=fn.call(el);
-      if(p&&typeof p.catch==='function')p.catch(()=>{});
-    }
-  }catch(e){}
-}
-
-function antiCheatPushBackState(){
-  try{
-    history.pushState({examLock:true},'',location.href);
-  }catch(e){}
-}
-
-function antiCheatWarning(reason){
-  const n=D.antiCheat.violations;
-  const remain=Math.max(0,D.antiCheat.max-n);
-  const msg=n>=D.antiCheat.max
-    ? 'Pelanggaran ke-3 terdeteksi. Ujian otomatis diselesaikan dan jawaban dikirim.'
-    : `PERINGATAN ANTI CURANG ${n}/${D.antiCheat.max}. Jangan membuka tab baru, Google, aplikasi lain, atau meninggalkan halaman ujian. Sisa peringatan: ${remain}.`;
-  tt(msg,'er');
-  oMo(`<div class="text-center">
-    <div style="font-size:2.8rem;color:var(--er);margin-bottom:10px">⚠️</div>
-    <h3 style="margin-bottom:8px">${n>=D.antiCheat.max?'Ujian Otomatis Diselesaikan':'Peringatan Anti Curang'}</h3>
-    <p style="color:var(--mt);font-size:.86rem;line-height:1.55;margin-bottom:16px">${msg}</p>
-    ${n<D.antiCheat.max?`<p style="font-size:.76rem;color:#991B1B;font-weight:800">Tetap di halaman ujian sampai selesai.</p>`:''}
-  </div>`);
-  if(n>=D.antiCheat.max){
-    setTimeout(()=>{try{cMo();}catch(e){};finEx(true);},900);
-  }
-}
-
-function antiCheatViolation(reason){
-  if(!antiCheatIsExamActive())return;
-  if(D.antiCheat.submitting)return;
-  if(Date.now()<Number(D.antiCheat.graceUntil||0))return;
-
-  const now=Date.now();
-  // Hindari satu perpindahan fokus memicu dua event sekaligus.
-  if(now-(D.antiCheat.lastAt||0)<700 && D.antiCheat.lastReason===reason)return;
-  D.antiCheat.lastAt=now;
-  D.antiCheat.lastReason=reason;
-  D.antiCheat.violations=Math.min(D.antiCheat.max,D.antiCheat.violations+1);
-  antiCheatWarning(reason);
-}
-
-function antiCheatBind(){
-  if(D.antiCheat.handlersBound)return;
-  D.antiCheat.handlersBound=true;
-
-  document.addEventListener('visibilitychange',()=>{
-    if(document.hidden)antiCheatViolation('berpindah tab/jendela');
-  },true);
-
-  window.addEventListener('blur',()=>{
-    antiCheatViolation('meninggalkan jendela ujian');
-  },true);
-
-  window.addEventListener('focus',()=>{
-    if(antiCheatIsExamActive())antiCheatSetGrace(900);
-  },true);
-
-  document.addEventListener('fullscreenchange',()=>{
-    if(antiCheatIsExamActive() && !document.fullscreenElement){
-      antiCheatViolation('keluar dari mode layar penuh');
-    }
-  },true);
-
-  document.addEventListener('contextmenu',e=>{
-    if(antiCheatIsExamActive()){e.preventDefault();antiCheatViolation('mencoba membuka menu klik kanan');}
-  },true);
-
-  document.addEventListener('copy',e=>{
-    if(antiCheatIsExamActive()){e.preventDefault();antiCheatViolation('mencoba menyalin teks');}
-  },true);
-
-  document.addEventListener('cut',e=>{
-    if(antiCheatIsExamActive()){e.preventDefault();antiCheatViolation('mencoba memotong teks');}
-  },true);
-
-  document.addEventListener('paste',e=>{
-    if(antiCheatIsExamActive()){e.preventDefault();antiCheatViolation('mencoba menempelkan teks');}
-  },true);
-
-  document.addEventListener('dragstart',e=>{
-    if(antiCheatIsExamActive()){e.preventDefault();}
-  },true);
-
-  window.addEventListener('keydown',e=>{
-    if(!antiCheatIsExamActive())return;
-    const k=String(e.key||'').toLowerCase();
-    const ctrl=e.ctrlKey||e.metaKey;
-    const blocked =
-      e.key==='F12' ||
-      k==='f5' ||
-      (ctrl && ['r','t','n','w','l','p','s','u','c','x','v'].includes(k)) ||
-      (ctrl && e.shiftKey && ['i','j','c'].includes(k)) ||
-      (e.altKey && k==='arrowleft') ||
-      (e.altKey && k==='arrowright');
-    if(blocked){
-      e.preventDefault();
-      e.stopPropagation();
-      antiCheatViolation('shortcut browser/alat pengembang');
-    }
-  },true);
-
-  window.addEventListener('beforeunload',e=>{
-    if(antiCheatIsExamActive() && !D.antiCheat.submitting){
-      e.preventDefault();
-      e.returnValue='';
-      return '';
-    }
-  });
-
-  window.addEventListener('popstate',()=>{
-    if(antiCheatIsExamActive()){
-      antiCheatViolation('mencoba kembali/keluar dari halaman ujian');
-      antiCheatPushBackState();
-    }
-  });
-
-  antiCheatBind._bound=true;
-}
-
-function antiCheatStart(){
-  /* Jangan aktifkan anti-curang untuk Kelas 1–3. */
-  if(!antiCheatClassApplies()){
-    D.antiCheat.active=false;
-    D.antiCheat.violations=0;
-    D.antiCheat.submitting=false;
-    return;
-  }
-  antiCheatBind();
-  D.antiCheat.active=true;
-  D.antiCheat.violations=0;
-  D.antiCheat.submitting=false;
-  D.antiCheat.lastReason='';
-  D.antiCheat.lastAt=0;
-  antiCheatSetGrace(2200);
-  antiCheatPushBackState();
-  setTimeout(()=>antiCheatEnterFullscreen(),120);
-}
-
-function antiCheatStop(){
-  if(!D.antiCheat)return;
-  D.antiCheat.active=false;
-  D.antiCheat.submitting=false;
-  try{
-    if(document.fullscreenElement){
-      const p=document.exitFullscreen();
-      if(p&&typeof p.catch==='function')p.catch(()=>{});
-    }
-  }catch(e){}
-}
-
-function antiCheatReset(){
-  if(!D.antiCheat)return;
-  D.antiCheat.active=false;
-  D.antiCheat.violations=0;
-  D.antiCheat.submitting=false;
-  D.antiCheat.graceUntil=0;
-  D.antiCheat.lastReason='';
-  D.antiCheat.lastAt=0;
-}
-
 /* ===== UJIAN MODE OFFLINE MURNI ===== */
 
 async function startEx(id){
@@ -3633,7 +3386,7 @@ async function startEx(id){
     if(!snap.empty){
       hd();
       tt('Anda sudah mengerjakan ujian ini. Hubungi Admin untuk reset nilai.','er');
-      oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px;color:var(--er)"><i class="fas fa-lock"></i></div><h3 style="margin-bottom:10px">Sudah Pernah Mengerjakan</h3><p style="color:var(--mt);font-size:.85rem;margin-bottom:16px">Anda telah menyelesaikan ujian ini. Jika ingin mengulang, hasil ujian harus dihapus terlebih dahulu oleh Admin Sekolah pada menu Hasil Ujian.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo();outS()">Kembali ke Beranda</button></div></div>`);
+      oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px;color:var(--er)"><i class="fas fa-lock"></i></div><h3 style="margin-bottom:10px">Sudah Pernah Mengerjakan</h3><p style="color:var(--mt);font-size:.85rem;margin-bottom:16px">Anda telah menyelesaikan ujian ini. Jika ingin mengulang, minta Admin Sekolah untuk menghapus nilai Anda terlebih dahulu di menu Hasil Ujian.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo();outS()">Kembali ke Beranda</button></div></div>`);
       return;
     }
   }catch(e){hd();tt('Gagal cek riwayat ujian: '+e.message,'er');return;}
@@ -3691,9 +3444,6 @@ async function startEx(id){
   autoSaveLocal();
   hd();
   rQ();sT();
-
-  /* Aktifkan pengamanan setelah halaman ujian benar-benar tampil. */
-  antiCheatStart();
 
   /* Setelah ujian dibuka, pantau hanya paket ini. Jika Admin Pusat
      mengganti kunci/soal, perangkat siswa menerima versi terbaru otomatis. */
@@ -4167,35 +3917,20 @@ function cfF(){const a=Object.keys(D.an).length,t=D.cEx.questions.length;oMo(`<d
 
 
 
-function resultKey(examId,nis){
-  return String(examId||'').trim()+'|'+String(nis||'').trim();
-}
-function makeResultDocId(examId,nis){
-  return ('hasil_'+String(examId||'')+'_'+String(nis||'')).replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,140);
-}
-function dedupeResults(list){
-  const map=new Map();
-  (Array.isArray(list)?list:[]).forEach(r=>{
-    const key=resultKey(r.examId,r.nis||r.nama);
-    const prev=map.get(key);
-    if(!prev || Number(r.timestamp||0)>=Number(prev.timestamp||0))map.set(key,r);
-  });
-  return Array.from(map.values()).sort((x,y)=>Number(y.timestamp||0)-Number(x.timestamp||0));
-}
 async function saveResultBoth(npsn,rid,data){
   const payload=JSON.parse(JSON.stringify(data));
   const results=await Promise.allSettled([
-    db.collection('schools').doc(npsn).collection('results').doc(rid).set(payload,{merge:false}),
-    (db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).set(payload,{merge:false})
+    db.collection('schools').doc(npsn).collection('results').doc(rid).set(payload),
+    (db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).set(payload)
   ]);
   const failed=results.filter(r=>r.status==='rejected');
-  if(failed.length===2)throw failed[0].reason;
-  if(failed.length)console.warn('[DUAL SERVER] satu server gagal menyimpan hasil',failed[0].reason);
+  if(failed.length===2) throw failed[0].reason;
+  if(failed.length) console.warn('[DUAL SERVER] satu server gagal menyimpan hasil',failed[0].reason);
   return true;
 }
-async function finEx(autoAntiCheat=false){
 
-  if(D.antiCheat)D.antiCheat.submitting=true;
+async function finEx(){
+
   clearInterval(D.tI);
 
   const ex=D.cEx,s=D.st;let cor=0;let essays=[];
@@ -4228,31 +3963,21 @@ async function finEx(autoAntiCheat=false){
 
   const hasEssay=essays.length>0;const pgOnly=ex.questions.length-essays.length;const autoScore=pgOnly>0?Math.round(cor/pgOnly*100):0;const finalScore=hasEssay?0:autoScore;const tu=ex.timeLimit*60-D.tL;
 
-  const rid=makeResultDocId(ex.id,s.nis);
-  const r={id:rid,examId:ex.id,kelas:s.kelas,rombel:s.rombel||'-',mapel:canonicalMapel(ex.mapel),nama:s.nama,nis:s.nis,foto:s.foto||'',score:finalScore,autoScore,essayScore:hasEssay?0:undefined,correct:cor,total:ex.questions.length,essays,pg:pgList,timeUsed:tu,timestamp:Date.now()};
+  const r={id:uid(),examId:ex.id,kelas:s.kelas,rombel:s.rombel||'-',mapel:canonicalMapel(ex.mapel),nama:s.nama,nis:s.nis,foto:s.foto||'',score:finalScore,autoScore,essayScore:hasEssay?0:undefined,correct:cor,total:ex.questions.length,essays,pg:pgList,timeUsed:tu,timestamp:Date.now()};
 
-
+  
 
   try {
-    /* Cek hasil lama tanpa compound-index Firestore. Ambil berdasarkan examId
-       lalu cocokkan NIS di sisi aplikasi agar tidak gagal karena index. */
-    const existingSnap=await rR(D.sch.npsn).where('examId','==',ex.id).get();
-    const existingDocs=existingSnap.docs.filter(d=>String(d.data()?.nis||'').trim()===String(s.nis||'').trim());
-    if(existingDocs.length){
-      hd();
-      if(D.antiCheat)antiCheatStop();
-      tt('Hasil ujian siswa sudah tersimpan. Jika ingin mengulang, Admin Sekolah harus menghapus hasilnya terlebih dahulu.','er');
-      return;
-    }
 
     await saveResultBoth(D.sch.npsn,r.id,r);
+
     
 
     localStorage.removeItem('ujian_'+s.nis+'_'+ex.id);
 
     
 
-    D.rs=dedupeResults([...(D.rs||[]),r]);hd();
+    D.rs.push(r);hd();showR(r);kirimNotifWA(r);
 
     try{
 
@@ -4285,19 +4010,6 @@ async function finEx(autoAntiCheat=false){
       }
 
     }catch(e){console.warn('Gagal antre email:',e);}
-
-    /* Setelah jawaban berhasil tersimpan, siswa langsung kembali ke login.
-       Untuk mengerjakan ulang, hasil lama harus dihapus oleh Admin Sekolah. */
-    antiCheatStop();
-    D.cEx=null;
-    D.an={};
-    D.cQ=0;
-    D.tL=0;
-    outS();
-    const pesanSelesai=antiCheatClassApplies()
-      ? 'Ujian telah selesai. Anda kembali ke halaman login siswa. Untuk mengulang ujian ini, hasil ujian harus dihapus terlebih dahulu oleh Admin Sekolah.'
-      : 'Ujian telah selesai. Anda kembali ke halaman login siswa.';
-    oMo(`<div class="text-center"><div style="font-size:2.7rem;color:var(--ok);margin-bottom:10px">✅</div><h3 style="margin-bottom:8px">Jawaban Berhasil Dikirim</h3><p style="color:var(--mt);font-size:.85rem;line-height:1.5;margin-bottom:16px">${pesanSelesai}</p><button class="bt bt1 bts" onclick="cMo()"><i class="fas fa-check"></i> Tutup</button></div>`);
 
   } catch(e) {
 
@@ -4734,21 +4446,7 @@ function aTab(t,el){
       }).catch(e=>console.warn('[SYNC] Gagal memuat versi soal terbaru:',e));
     }
   }
-  else if(t==='j')renderJadwal(c);
-  else if(t==='h'){
-    /* Jangan membaca hasil saat login. Begitu menu Hasil diklik, tampilkan
-       loading ringan lalu ambil hasil sekali dari Firestore. */
-    if(!D.hasilLoaded){
-      c.innerHTML=`<div class="asu"><div class="cd" style="text-align:center;padding:55px 20px"><div class="spn" style="margin:0 auto 14px"></div><p style="font-weight:800">Memuat Hasil Ujian...</p><p style="font-size:.8rem;color:var(--mt);margin-top:5px">Data hasil sedang diambil dari server.</p></div></div>`;
-      loadHasilData().then(()=>{
-        const active=document.querySelector('#aSB a.on');
-        if(active && active.getAttribute('onclick')?.includes("aTab('h'"))renderHasil(c);
-      }).catch(e=>{
-        console.error('[HASIL] Gagal memuat:',e);
-        c.innerHTML=`<div class="asu"><div class="cd" style="text-align:center;padding:40px 20px"><p style="color:var(--er);font-weight:800">Gagal memuat Hasil Ujian</p><p style="font-size:.8rem;color:var(--mt);margin:8px 0 15px">${escapeHasil(e?.message||'Terjadi kesalahan saat mengambil data.')}</p><button class="bt bt2 bts" onclick="D.hasilLoaded=false;aTab('h',document.querySelector('#aSB a.on'))"><i class="fas fa-redo"></i> Coba Lagi</button></div></div>`;
-      });
-    }else renderHasil(c);
-  }
+  else if(t==='j')renderJadwal(c);else if(t==='h')renderHasil(c);
 
   else if(t==='w')renderSiswa(c);else if(t==='k')renderDaftarSekolah(c);else if(t==='c')renderSetting(c);
 
@@ -7421,7 +7119,7 @@ async function cetakRekapHasilSemua(){
 function renderHasil(c){ 
   if(!D.hasilFilter)D.hasilFilter={kelas:'',rombel:'',mapel:''}; 
   const fk=D.hasilFilter.kelas||'',fr=D.hasilFilter.rombel||'',fm=D.hasilFilter.mapel||''; 
-  const listAll=dedupeResults(D.isPusat?(D.allResults||[]):(D.rs||[])); 
+  const listAll=D.isPusat?D.allResults:D.rs; 
   const kOpts=[...new Set(listAll.map(r=>r.kelas))].sort((a,b)=>a-b); 
   const rOpts=fk?[...new Set(listAll.filter(r=>String(r.kelas)===String(fk)).map(r=>r.rombel||'-'))].sort():[]; 
   const mOpts=(fk&&fr)?[...new Set(listAll.filter(r=>String(r.kelas)===String(fk)&&(r.rombel||'-')===fr).map(r=>r.mapel))].sort():[]; 
@@ -7468,7 +7166,7 @@ function renderHasil(c){
       if(r.essays&&r.essays.length>0){const isGraded=r.essays.every(e=>e.graded===true);if(isGraded){if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}}else{stC='var(--inf)';stL='Menunggu';}} 
       else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';} 
       const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-'; 
-      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}${!D.isPusat?`<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" title="Hapus hasil agar siswa dapat mengerjakan kembali" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button>`:''}<button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
+      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
     h+=`</tbody></table></div></div>`;}); 
   h+=`</div>`;c.innerHTML=h; 
 } 
@@ -7589,74 +7287,7 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
   hd();  
   box.style.left='-9999px';box.style.zIndex='-1'; 
 } 
-async function doHapusHasil(rid,npsn){
-  /* Reset hasil siswa adalah kewenangan Admin Sekolah pada sekolahnya sendiri. */
-  if(D.isPusat)return tt('Hasil ujian siswa hanya dapat dihapus oleh Admin Sekolah.','er');
-  if(!D.sch||String(npsn)!==String(D.sch.npsn))return tt('Anda hanya dapat menghapus hasil ujian dari sekolah ini.','er');
-  const target=D.rs.find(r=>r.id===rid);
-  if(!target)return tt('Hasil ujian siswa tidak ditemukan.','er');
-  oMo(`<div class="text-center"><div style="font-size:2.5rem;color:var(--er);margin-bottom:10px"><i class="fas fa-trash"></i></div><h3 style="margin-bottom:8px">Hapus Hasil Ujian?</h3><p style="color:var(--mt);font-size:.85rem;line-height:1.5;margin-bottom:16px">Hasil <b>${escapeHasil(target.nama||'siswa')}</b> untuk <b>${escapeHasil(target.mapel||'ujian')}</b> akan dihapus. Setelah dihapus, siswa dapat login dan mengerjakan ujian tersebut kembali.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();doHapusHasilConfirm('${rid}','${npsn}')">Hapus Hasil</button></div></div>`);
-}
-
-async function doHapusHasilConfirm(rid,npsn){
-  if(D.isPusat)return tt('Hasil ujian siswa hanya dapat dihapus oleh Admin Sekolah.','er');
-  if(!D.sch||String(npsn)!==String(D.sch.npsn))return tt('Anda hanya dapat menghapus hasil ujian dari sekolah ini.','er');
-  ld('Menghapus hasil ujian...');
-  try{
-    const target=(D.rs||[]).find(r=>String(r.id)===String(rid));
-    if(!target)throw new Error('Hasil ujian siswa tidak ditemukan di daftar saat ini. Silakan muat ulang menu Hasil Ujian.');
-
-    const servers=[db,(db===backupDb?dbMigrationPrimary:backupDb)];
-    const deleteAllForStudentExam=async(database)=>{
-      const col=database.collection('schools').doc(npsn).collection('results');
-      const ids=new Set([String(rid),makeResultDocId(target.examId,target.nis)]);
-
-      /* Jangan memakai where(nis).where(examId) karena kombinasi itu dapat
-         meminta Firestore composite index. Cukup ambil satu ujian, lalu
-         cocokkan NIS di JavaScript. Ini juga membersihkan hasil ganda lama. */
-      try{
-        const snap=await col.where('examId','==',target.examId).get();
-        snap.docs.forEach(d=>{
-          const data=d.data()||{};
-          if(String(data.nis||'').trim()===String(target.nis||'').trim())ids.add(d.id);
-        });
-      }catch(qe){
-        console.warn('[HAPUS HASIL] query examId gagal, tetap hapus ID utama',qe);
-      }
-
-      await Promise.all(Array.from(ids).map(id=>col.doc(id).delete()));
-      return ids.size;
-    };
-
-    const results=await Promise.allSettled(servers.map(deleteAllForStudentExam));
-    const success=results.filter(x=>x.status==='fulfilled');
-    if(!success.length){
-      const err=results.find(x=>x.status==='rejected')?.reason;
-      throw err||new Error('Gagal menghapus hasil ujian dari server.');
-    }
-
-    /* Bersihkan juga hasil yang masih tampil di memori/browser. */
-    D.rs=dedupeResults((D.rs||[]).filter(r=>
-      !(String(r.nis||'').trim()===String(target.nis||'').trim() &&
-        String(r.examId||'')===String(target.examId||''))
-    ));
-    try{localStorage.removeItem('ujian_'+target.nis+'_'+target.examId);}catch(_e){}
-
-    hd();
-    renderHasil($('aC'));
-
-    if(success.length<results.length){
-      tt('Hasil ujian dihapus pada server utama. Salah satu server cadangan gagal disinkronkan; coba muat ulang untuk memeriksa.','in');
-    }else{
-      tt('Hasil ujian berhasil dihapus. Hasil ganda siswa untuk ujian ini juga dibersihkan, sehingga siswa dapat login dan mengerjakan kembali.','ok');
-    }
-  }catch(e){
-    hd();
-    tt('Gagal menghapus hasil ujian: '+(e?.message||e),'er');
-    console.error('[HAPUS HASIL]',e);
-  }
-}
-
+async function doHapusHasil(rid,npsn){ld('Menghapus...');try{await Promise.allSettled([rR(npsn).doc(rid).delete(),(db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).delete()]);if(!D.isPusat){D.rs=D.rs.filter(r=>r.id!==rid);}else{D.allResults=D.allResults.filter(r=>r.id!==rid);}hd();renderHasil($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}} 
 async function hitungUlangHasilSiswa(rid,npsn){
   if(D.isPusat)return tt('Fitur Hitung Ulang hanya tersedia untuk Admin Sekolah.','er');
   const r=D.rs.find(x=>x.id===rid);
