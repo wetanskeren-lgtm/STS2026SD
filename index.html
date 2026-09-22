@@ -2238,6 +2238,9 @@ service cloud.firestore {
   <div class="w-full max-w-3xl mx-auto px-4 py-5 d-flex flex-col" style="flex:1 1 0; min-height:0; overflow-y:auto;">
 
     <div class="pb mb-5"><div class="pf" id="eP" style="width:0%;background:var(--ac)"></div></div>
+    <div id="antiCheatBanner" style="margin:-8px 0 14px;padding:9px 12px;border:2px solid #F59E0B;border-radius:12px;background:#FFF7ED;color:#9A3412;font-size:.74rem;font-weight:800;text-align:center;">
+      🔒 MODE ANTI CURANG AKTIF — Jangan membuka tab baru, Google, aplikasi lain, atau meninggalkan halaman ujian. Pelanggaran 3x akan otomatis menyelesaikan dan mengirim jawaban.
+    </div>
 
     <div id="eA" style="flex:1;"></div>
 
@@ -2353,7 +2356,9 @@ function maxOpts(kelas){ return kelas <= 2 ? 3 : 4; }
 
 
 
-let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],allSchools:[],allResults:[],cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1,editTargetNpsn:null,editKelas:3,_schoolKeyOverrides:{}};
+let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],allSchools:[],allResults:[],cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1,editTargetNpsn:null,editKelas:3,_schoolKeyOverrides:{},
+  antiCheat:{active:false,violations:0,max:3,submitting:false,graceUntil:0,handlersBound:false,lastReason:'',lastAt:0}
+};
 
 
 
@@ -3278,7 +3283,7 @@ async function logS(){
 
 }
 
-function outS(){clearUnsub();D.studentOnlineReady=false;D.studentOfflineMode=false;D.st=null;D.sch=null;['sN','sK','sR','sI','sM','sW'].forEach(i=>$(i).value='');$('sLKA').style.display='none';go('pH')}
+function outS(){antiCheatStop();clearUnsub();D.studentOnlineReady=false;D.studentOfflineMode=false;D.st=null;D.sch=null;['sN','sK','sR','sI','sM','sW'].forEach(i=>$(i).value='');$('sLKA').style.display='none';go('pH')}
 
 
 
@@ -3369,6 +3374,185 @@ function examStatus(ex){
 
 
 
+/* ============================================================
+   ANTI CURANG SISWA
+   - Ujian tetap berada di halaman aplikasi.
+   - Perpindahan tab/jendela, keluar fullscreen, dan shortcut umum
+     yang membuka/meninggalkan halaman dihitung sebagai pelanggaran.
+   - Peringatan maksimal 3x. Pelanggaran ke-3 otomatis mengirim jawaban.
+   - Browser tetap memiliki batasan keamanan: Alt+Tab/penutupan paksa
+     oleh sistem operasi tidak dapat diblokir oleh JavaScript.
+   ============================================================ */
+function antiCheatIsExamActive(){
+  return !!(D.antiCheat && D.antiCheat.active && D.cEx && D.st);
+}
+
+function antiCheatSetGrace(ms=1800){
+  if(D.antiCheat) D.antiCheat.graceUntil=Date.now()+ms;
+}
+
+function antiCheatEnterFullscreen(){
+  try{
+    const el=document.documentElement;
+    if(document.fullscreenElement)return;
+    const fn=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
+    if(fn){
+      const p=fn.call(el);
+      if(p&&typeof p.catch==='function')p.catch(()=>{});
+    }
+  }catch(e){}
+}
+
+function antiCheatPushBackState(){
+  try{
+    history.pushState({examLock:true},'',location.href);
+  }catch(e){}
+}
+
+function antiCheatWarning(reason){
+  const n=D.antiCheat.violations;
+  const remain=Math.max(0,D.antiCheat.max-n);
+  const msg=n>=D.antiCheat.max
+    ? 'Pelanggaran ke-3 terdeteksi. Ujian otomatis diselesaikan dan jawaban dikirim.'
+    : `PERINGATAN ANTI CURANG ${n}/${D.antiCheat.max}. Jangan membuka tab baru, Google, aplikasi lain, atau meninggalkan halaman ujian. Sisa peringatan: ${remain}.`;
+  tt(msg,'er');
+  oMo(`<div class="text-center">
+    <div style="font-size:2.8rem;color:var(--er);margin-bottom:10px">⚠️</div>
+    <h3 style="margin-bottom:8px">${n>=D.antiCheat.max?'Ujian Otomatis Diselesaikan':'Peringatan Anti Curang'}</h3>
+    <p style="color:var(--mt);font-size:.86rem;line-height:1.55;margin-bottom:16px">${msg}</p>
+    ${n<D.antiCheat.max?`<p style="font-size:.76rem;color:#991B1B;font-weight:800">Tetap di halaman ujian sampai selesai.</p>`:''}
+  </div>`);
+  if(n>=D.antiCheat.max){
+    setTimeout(()=>{try{cMo();}catch(e){};finEx(true);},900);
+  }
+}
+
+function antiCheatViolation(reason){
+  if(!antiCheatIsExamActive())return;
+  if(D.antiCheat.submitting)return;
+  if(Date.now()<Number(D.antiCheat.graceUntil||0))return;
+
+  const now=Date.now();
+  // Hindari satu perpindahan fokus memicu dua event sekaligus.
+  if(now-(D.antiCheat.lastAt||0)<700 && D.antiCheat.lastReason===reason)return;
+  D.antiCheat.lastAt=now;
+  D.antiCheat.lastReason=reason;
+  D.antiCheat.violations=Math.min(D.antiCheat.max,D.antiCheat.violations+1);
+  antiCheatWarning(reason);
+}
+
+function antiCheatBind(){
+  if(D.antiCheat.handlersBound)return;
+  D.antiCheat.handlersBound=true;
+
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden)antiCheatViolation('berpindah tab/jendela');
+  },true);
+
+  window.addEventListener('blur',()=>{
+    antiCheatViolation('meninggalkan jendela ujian');
+  },true);
+
+  window.addEventListener('focus',()=>{
+    if(antiCheatIsExamActive())antiCheatSetGrace(900);
+  },true);
+
+  document.addEventListener('fullscreenchange',()=>{
+    if(antiCheatIsExamActive() && !document.fullscreenElement){
+      antiCheatViolation('keluar dari mode layar penuh');
+    }
+  },true);
+
+  document.addEventListener('contextmenu',e=>{
+    if(antiCheatIsExamActive()){e.preventDefault();antiCheatViolation('mencoba membuka menu klik kanan');}
+  },true);
+
+  document.addEventListener('copy',e=>{
+    if(antiCheatIsExamActive()){e.preventDefault();antiCheatViolation('mencoba menyalin teks');}
+  },true);
+
+  document.addEventListener('cut',e=>{
+    if(antiCheatIsExamActive()){e.preventDefault();antiCheatViolation('mencoba memotong teks');}
+  },true);
+
+  document.addEventListener('paste',e=>{
+    if(antiCheatIsExamActive()){e.preventDefault();antiCheatViolation('mencoba menempelkan teks');}
+  },true);
+
+  document.addEventListener('dragstart',e=>{
+    if(antiCheatIsExamActive()){e.preventDefault();}
+  },true);
+
+  window.addEventListener('keydown',e=>{
+    if(!antiCheatIsExamActive())return;
+    const k=String(e.key||'').toLowerCase();
+    const ctrl=e.ctrlKey||e.metaKey;
+    const blocked =
+      e.key==='F12' ||
+      k==='f5' ||
+      (ctrl && ['r','t','n','w','l','p','s','u','c','x','v'].includes(k)) ||
+      (ctrl && e.shiftKey && ['i','j','c'].includes(k)) ||
+      (e.altKey && k==='arrowleft') ||
+      (e.altKey && k==='arrowright');
+    if(blocked){
+      e.preventDefault();
+      e.stopPropagation();
+      antiCheatViolation('shortcut browser/alat pengembang');
+    }
+  },true);
+
+  window.addEventListener('beforeunload',e=>{
+    if(antiCheatIsExamActive() && !D.antiCheat.submitting){
+      e.preventDefault();
+      e.returnValue='';
+      return '';
+    }
+  });
+
+  window.addEventListener('popstate',()=>{
+    if(antiCheatIsExamActive()){
+      antiCheatViolation('mencoba kembali/keluar dari halaman ujian');
+      antiCheatPushBackState();
+    }
+  });
+
+  antiCheatBind._bound=true;
+}
+
+function antiCheatStart(){
+  antiCheatBind();
+  D.antiCheat.active=true;
+  D.antiCheat.violations=0;
+  D.antiCheat.submitting=false;
+  D.antiCheat.lastReason='';
+  D.antiCheat.lastAt=0;
+  antiCheatSetGrace(2200);
+  antiCheatPushBackState();
+  setTimeout(()=>antiCheatEnterFullscreen(),120);
+}
+
+function antiCheatStop(){
+  if(!D.antiCheat)return;
+  D.antiCheat.active=false;
+  D.antiCheat.submitting=false;
+  try{
+    if(document.fullscreenElement){
+      const p=document.exitFullscreen();
+      if(p&&typeof p.catch==='function')p.catch(()=>{});
+    }
+  }catch(e){}
+}
+
+function antiCheatReset(){
+  if(!D.antiCheat)return;
+  D.antiCheat.active=false;
+  D.antiCheat.violations=0;
+  D.antiCheat.submitting=false;
+  D.antiCheat.graceUntil=0;
+  D.antiCheat.lastReason='';
+  D.antiCheat.lastAt=0;
+}
+
 /* ===== UJIAN MODE OFFLINE MURNI ===== */
 
 async function startEx(id){
@@ -3386,7 +3570,7 @@ async function startEx(id){
     if(!snap.empty){
       hd();
       tt('Anda sudah mengerjakan ujian ini. Hubungi Admin untuk reset nilai.','er');
-      oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px;color:var(--er)"><i class="fas fa-lock"></i></div><h3 style="margin-bottom:10px">Sudah Pernah Mengerjakan</h3><p style="color:var(--mt);font-size:.85rem;margin-bottom:16px">Anda telah menyelesaikan ujian ini. Jika ingin mengulang, minta Admin Sekolah untuk menghapus nilai Anda terlebih dahulu di menu Hasil Ujian.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo();outS()">Kembali ke Beranda</button></div></div>`);
+      oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px;color:var(--er)"><i class="fas fa-lock"></i></div><h3 style="margin-bottom:10px">Sudah Pernah Mengerjakan</h3><p style="color:var(--mt);font-size:.85rem;margin-bottom:16px">Anda telah menyelesaikan ujian ini. Jika ingin mengulang, hasil ujian harus dihapus terlebih dahulu oleh Admin Sekolah pada menu Hasil Ujian.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo();outS()">Kembali ke Beranda</button></div></div>`);
       return;
     }
   }catch(e){hd();tt('Gagal cek riwayat ujian: '+e.message,'er');return;}
@@ -3444,6 +3628,9 @@ async function startEx(id){
   autoSaveLocal();
   hd();
   rQ();sT();
+
+  /* Aktifkan pengamanan setelah halaman ujian benar-benar tampil. */
+  antiCheatStart();
 
   /* Setelah ujian dibuka, pantau hanya paket ini. Jika Admin Pusat
      mengganti kunci/soal, perangkat siswa menerima versi terbaru otomatis. */
@@ -3929,8 +4116,9 @@ async function saveResultBoth(npsn,rid,data){
   return true;
 }
 
-async function finEx(){
+async function finEx(autoAntiCheat=false){
 
+  if(D.antiCheat)D.antiCheat.submitting=true;
   clearInterval(D.tI);
 
   const ex=D.cEx,s=D.st;let cor=0;let essays=[];
@@ -3977,7 +4165,7 @@ async function finEx(){
 
     
 
-    D.rs.push(r);hd();showR(r);kirimNotifWA(r);
+    D.rs.push(r);hd();
 
     try{
 
@@ -4010,6 +4198,16 @@ async function finEx(){
       }
 
     }catch(e){console.warn('Gagal antre email:',e);}
+
+    /* Setelah jawaban berhasil tersimpan, siswa langsung kembali ke login.
+       Untuk mengerjakan ulang, hasil lama harus dihapus oleh Admin Sekolah. */
+    antiCheatStop();
+    D.cEx=null;
+    D.an={};
+    D.cQ=0;
+    D.tL=0;
+    outS();
+    oMo(`<div class="text-center"><div style="font-size:2.7rem;color:var(--ok);margin-bottom:10px">✅</div><h3 style="margin-bottom:8px">Jawaban Berhasil Dikirim</h3><p style="color:var(--mt);font-size:.85rem;line-height:1.5;margin-bottom:16px">Ujian telah selesai. Anda kembali ke halaman login siswa. Untuk mengulang ujian ini, hasil ujian harus dihapus terlebih dahulu oleh Admin Sekolah.</p><button class="bt bt1 bts" onclick="cMo()"><i class="fas fa-check"></i> Tutup</button></div>`);
 
   } catch(e) {
 
@@ -7166,7 +7364,7 @@ function renderHasil(c){
       if(r.essays&&r.essays.length>0){const isGraded=r.essays.every(e=>e.graded===true);if(isGraded){if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}}else{stC='var(--inf)';stL='Menunggu';}} 
       else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';} 
       const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-'; 
-      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
+      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}${!D.isPusat?`<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" title="Hapus hasil agar siswa dapat mengerjakan kembali" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button>`:''}<button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
     h+=`</tbody></table></div></div>`;}); 
   h+=`</div>`;c.innerHTML=h; 
 } 
@@ -7287,7 +7485,31 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
   hd();  
   box.style.left='-9999px';box.style.zIndex='-1'; 
 } 
-async function doHapusHasil(rid,npsn){ld('Menghapus...');try{await Promise.allSettled([rR(npsn).doc(rid).delete(),(db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).delete()]);if(!D.isPusat){D.rs=D.rs.filter(r=>r.id!==rid);}else{D.allResults=D.allResults.filter(r=>r.id!==rid);}hd();renderHasil($('aC'));tt('Dihapus!');}catch(e){hd();tt('Gagal: '+e.message,'er')}} 
+async function doHapusHasil(rid,npsn){
+  /* Reset hasil siswa adalah kewenangan Admin Sekolah pada sekolahnya sendiri. */
+  if(D.isPusat)return tt('Hasil ujian siswa hanya dapat dihapus oleh Admin Sekolah.','er');
+  if(!D.sch||String(npsn)!==String(D.sch.npsn))return tt('Anda hanya dapat menghapus hasil ujian dari sekolah ini.','er');
+  const target=D.rs.find(r=>r.id===rid);
+  if(!target)return tt('Hasil ujian siswa tidak ditemukan.','er');
+  oMo(`<div class="text-center"><div style="font-size:2.5rem;color:var(--er);margin-bottom:10px"><i class="fas fa-trash"></i></div><h3 style="margin-bottom:8px">Hapus Hasil Ujian?</h3><p style="color:var(--mt);font-size:.85rem;line-height:1.5;margin-bottom:16px">Hasil <b>${escapeHasil(target.nama||'siswa')}</b> untuk <b>${escapeHasil(target.mapel||'ujian')}</b> akan dihapus. Setelah dihapus, siswa dapat login dan mengerjakan ujian tersebut kembali.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Batal</button><button class="bt bt4 bts" onclick="cMo();doHapusHasilConfirm('${rid}','${npsn}')">Hapus Hasil</button></div></div>`);
+}
+
+async function doHapusHasilConfirm(rid,npsn){
+  if(D.isPusat)return tt('Hasil ujian siswa hanya dapat dihapus oleh Admin Sekolah.','er');
+  if(!D.sch||String(npsn)!==String(D.sch.npsn))return tt('Anda hanya dapat menghapus hasil ujian dari sekolah ini.','er');
+  ld('Menghapus hasil ujian...');
+  try{
+    const a=await Promise.allSettled([
+      rR(npsn).doc(rid).delete(),
+      (db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).delete()
+    ]);
+    if(a.every(x=>x.status==='rejected'))throw(a[0].reason||new Error('Gagal menghapus hasil'));
+    D.rs=D.rs.filter(r=>r.id!==rid);
+    hd();
+    renderHasil($('aC'));
+    tt('Hasil ujian dihapus. Siswa sekarang dapat mengerjakan kembali.');
+  }catch(e){hd();tt('Gagal menghapus hasil: '+e.message,'er')}
+} 
 async function hitungUlangHasilSiswa(rid,npsn){
   if(D.isPusat)return tt('Fitur Hitung Ulang hanya tersedia untuk Admin Sekolah.','er');
   const r=D.rs.find(x=>x.id===rid);
