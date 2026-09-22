@@ -4186,8 +4186,11 @@ async function finEx(autoAntiCheat=false){
 
 
   try {
-    const existing=await rR(D.sch.npsn).where('nis','==',s.nis).where('examId','==',ex.id).get();
-    if(!existing.empty){
+    /* Cek hasil lama tanpa compound-index Firestore. Ambil berdasarkan examId
+       lalu cocokkan NIS di sisi aplikasi agar tidak gagal karena index. */
+    const existingSnap=await rR(D.sch.npsn).where('examId','==',ex.id).get();
+    const existingDocs=existingSnap.docs.filter(d=>String(d.data()?.nis||'').trim()===String(s.nis||'').trim());
+    if(existingDocs.length){
       hd();
       if(D.antiCheat)antiCheatStop();
       tt('Hasil ujian siswa sudah tersimpan. Jika ingin mengulang, Admin Sekolah harus menghapus hasilnya terlebih dahulu.','er');
@@ -7538,27 +7541,60 @@ async function doHapusHasilConfirm(rid,npsn){
   if(!D.sch||String(npsn)!==String(D.sch.npsn))return tt('Anda hanya dapat menghapus hasil ujian dari sekolah ini.','er');
   ld('Menghapus hasil ujian...');
   try{
-    const target=D.rs.find(r=>r.id===rid);
-    if(!target)throw new Error('Hasil ujian siswa tidak ditemukan.');
+    const target=(D.rs||[]).find(r=>String(r.id)===String(rid));
+    if(!target)throw new Error('Hasil ujian siswa tidak ditemukan di daftar saat ini. Silakan muat ulang menu Hasil Ujian.');
+
     const servers=[db,(db===backupDb?dbMigrationPrimary:backupDb)];
     const deleteAllForStudentExam=async(database)=>{
       const col=database.collection('schools').doc(npsn).collection('results');
-      const snap=await col.where('nis','==',target.nis).where('examId','==',target.examId).get();
-      const ids=new Set([rid,makeResultDocId(target.examId,target.nis)]);
-      snap.docs.forEach(d=>ids.add(d.id));
+      const ids=new Set([String(rid),makeResultDocId(target.examId,target.nis)]);
+
+      /* Jangan memakai where(nis).where(examId) karena kombinasi itu dapat
+         meminta Firestore composite index. Cukup ambil satu ujian, lalu
+         cocokkan NIS di JavaScript. Ini juga membersihkan hasil ganda lama. */
+      try{
+        const snap=await col.where('examId','==',target.examId).get();
+        snap.docs.forEach(d=>{
+          const data=d.data()||{};
+          if(String(data.nis||'').trim()===String(target.nis||'').trim())ids.add(d.id);
+        });
+      }catch(qe){
+        console.warn('[HAPUS HASIL] query examId gagal, tetap hapus ID utama',qe);
+      }
+
       await Promise.all(Array.from(ids).map(id=>col.doc(id).delete()));
+      return ids.size;
     };
+
     const results=await Promise.allSettled(servers.map(deleteAllForStudentExam));
-    if(results.every(x=>x.status==='rejected'))throw(results[0].reason||new Error('Gagal menghapus hasil'));
-    D.rs=dedupeResults((D.rs||[]).filter(r=>!(String(r.nis)===String(target.nis)&&String(r.examId)===String(target.examId))));
+    const success=results.filter(x=>x.status==='fulfilled');
+    if(!success.length){
+      const err=results.find(x=>x.status==='rejected')?.reason;
+      throw err||new Error('Gagal menghapus hasil ujian dari server.');
+    }
+
+    /* Bersihkan juga hasil yang masih tampil di memori/browser. */
+    D.rs=dedupeResults((D.rs||[]).filter(r=>
+      !(String(r.nis||'').trim()===String(target.nis||'').trim() &&
+        String(r.examId||'')===String(target.examId||''))
+    ));
     try{localStorage.removeItem('ujian_'+target.nis+'_'+target.examId);}catch(_e){}
+
     hd();
     renderHasil($('aC'));
-    tt('Hasil ujian berhasil dihapus. Semua hasil ganda siswa untuk ujian ini ikut dibersihkan, sehingga siswa dapat login dan mengerjakan kembali.','ok');
+
+    if(success.length<results.length){
+      tt('Hasil ujian dihapus pada server utama. Salah satu server cadangan gagal disinkronkan; coba muat ulang untuk memeriksa.','in');
+    }else{
+      tt('Hasil ujian berhasil dihapus. Hasil ganda siswa untuk ujian ini juga dibersihkan, sehingga siswa dapat login dan mengerjakan kembali.','ok');
+    }
   }catch(e){
-    hd();tt('Gagal menghapus hasil ujian: '+e.message,'er');console.error('[HAPUS HASIL]',e);
+    hd();
+    tt('Gagal menghapus hasil ujian: '+(e?.message||e),'er');
+    console.error('[HAPUS HASIL]',e);
   }
 }
+
 async function hitungUlangHasilSiswa(rid,npsn){
   if(D.isPusat)return tt('Fitur Hitung Ulang hanya tersedia untuk Admin Sekolah.','er');
   const r=D.rs.find(x=>x.id===rid);
