@@ -2866,10 +2866,10 @@ async function loadD(npsn){
     wR(npsn).get()
   ]);
   D.ex=exDocs.map(normalizeExamRecord);
-  D.rs=b.docs.map(d=>{
+  D.rs=dedupeResults(b.docs.map(d=>{
     const data=d.data();
     return {id:d.id,...data,mapel:canonicalMapel(data.mapel)};
-  });
+  }));
   D.ss=c.docs.map(d=>({id:d.id,...d.data()}));
 }
 
@@ -4119,18 +4119,32 @@ function cfF(){const a=Object.keys(D.an).length,t=D.cEx.questions.length;oMo(`<d
 
 
 
+function resultKey(examId,nis){
+  return String(examId||'').trim()+'|'+String(nis||'').trim();
+}
+function makeResultDocId(examId,nis){
+  return ('hasil_'+String(examId||'')+'_'+String(nis||'')).replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,140);
+}
+function dedupeResults(list){
+  const map=new Map();
+  (Array.isArray(list)?list:[]).forEach(r=>{
+    const key=resultKey(r.examId,r.nis||r.nama);
+    const prev=map.get(key);
+    if(!prev || Number(r.timestamp||0)>=Number(prev.timestamp||0))map.set(key,r);
+  });
+  return Array.from(map.values()).sort((x,y)=>Number(y.timestamp||0)-Number(x.timestamp||0));
+}
 async function saveResultBoth(npsn,rid,data){
   const payload=JSON.parse(JSON.stringify(data));
   const results=await Promise.allSettled([
-    db.collection('schools').doc(npsn).collection('results').doc(rid).set(payload),
-    (db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).set(payload)
+    db.collection('schools').doc(npsn).collection('results').doc(rid).set(payload,{merge:false}),
+    (db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).set(payload,{merge:false})
   ]);
   const failed=results.filter(r=>r.status==='rejected');
-  if(failed.length===2) throw failed[0].reason;
-  if(failed.length) console.warn('[DUAL SERVER] satu server gagal menyimpan hasil',failed[0].reason);
+  if(failed.length===2)throw failed[0].reason;
+  if(failed.length)console.warn('[DUAL SERVER] satu server gagal menyimpan hasil',failed[0].reason);
   return true;
 }
-
 async function finEx(autoAntiCheat=false){
 
   if(D.antiCheat)D.antiCheat.submitting=true;
@@ -4166,21 +4180,28 @@ async function finEx(autoAntiCheat=false){
 
   const hasEssay=essays.length>0;const pgOnly=ex.questions.length-essays.length;const autoScore=pgOnly>0?Math.round(cor/pgOnly*100):0;const finalScore=hasEssay?0:autoScore;const tu=ex.timeLimit*60-D.tL;
 
-  const r={id:uid(),examId:ex.id,kelas:s.kelas,rombel:s.rombel||'-',mapel:canonicalMapel(ex.mapel),nama:s.nama,nis:s.nis,foto:s.foto||'',score:finalScore,autoScore,essayScore:hasEssay?0:undefined,correct:cor,total:ex.questions.length,essays,pg:pgList,timeUsed:tu,timestamp:Date.now()};
+  const rid=makeResultDocId(ex.id,s.nis);
+  const r={id:rid,examId:ex.id,kelas:s.kelas,rombel:s.rombel||'-',mapel:canonicalMapel(ex.mapel),nama:s.nama,nis:s.nis,foto:s.foto||'',score:finalScore,autoScore,essayScore:hasEssay?0:undefined,correct:cor,total:ex.questions.length,essays,pg:pgList,timeUsed:tu,timestamp:Date.now()};
 
-  
+
 
   try {
+    const existing=await rR(D.sch.npsn).where('nis','==',s.nis).where('examId','==',ex.id).get();
+    if(!existing.empty){
+      hd();
+      if(D.antiCheat)antiCheatStop();
+      tt('Hasil ujian siswa sudah tersimpan. Jika ingin mengulang, Admin Sekolah harus menghapus hasilnya terlebih dahulu.','er');
+      return;
+    }
 
     await saveResultBoth(D.sch.npsn,r.id,r);
-
     
 
     localStorage.removeItem('ujian_'+s.nis+'_'+ex.id);
 
     
 
-    D.rs.push(r);hd();
+    D.rs=dedupeResults([...(D.rs||[]),r]);hd();
 
     try{
 
@@ -7335,7 +7356,7 @@ async function cetakRekapHasilSemua(){
 function renderHasil(c){ 
   if(!D.hasilFilter)D.hasilFilter={kelas:'',rombel:'',mapel:''}; 
   const fk=D.hasilFilter.kelas||'',fr=D.hasilFilter.rombel||'',fm=D.hasilFilter.mapel||''; 
-  const listAll=D.isPusat?D.allResults:D.rs; 
+  const listAll=dedupeResults(D.isPusat?(D.allResults||[]):(D.rs||[])); 
   const kOpts=[...new Set(listAll.map(r=>r.kelas))].sort((a,b)=>a-b); 
   const rOpts=fk?[...new Set(listAll.filter(r=>String(r.kelas)===String(fk)).map(r=>r.rombel||'-'))].sort():[]; 
   const mOpts=(fk&&fr)?[...new Set(listAll.filter(r=>String(r.kelas)===String(fk)&&(r.rombel||'-')===fr).map(r=>r.mapel))].sort():[]; 
@@ -7517,17 +7538,27 @@ async function doHapusHasilConfirm(rid,npsn){
   if(!D.sch||String(npsn)!==String(D.sch.npsn))return tt('Anda hanya dapat menghapus hasil ujian dari sekolah ini.','er');
   ld('Menghapus hasil ujian...');
   try{
-    const a=await Promise.allSettled([
-      rR(npsn).doc(rid).delete(),
-      (db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).delete()
-    ]);
-    if(a.every(x=>x.status==='rejected'))throw(a[0].reason||new Error('Gagal menghapus hasil'));
-    D.rs=D.rs.filter(r=>r.id!==rid);
+    const target=D.rs.find(r=>r.id===rid);
+    if(!target)throw new Error('Hasil ujian siswa tidak ditemukan.');
+    const servers=[db,(db===backupDb?dbMigrationPrimary:backupDb)];
+    const deleteAllForStudentExam=async(database)=>{
+      const col=database.collection('schools').doc(npsn).collection('results');
+      const snap=await col.where('nis','==',target.nis).where('examId','==',target.examId).get();
+      const ids=new Set([rid,makeResultDocId(target.examId,target.nis)]);
+      snap.docs.forEach(d=>ids.add(d.id));
+      await Promise.all(Array.from(ids).map(id=>col.doc(id).delete()));
+    };
+    const results=await Promise.allSettled(servers.map(deleteAllForStudentExam));
+    if(results.every(x=>x.status==='rejected'))throw(results[0].reason||new Error('Gagal menghapus hasil'));
+    D.rs=dedupeResults((D.rs||[]).filter(r=>!(String(r.nis)===String(target.nis)&&String(r.examId)===String(target.examId))));
+    try{localStorage.removeItem('ujian_'+target.nis+'_'+target.examId);}catch(_e){}
     hd();
     renderHasil($('aC'));
-    tt('Hasil ujian dihapus. Siswa sekarang dapat mengerjakan kembali.');
-  }catch(e){hd();tt('Gagal menghapus hasil: '+e.message,'er')}
-} 
+    tt('Hasil ujian berhasil dihapus. Semua hasil ganda siswa untuk ujian ini ikut dibersihkan, sehingga siswa dapat login dan mengerjakan kembali.','ok');
+  }catch(e){
+    hd();tt('Gagal menghapus hasil ujian: '+e.message,'er');console.error('[HAPUS HASIL]',e);
+  }
+}
 async function hitungUlangHasilSiswa(rid,npsn){
   if(D.isPusat)return tt('Fitur Hitung Ulang hanya tersedia untuk Admin Sekolah.','er');
   const r=D.rs.find(x=>x.id===rid);
