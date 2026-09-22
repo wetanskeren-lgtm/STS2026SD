@@ -7550,10 +7550,10 @@ async function hitungUlangHasilSiswa(rid,npsn){
 
  
 async function sinkronKunciTerbaruKeHasil(r,npsn){
-  if(!r || !r.examId || !r.pg || !r.pg.length) return 0;
+  if(!r || !r.examId) return 0;
   try{
     // Selalu ambil paket TERBARU dari Firestore Pusat.
-    // Jangan memakai correctAns yang tersimpan di hasil lama.
+    // Kunci PG dan URAIAN sama-sama disinkronkan ke hasil siswa lama.
     const snap=await soalR().doc(r.examId).get();
     if(!snap.exists) return 0;
     const ex=normalizeExamRecord({id:snap.id,...snap.data()});
@@ -7563,11 +7563,12 @@ async function sinkronKunciTerbaruKeHasil(r,npsn){
     if(!qs.length) return 0;
 
     let updated=0,cor=0;
+
+    // ===== PILIHAN GANDA =====
     (r.pg||[]).forEach((g,i)=>{
       let q=null;
       if(g&&g.id) q=qs.find(x=>x&&x.id===g.id);
       if(!q){
-        // Fallback untuk hasil lama yang ID soalnya tidak sama.
         q=qs.find(x=>x&&String(x.text||'').trim()===String(g.text||'').trim()) || qs[i];
       }
       if(!q || q.answer===undefined) return;
@@ -7577,8 +7578,26 @@ async function sinkronKunciTerbaruKeHasil(r,npsn){
       if(sameStudentAnswer(g.studentAns,g.correctAns)) cor++;
     });
 
+    // ===== URAIAN =====
+    // Sebelumnya hanya PG yang disalin. Sekarang e.key selalu mengikuti
+    // q.key terbaru dari Admin Pusat, termasuk jika paket hanya berisi uraian.
+    (r.essays||[]).forEach((e,i)=>{
+      const globalIndex=(r.pg||[]).length+i;
+      let q=null;
+      if(e&&e.id) q=qs.find(x=>x&&x.id===e.id);
+      if(!q){
+        q=qs.find(x=>x&&x.type==='essay' && String(x.text||'').trim()===String(e.text||'').trim());
+      }
+      if(!q) q=qs[globalIndex];
+      if(!q || q.type!=='essay' || q.key===undefined) return;
+      const newKey=String(q.key==null?'':q.key);
+      const oldKey=String(e.key==null?'':e.key);
+      if(oldKey!==newKey) updated++;
+      e.key=newKey;
+    });
+
     if(updated>0){
-      const pgCount=r.pg.length;
+      const pgCount=(r.pg||[]).length;
       r.correct=cor;
       r.autoScore=pgCount?Math.round(cor/pgCount*100):0;
       const essayAvg=(r.essays&&r.essays.length)
@@ -7590,8 +7609,21 @@ async function sinkronKunciTerbaruKeHasil(r,npsn){
         : (r.essays&&r.essays.length ? essayAvg : r.autoScore);
       r.recalculatedAt=Date.now();
       r.recalculatedBy='Admin Sekolah — Kunci Admin Pusat';
+      r.answerKeySyncedAt=r.recalculatedAt;
+      r.answerKeySyncSource='Admin Pusat';
 
-      const payload={pg:r.pg||[],correct:r.correct,autoScore:r.autoScore,essayScore:r.essayScore,score:r.score,recalculatedAt:r.recalculatedAt,recalculatedBy:r.recalculatedBy};
+      const payload={
+        pg:r.pg||[],
+        essays:r.essays||[],
+        correct:r.correct,
+        autoScore:r.autoScore,
+        essayScore:r.essayScore,
+        score:r.score,
+        recalculatedAt:r.recalculatedAt,
+        recalculatedBy:r.recalculatedBy,
+        answerKeySyncedAt:r.answerKeySyncedAt,
+        answerKeySyncSource:r.answerKeySyncSource
+      };
       await Promise.allSettled([
         rR(npsn).doc(r.id).update(payload),
         (db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(r.id).update(payload)
