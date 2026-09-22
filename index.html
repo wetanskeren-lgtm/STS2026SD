@@ -2356,7 +2356,7 @@ function maxOpts(kelas){ return kelas <= 2 ? 3 : 4; }
 
 
 
-let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],allSchools:[],allResults:[],cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1,editTargetNpsn:null,editKelas:3,_schoolKeyOverrides:{},
+let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],allSchools:[],allResults:[],hasilLoaded:false,hasilLoading:false,allResultsLoaded:false,cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1,editTargetNpsn:null,editKelas:3,_schoolKeyOverrides:{},
   antiCheat:{active:false,violations:0,max:3,submitting:false,graceUntil:0,handlersBound:false,lastReason:'',lastAt:0}
 };
 
@@ -2729,22 +2729,50 @@ async function loadAllSchools(){
 }
 
 async function loadAllResults(){
-
+  if(D.allResultsLoaded && Array.isArray(D.allResults))return D.allResults;
   D.allResults=[];
-
   for(const s of D.allSchools){
-
     const rSnap=await rR(s.npsn).get();
-
     const items=rSnap.docs.map(d=>{
       const data=d.data();
       return {id:d.id,...data,mapel:canonicalMapel(data.mapel),schoolName:s.nama,schoolNpsn:s.npsn};
     });
-
     D.allResults.push(...items);
+  }
+  D.allResults=dedupeResults(D.allResults);
+  D.allResultsLoaded=true;
+  return D.allResults;
+}
 
+/* Hasil ujian sengaja tidak dimuat saat login. Data baru diambil ketika
+   Admin membuka menu Hasil Ujian. Setelah berhasil dimuat, filter/tombol
+   di menu tersebut hanya bekerja dari cache agar tidak membaca Firestore
+   berulang-ulang setiap kali filter berubah. */
+async function loadHasilData(force=false){
+  if(!D.aIn || !D.sch)return [];
+  if(D.hasilLoading)return D._hasilPromise||[];
+  if(!force && D.hasilLoaded){
+    return D.isPusat?(D.allResults||[]):(D.rs||[]);
   }
 
+  const npsn=D.sch.npsn;
+  D.hasilLoading=true;
+  D._hasilPromise=(async()=>{
+    if(D.isPusat){
+      await loadAllResults();
+    }else{
+      const snap=await rR(npsn).get();
+      D.rs=dedupeResults(snap.docs.map(d=>{
+        const data=d.data();
+        return {id:d.id,...data,mapel:canonicalMapel(data.mapel)};
+      }));
+    }
+    D.hasilLoaded=true;
+    return D.isPusat?(D.allResults||[]):(D.rs||[]);
+  })();
+
+  try{return await D._hasilPromise;}
+  finally{D.hasilLoading=false;D._hasilPromise=null;}
 }
 
 
@@ -2860,16 +2888,19 @@ async function loadPusatExams(){
 }
 
 async function loadD(npsn){
-  const [exDocs,b,c]=await Promise.all([
+  /* Saat login sekolah, hasil ujian TIDAK ikut dibaca. Ini sengaja dibuat
+     ringan agar login tetap cepat. Hasil akan diambil oleh loadHasilData()
+     ketika menu Hasil Ujian dibuka. */
+  const [exDocs,c]=await Promise.all([
     getMergedPusatExams(),
-    rR(npsn).get(),
     wR(npsn).get()
   ]);
   D.ex=exDocs.map(normalizeExamRecord);
-  D.rs=dedupeResults(b.docs.map(d=>{
-    const data=d.data();
-    return {id:d.id,...data,mapel:canonicalMapel(data.mapel)};
-  }));
+  D.rs=[];
+  D.hasilLoaded=false;
+  D.hasilLoading=false;
+  D.allResults=[];
+  D.allResultsLoaded=false;
   D.ss=c.docs.map(d=>({id:d.id,...d.data()}));
 }
 
@@ -3082,7 +3113,7 @@ async function logP(){
 
     D.sch={npsn:'PUSAT',nama:'Admin Pusat',kota:'Majalengka',prov:'Jawa Barat',isPusat:true};
 
-    D.aIn=true;D.isPusat=true;D.rs=[];D.ss=[];clearSchoolKeyOverrideCache();
+    D.aIn=true;D.isPusat=true;D.rs=[];D.ss=[];D.allResults=[];D.hasilLoaded=false;D.hasilLoading=false;D.allResultsLoaded=false;D._hasilPromise=null;clearSchoolKeyOverrideCache();
     /* LOGIN RINGAN: jangan membaca seluruh hasil dan jangan menjalankan
        migrasi/dedupe otomatis setiap login. Itu membuat Firestore terus
        membaca koleksi besar dan dapat memicu resource-exhausted. */
@@ -3111,15 +3142,32 @@ async function logA(){
     if(sch.adminUser!==user||sch.adminPass!==pass){hd();return tt('Username atau password salah!','er')}
 
     D.sch=sch;D.aIn=true;D.isPusat=false;clearSchoolKeyOverrideCache();
-    /* Tidak ada lagi sinkronisasi soal ke koleksi sekolah dan tidak ada
-       dedupe otomatis saat login. Soal dibaca langsung dari Server Cadangan. */
+    D.rs=[];D.allResults=[];D.hasilLoaded=false;D.hasilLoading=false;D.allResultsLoaded=false;D._hasilPromise=null;
+    /* LOGIN CEPAT:
+       Jangan menunggu seluruh paket soal + seluruh hasil + seluruh siswa selesai
+       dibaca sebelum dashboard ditampilkan. Cukup verifikasi akun, tampilkan
+       dashboard, lalu muat data besar di belakang layar. Ini menghilangkan
+       loading/muter panjang saat koleksi soal atau hasil sudah banyak. */
     await enforcePusatOnlySchoolExams(npsn);
-    await loadD(npsn);
-    attachLiveListeners(npsn);hd();go('pAD');
-
+    attachLiveListeners(npsn);
+    hd();
+    go('pAD');
     $('aSN2').textContent=sch.nama;$('navSch').style.display='none';
+    aTab('d',document.querySelector('#aSB a'));
+    tt('Selamat datang, Admin '+sch.nama+'! Data sedang dimuat di latar belakang.','in');
 
-    aTab('d',document.querySelector('#aSB a'));tt('Selamat datang, Admin '+sch.nama+'!');
+    /* Data berat dimuat setelah dashboard sudah tampil. */
+    loadD(npsn).then(()=>{
+      if(D.aIn && D.sch && String(D.sch.npsn)===String(npsn)){
+        const active=document.querySelector('#aSB a.on');
+        if(active) aTab(['d','s','j','h','w','k','c'][[...document.querySelectorAll('#aSB a')].indexOf(active)]||'d',active);
+      }
+    }).catch(e=>{
+      console.error('[LOGIN SEKOLAH] Gagal memuat data lanjutan:',e);
+      if(D.aIn && D.sch && String(D.sch.npsn)===String(npsn)){
+        tt('Login berhasil, tetapi sebagian data belum termuat. Silakan klik menu yang diperlukan atau muat ulang.','in');
+      }
+    });
 
   }catch(e){hd();tt('Gagal: '+e.message,'er')}
 
@@ -3127,7 +3175,7 @@ async function logA(){
 
 
 
-function outA(e){if(e)e.preventDefault();clearUnsub();D.aIn=false;D.sch=null;D.isPusat=false;clearSchoolKeyOverrideCache();D.ex=[];D.rs=[];D.ss=[];D.allSchools=[];D.allResults=[];go('pH');tt('Keluar','in')}
+function outA(e){if(e)e.preventDefault();clearUnsub();D.aIn=false;D.sch=null;D.isPusat=false;clearSchoolKeyOverrideCache();D.ex=[];D.rs=[];D.ss=[];D.allSchools=[];D.allResults=[];D.hasilLoaded=false;D.hasilLoading=false;D.allResultsLoaded=false;D._hasilPromise=null;go('pH');tt('Keluar','in')}
 
 
 
@@ -4686,7 +4734,21 @@ function aTab(t,el){
       }).catch(e=>console.warn('[SYNC] Gagal memuat versi soal terbaru:',e));
     }
   }
-  else if(t==='j')renderJadwal(c);else if(t==='h')renderHasil(c);
+  else if(t==='j')renderJadwal(c);
+  else if(t==='h'){
+    /* Jangan membaca hasil saat login. Begitu menu Hasil diklik, tampilkan
+       loading ringan lalu ambil hasil sekali dari Firestore. */
+    if(!D.hasilLoaded){
+      c.innerHTML=`<div class="asu"><div class="cd" style="text-align:center;padding:55px 20px"><div class="spn" style="margin:0 auto 14px"></div><p style="font-weight:800">Memuat Hasil Ujian...</p><p style="font-size:.8rem;color:var(--mt);margin-top:5px">Data hasil sedang diambil dari server.</p></div></div>`;
+      loadHasilData().then(()=>{
+        const active=document.querySelector('#aSB a.on');
+        if(active && active.getAttribute('onclick')?.includes("aTab('h'"))renderHasil(c);
+      }).catch(e=>{
+        console.error('[HASIL] Gagal memuat:',e);
+        c.innerHTML=`<div class="asu"><div class="cd" style="text-align:center;padding:40px 20px"><p style="color:var(--er);font-weight:800">Gagal memuat Hasil Ujian</p><p style="font-size:.8rem;color:var(--mt);margin:8px 0 15px">${escapeHasil(e?.message||'Terjadi kesalahan saat mengambil data.')}</p><button class="bt bt2 bts" onclick="D.hasilLoaded=false;aTab('h',document.querySelector('#aSB a.on'))"><i class="fas fa-redo"></i> Coba Lagi</button></div></div>`;
+      });
+    }else renderHasil(c);
+  }
 
   else if(t==='w')renderSiswa(c);else if(t==='k')renderDaftarSekolah(c);else if(t==='c')renderSetting(c);
 
