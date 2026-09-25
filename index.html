@@ -7748,6 +7748,55 @@ function nilaiAkhirDenganRemedial(r){
   const n=Number(rem);
   return Number.isFinite(n)?Math.round(((dasar+n)/2)*10)/10:Number(r.score||dasar);
 }
+async function hapusNilaiRemedial(rid,npsn){
+  if(D.isPusat)return tt('Hapus nilai remedial hanya tersedia untuk Admin Sekolah.','er');
+  const r=D.rs.find(x=>x.id===rid);
+  if(!r)return tt('Hasil siswa tidak ditemukan.','er');
+  const adaRem=r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!=='';
+  if(!adaRem)return tt('Siswa ini belum memiliki nilai remedial.','in');
+  const dasar=nilaiDasarRemedial(r);
+  if(!confirm(`Hapus nilai remedial ${r.nama}?\n\nNilai remedial akan dihapus dan nilai siswa kembali ke nilai murni ${dasar}.\nData hasil ujian awal tetap ada.`))return;
+  const payload={
+    score:dasar,
+    nilaiRemedial:firebase.firestore.FieldValue.delete(),
+    nilaiSebelumRemedial:firebase.firestore.FieldValue.delete(),
+    hasRemedial:firebase.firestore.FieldValue.delete(),
+    remedialExamId:firebase.firestore.FieldValue.delete(),
+    remedialCompletedAt:firebase.firestore.FieldValue.delete(),
+    remedialResultId:firebase.firestore.FieldValue.delete()
+  };
+  try{
+    ld('Menghapus nilai remedial...');
+    await Promise.allSettled([
+      rR(npsn).doc(rid).update(payload),
+      (db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).update(payload)
+    ]);
+    delete r.nilaiRemedial;
+    delete r.nilaiSebelumRemedial;
+    delete r.hasRemedial;
+    delete r.remedialExamId;
+    delete r.remedialCompletedAt;
+    delete r.remedialResultId;
+    r.score=dasar;
+    hd();
+    renderHasil($('aC'));
+    tt(`Nilai remedial ${r.nama} berhasil dihapus. Nilai kembali ${String(dasar).replace('.',',')}.`,'ok');
+  }catch(e){hd();tt('Gagal menghapus nilai remedial: '+e.message,'er');}
+}
+
+/* Uji cepat untuk 2 siswa: hanya menghapus nilai remedial yang memang sudah ada.
+   Tidak menghapus dokumen hasil ujian awal, soal, jawaban, atau data siswa. */
+async function contohHapus2NilaiRemedial(){
+  if(D.isPusat)return tt('Uji hapus nilai remedial hanya tersedia di Admin Sekolah.','er');
+  const f=D.hasilFilter||{};
+  if(!f.kelas||!f.rombel||!f.mapel)return tt('Pilih Kelas, Rombel & Mapel dulu.','er');
+  const kandidat=(D.rs||[]).filter(r=>!r.isRemedial&&String(r.kelas)===String(f.kelas)&&String(r.rombel||'-')===String(f.rombel)&&canonicalMapel(r.mapel)===canonicalMapel(f.mapel)&&r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!=='').sort((a,b)=>String(a.nama||'').localeCompare(String(b.nama||''))).slice(0,2);
+  if(!kandidat.length)return tt('Belum ada nilai remedial untuk diuji. Masukkan nilai remedial pada minimal 1–2 siswa terlebih dahulu.','in');
+  const daftar=kandidat.map((r,i)=>`${i+1}. ${r.nama} — nilai awal ${nilaiDasarRemedial(r)}, remedial ${r.nilaiRemedial}`).join('\n');
+  if(!confirm(`CONTOH UJI HAPUS NILAI REMEDIAL\n\nYang akan dihapus (maksimal 2 siswa):\n${daftar}\n\nHasil ujian awal tetap dipertahankan. Nilai akan kembali ke nilai murni.`))return;
+  for(const r of kandidat) await hapusNilaiRemedial(r.id,D.sch.npsn);
+}
+
 async function inputNilaiRemedial(rid,npsn){
   if(D.isPusat)return tt('Input nilai remedial hanya tersedia untuk Admin Sekolah.','er');
   const r=D.rs.find(x=>x.id===rid);
@@ -7836,7 +7885,7 @@ function renderHasil(c){
   h+=`<div class="flex items-center justify-between flex-wrap gap-2 mb-4"> 
     <p style="font-size:.88rem;color:var(--mt)"><i class="fas ${mf.ic} mr-1" style="color:${mf.c}"></i><b style="color:var(--fg)">${fm} &mdash; Kelas ${fk} Rombel ${fr}</b> &middot; ${list.length} siswa &middot; Rata-rata: ${avg}</p> 
      
-  <div class="flex gap-2 flex-wrap"><button class="bt bt3 bts" onclick="cetakFilterRekap()"><i class="fas fa-print"></i> Cetak Rekap Awal Ujian</button><button class="bt bt1 bts" onclick="cetakRekapNilaiAkhirRemedial()"><i class="fas fa-file-invoice"></i> Cetak Nilai Setelah Remedial</button></div></div>`; 
+  <div class="flex gap-2 flex-wrap"><button class="bt bt3 bts" onclick="cetakFilterRekap()"><i class="fas fa-print"></i> Cetak Rekap Awal Ujian</button><button class="bt bt1 bts" onclick="cetakRekapNilaiAkhirRemedial()"><i class="fas fa-file-invoice"></i> Cetak Nilai Setelah Remedial</button>${!D.isPusat?`<button class="bt bt4 bts" onclick="contohHapus2NilaiRemedial()" title="Uji penghapusan nilai remedial pada maksimal 2 siswa"><i class="fas fa-eraser"></i> Contoh Hapus 2 Nilai Remedial</button>`:''}</div></div>`; 
  
   const grouped={}; 
   list.forEach(r=>{const k=D.isPusat?(r.schoolNpsn||'-'):'-';if(!grouped[k])grouped[k]={schoolName:r.schoolName||D.sch.nama,schoolNpsn:r.schoolNpsn||D.sch.npsn,items:[]};grouped[k].items.push(r);}); 
@@ -7849,7 +7898,7 @@ function renderHasil(c){
       if(r.essays&&r.essays.length>0){const isGraded=r.essays.every(e=>e.graded===true);if(isGraded){if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}}else{stC='var(--inf)';stL='Menunggu';}} 
       else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';} 
       const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-'; const dasarSc=nilaiDasarRemedial(r); const remSc=(r.nilaiRemedial===undefined||r.nilaiRemedial===null||r.nilaiRemedial==='')?'-':r.nilaiRemedial; const finalSc=Number(r.score||dasarSc); if(r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''){stL='SETELAH REMEDIAL';stC=finalSc>=70?'var(--ok)':'var(--er)';} 
-      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700">${String(dasarSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700;color:${r.nilaiRemedial!==undefined?'var(--ac)':'var(--mt)'}">${remSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${String(finalSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}${!D.isPusat&&(Number(r.nilaiRemedial??-1)>=0||nilaiDasarRemedial(r)<70)?`<button class="bt bt5 btx" onclick="inputNilaiRemedial('${r.id}','${g.schoolNpsn}')" title="Input/Ubah Nilai Remedial" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-user-check"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
+      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700">${String(dasarSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700;color:${r.nilaiRemedial!==undefined?'var(--ac)':'var(--mt)'}">${remSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${String(finalSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}${!D.isPusat&&(Number(r.nilaiRemedial??-1)>=0||nilaiDasarRemedial(r)<70)?`<button class="bt bt5 btx" onclick="inputNilaiRemedial('${r.id}','${g.schoolNpsn}')" title="Input/Ubah Nilai Remedial" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-user-check"></i></button>`:''}${!D.isPusat&&r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''?`<button class="bt bt4 btx" onclick="hapusNilaiRemedial('${r.id}','${g.schoolNpsn}')" title="Hapus Nilai Remedial (kembali ke nilai murni)" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-eraser"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
     h+=`</tbody></table></div></div>`;}); 
   h+=`</div>`;c.innerHTML=h; 
 } 
