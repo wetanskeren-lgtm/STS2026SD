@@ -2566,6 +2566,56 @@ function rR(n){return db.collection('schools').doc(n).collection('results')}
 
 function wR(n){return db.collection('schools').doc(n).collection('students')}
 
+function examAssignmentR(npsn){return db.collection('schools').doc(npsn).collection('examAssignments');}
+function examAssignmentDocId(examId,kelas,rombel){
+  return encodeURIComponent(String(examId||''))+'__'+encodeURIComponent(String(kelas||''))+'__'+encodeURIComponent(String(rombel||'-'));
+}
+async function loadSchoolExamAssignment(npsn,examId,kelas,rombel){
+  if(!npsn||!examId||kelas===''||kelas==null)return null;
+  const id=examAssignmentDocId(examId,kelas,rombel);
+  const snap=await examAssignmentR(npsn).doc(id).get();
+  return snap.exists?{id:snap.id,...snap.data()}:null;
+}
+function applySchoolExamAssignment(ex,assignment){
+  if(!ex||!assignment)return null;
+  const ids=Array.isArray(assignment.questionIds)?assignment.questionIds.map(String):[];
+  if(!ids.length)return null;
+  const wanted=new Set(ids);
+  const qs=(Array.isArray(ex.questions)?ex.questions:[]).filter(q=>q&&wanted.has(String(q.id)));
+  if(!qs.length)return null;
+  const order=new Map(ids.map((id,i)=>[id,i]));
+  qs.sort((a,b)=>(order.get(String(a.id))??999999)-(order.get(String(b.id))??999999));
+  const out=JSON.parse(JSON.stringify(ex));
+  out.questions=qs;
+  out.schoolAssignmentId=assignment.id||'';
+  out.schoolAssignmentScope=String(assignment.kelas||'')+'|'+String(assignment.rombel||'-');
+  out.schoolAssignmentUpdatedAt=Number(assignment.updatedAt||0);
+  out.schoolAssignmentQuestionIds=ids;
+  return out;
+}
+async function getAssignedPusatExamsForStudent(npsn,kelas,rombel){
+  const [examSnap,assignSnap]=await Promise.all([soalR().get(),examAssignmentR(npsn).get()]);
+  const rb=String(rombel||'-');
+  const amap=new Map();
+  assignSnap.docs.forEach(d=>{
+    const a={id:d.id,...d.data()};
+    if(String(a.kelas)===String(kelas)&&String(a.rombel||'-')===rb&&Array.isArray(a.questionIds)&&a.questionIds.length){
+      amap.set(String(a.examId),a);
+    }
+  });
+  const out=[];
+  examSnap.docs.forEach(d=>{
+    const ex=normalizeExamRecord({id:d.id,...d.data()});
+    const a=amap.get(String(ex.id));
+    if(a){
+      const assigned=applySchoolExamAssignment(ex,a);
+      if(assigned)out.push(assigned);
+    }
+  });
+  return out;
+}
+
+
 /* Kunci lokal Admin Sekolah: hanya sekolah + kelas + rombel terkait. */
 function keyOverrideDocId(examId,kelas,rombel){
   return encodeURIComponent(String(examId||''))+'__'+encodeURIComponent(String(kelas||''))+'__'+encodeURIComponent(String(rombel||'-'));
@@ -3153,9 +3203,8 @@ async function loadSiswaInit(){
     // LOGIN SISWA dibuat ringan: baca sekolah, data siswa, dan soal langsung
     // dari Server Cadangan. Koleksi hasil ujian tidak dibaca di tahap ini.
     const siswaSnap=await wR(npsn).get();
-    const examSnap=await soalR().get();
     D.ss=siswaSnap.docs.map(d=>({id:d.id,...d.data()}));
-    D.ex=examSnap.docs.map(d=>normalizeExamRecord({id:d.id,...d.data()}));
+    D.ex=[];
     D.rs=[];
     D.studentOnlineReady=true;
     D.studentOfflineMode=false;
@@ -3167,6 +3216,8 @@ async function loadSiswaInit(){
     $('sK').innerHTML='<option value="">-- Pilih Kelas --</option>'+kelasUnik.map(k=>`<option value="${k}">Kelas ${k}</option>`).join('');
 
     $('sR').innerHTML='<option value="">-- Pilih Kelas Dulu --</option>';$('sR').disabled=true;
+    // Soal siswa dimuat khusus setelah Kelas + Rombel diketahui, sehingga
+    // setiap sekolah/kelas/rombel dapat memakai pilihan soal yang berbeda.
 
     $('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;
 
@@ -3204,11 +3255,22 @@ function updRombelList(){
 
 }
 
-function updNamaList(){
+async function refreshStudentAssignedExams(kelas,rombel){
+  if(D.aIn||D.isPusat||!D.sch?.npsn||kelas==null||kelas==='')return;
+  try{
+    D.ex=await getAssignedPusatExamsForStudent(D.sch.npsn,kelas,rombel||'-');
+  }catch(e){
+    console.warn('[ASSIGNMENT] Gagal memuat pilihan soal:',e);
+    D.ex=[];
+  }
+}
+async function updNamaList(){
 
   const k=parseInt($('sK').value),r=$('sR').value;
 
   if(!k||!r){$('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;$('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;return;}
+
+  await refreshStudentAssignedExams(k,r);
 
   const list=D.ss.filter(s=>s.kelas===k&&(s.rombel||'-')===r).sort((a,b)=>a.nama.localeCompare(b.nama));
 
@@ -3372,8 +3434,9 @@ function examStatus(ex){
 /* ===== UJIAN MODE OFFLINE MURNI ===== */
 
 async function startEx(id){
-  const ex=D.ex.find(e=>e.id===id);
-  if(!ex||!ex.questions||!ex.questions.length)return tt('Ujian belum punya soal!','er');
+  let ex=D.ex.find(e=>e.id===id);
+  if(!ex||!ex.questions||!ex.questions.length)return tt('Ujian belum dipilihkan soal oleh Admin Sekolah untuk kelas/rombel Anda.','er');
+  if(!D.isPusat && !ex.schoolAssignmentId)return tt('Ujian ini belum diatur untuk Kelas/Rombel Anda.','er');
   if(!isStudentEligibleForExam(D.st,ex))return tt(isSimulasiExam(ex)?'Ujian Simulasi hanya untuk siswa Kelas 3, 4, 5, atau 6.':'Ujian ini bukan untuk kelas Anda.','er');
   if(D.st&&!isExamScheduledTodayForStudent(ex,D.st))return tt('Mapel ini belum dijadwalkan untuk hari ini.','er');
 
@@ -5045,6 +5108,98 @@ async function resetSchoolKeyOverride(examId,kelas,rombel,nis){
     await renderEditKunciSekolah(examId,kelas,rombel,nis);
   }catch(e){hd();tt('Gagal mengembalikan kunci: '+(e.code||e.message),'er');}
 }
+
+async function showPilihSoalSekolah(examId){
+  if(D.isPusat)return tt('Pilihan soal per Kelas/Rombel dilakukan dari Admin Sekolah.','er');
+  const ex=D.ex.find(e=>e.id===examId)||await getLatestPusatExam(examId);
+  if(!ex)return tt('Paket soal pusat tidak ditemukan.','er');
+  const siswa=D.ss||[];
+  const kelasUnik=[...new Set(siswa.map(s=>s.kelas).filter(v=>v!==''&&v!=null))].sort((a,b)=>Number(a)-Number(b));
+  if(!kelasUnik.length)return tt('Belum ada data siswa untuk menentukan Kelas/Rombel.','er');
+  window._schoolExamPicker={examId,ex};
+  const firstK=String(kelasUnik[0]);
+  const firstR=[...new Set(siswa.filter(s=>String(s.kelas)===firstK).map(s=>s.rombel||'-'))].sort()[0]||'-';
+  oMo(`<div style="max-width:900px">
+    <div class="flex items-center justify-between mb-4">
+      <div><h3 style="font-size:1.15rem"><i class="fas fa-list-check mr-2" style="color:var(--ac)"></i>Pilih Soal Ujian</h3>
+      <p style="font-size:.76rem;color:var(--mt);margin-top:3px">${escHasil(ex.mapel)} — sumber soal dari Admin Pusat. Pilihan ini hanya berlaku untuk sekolah ini.</p></div>
+      <button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button>
+    </div>
+    <div class="flex gap-3 flex-wrap mb-4">
+      <div style="flex:1;min-width:160px"><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas</label>
+        <select id="pickKelas" class="ip" onchange="refreshSchoolExamPicker()">${kelasUnik.map(k=>`<option value="${escHasil(String(k))}">Kelas ${escHasil(String(k))}</option>`).join('')}</select>
+      </div>
+      <div style="flex:1;min-width:160px"><label class="block mb-1 font-bold" style="font-size:.82rem">Rombel</label>
+        <select id="pickRombel" class="ip" onchange="refreshSchoolExamPicker()"></select>
+      </div>
+    </div>
+    <div id="schoolExamPickerBody"><div class="spn"></div></div>
+  </div>`);
+  await refreshSchoolExamPicker(firstR);
+}
+async function refreshSchoolExamPicker(forceRombel){
+  const box=$('schoolExamPickerBody'); if(!box)return;
+  const ex=window._schoolExamPicker?.ex; const examId=window._schoolExamPicker?.examId;
+  const k=String($('pickKelas')?.value||''); if(!ex||!examId||!k)return;
+  const siswa=(D.ss||[]).filter(s=>String(s.kelas)===k);
+  const rombels=[...new Set(siswa.map(s=>s.rombel||'-'))].sort();
+  const selR=$('pickRombel');
+  const current=forceRombel!=null?String(forceRombel):String(selR?.value||'');
+  if(selR){
+    selR.innerHTML=rombels.map(r=>`<option value="${escHasil(String(r))}">Rombel ${escHasil(String(r))}</option>`).join('');
+    selR.value=rombels.includes(current)?current:(rombels[0]||'-');
+  }
+  const r=String(selR?.value||'-');
+  const ov=await loadSchoolExamAssignment(D.sch.npsn,examId,k,r);
+  const selected=new Set((ov?.questionIds||[]).map(String));
+  const qs=(ex.questions||[]).filter(questionIsUsable);
+  box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+    <p style="font-size:.8rem;color:var(--mt)">Centang soal yang akan diujikan untuk <b>Kelas ${escHasil(k)} Rombel ${escHasil(r)}</b>. Terpilih: <b id="pickCount">${selected.size}</b> dari ${qs.length}</p>
+    <div class="flex gap-2"><button class="bt bt3 btx" onclick="toggleAllSchoolQuestions(true)">Pilih Semua</button><button class="bt bt3 btx" onclick="toggleAllSchoolQuestions(false)">Kosongkan</button></div>
+  </div>
+  <div style="max-height:52vh;overflow:auto;border:1px solid #E2E8F0;border-radius:12px;padding:8px">
+    ${qs.map((q,i)=>`<label style="display:flex;gap:10px;align-items:flex-start;padding:9px;border-bottom:1px solid #eef2f7;cursor:pointer">
+      <input class="school-q-check" type="checkbox" value="${escHasil(String(q.id))}" ${selected.has(String(q.id))?'checked':''} onchange="updateSchoolPickCount()">
+      <span style="min-width:32px;font-weight:800">No. ${i+1}</span>
+      <span style="font-size:.8rem;line-height:1.4">${escHasil(q.text||'').slice(0,500)}</span>
+    </label>`).join('')}
+  </div>
+  <div class="flex gap-2 mt-4 flex-wrap">
+    <button class="bt bt1 bts" onclick="saveSchoolExamSelection()"><i class="fas fa-save"></i> Simpan Pilihan Soal</button>
+    ${ov?`<button class="bt bt3 bts" onclick="deleteSchoolExamSelection()"><i class="fas fa-trash"></i> Hapus Pengaturan</button>`:''}
+    <button class="bt bt3 bts" onclick="cMo()">Tutup</button>
+  </div>`;
+  updateSchoolPickCount();
+}
+function updateSchoolPickCount(){
+  const el=document.getElementById('pickCount'); if(el)el.textContent=document.querySelectorAll('.school-q-check:checked').length;
+}
+function toggleAllSchoolQuestions(v){
+  document.querySelectorAll('.school-q-check').forEach(x=>x.checked=v);updateSchoolPickCount();
+}
+async function saveSchoolExamSelection(){
+  const p=window._schoolExamPicker; if(!p||!D.sch?.npsn)return;
+  const kelas=String($('pickKelas')?.value||''),rombel=String($('pickRombel')?.value||'-');
+  const questionIds=[...document.querySelectorAll('.school-q-check:checked')].map(x=>String(x.value));
+  if(!questionIds.length)return tt('Pilih minimal 1 soal.','er');
+  const id=examAssignmentDocId(p.examId,kelas,rombel);
+  const payload={examId:p.examId,schoolNpsn:D.sch.npsn,schoolName:D.sch.nama||'',kelas,rombel,mapel:canonicalMapel(p.ex.mapel),questionIds,questionCount:questionIds.length,updatedAt:Date.now(),updatedBy:'Admin Sekolah'};
+  ld('Menyimpan pilihan soal...');
+  try{
+    await examAssignmentR(D.sch.npsn).doc(id).set(payload,{merge:true});
+    hd();tt(`Berhasil: ${questionIds.length} soal untuk Kelas ${kelas} Rombel ${rombel}.`,'ok');
+    await refreshSchoolExamPicker(rombel);
+  }catch(e){hd();tt('Gagal menyimpan pilihan soal: '+(e.code||e.message),'er');}
+}
+async function deleteSchoolExamSelection(){
+  const p=window._schoolExamPicker;if(!p||!D.sch?.npsn)return;
+  const kelas=String($('pickKelas')?.value||''),rombel=String($('pickRombel')?.value||'-');
+  if(!confirm(`Hapus pengaturan soal untuk Kelas ${kelas} Rombel ${rombel}?`))return;
+  try{
+    await examAssignmentR(D.sch.npsn).doc(examAssignmentDocId(p.examId,kelas,rombel)).delete();
+    tt('Pengaturan soal dihapus.','ok');await refreshSchoolExamPicker(rombel);
+  }catch(e){tt('Gagal menghapus pengaturan: '+(e.code||e.message),'er');}
+}
 function renderSoal(c){
 
   if(!D.soalFilter)D.soalFilter={kelas:'',mapel:''};
@@ -5053,7 +5208,7 @@ function renderSoal(c){
 
   let h=`<div class="asu"><div class="flex items-center justify-between flex-wrap gap-3 mb-6">
 
-    <div><h2 style="font-size:1.5rem;margin-bottom:2px">Kelola Soal</h2><p style="color:var(--mt);font-size:.85rem">${D.isPusat?'Buat dan kelola semua soal dari Admin Pusat.':'Soal berasal dari Admin Pusat. Admin Sekolah dapat menyesuaikan kunci secara lokal berdasarkan Kelas + Rombel tanpa mengubah sekolah lain.'}</p></div>
+    <div><h2 style="font-size:1.5rem;margin-bottom:2px">Kelola Soal</h2><p style="color:var(--mt);font-size:.85rem">${D.isPusat?'Buat dan kelola semua soal dari Admin Pusat.':'Soal berasal dari Admin Pusat. Admin Sekolah memilih nomor soal yang dipakai untuk setiap Kelas + Rombel + Mapel. Pengaturan hanya berlaku di sekolah ini.'}</p></div>
 
     <div class="flex gap-2 flex-wrap">
 
@@ -7010,8 +7165,8 @@ function cssCetakPage(){
   return '<style>table{page-break-inside:auto}tr{page-break-inside:avoid !important;break-inside:avoid !important}thead{display:table-header-group}tfoot{display:table-footer-group}h3,.blok-cetak{page-break-inside:avoid;break-inside:avoid}</style>';
 }
 
-function statusHasilCetak(r){if(r.essays&&r.essays.length&&!r.essays.every(e=>e.graded===true))return 'Menunggu Koreksi';return Number(r.score||0)>=70?'Tuntas':'Perlu Perbaikan';}
-function catatanHasilCetak(r){return Number(r.score||0)>=70?'Hasil belajar menunjukkan pencapaian yang baik. Pertahankan ketekunan, kedisiplinan, dan semangat belajar untuk meningkatkan pencapaian pada penilaian berikutnya.':'Hasil belajar masih perlu ditingkatkan. Tetap semangat, lakukan latihan secara bertahap, perhatikan materi yang belum dikuasai, dan manfaatkan bimbingan guru agar pencapaian berikutnya semakin baik.';}
+function statusHasilCetak(r){if(r.essays&&r.essays.length&&!r.essays.every(e=>e.graded===true))return 'Menunggu Koreksi';if(r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!=='')return Number(r.score||0)>=70?'SETELAH REMEDIAL — TUNTAS':'SETELAH REMEDIAL — BELUM TUNTAS';return Number(r.score||0)>=70?'Tuntas':'REMEDIAL';}
+function catatanHasilCetak(r){if(r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''){const d=nilaiDasarRemedial(r),rem=Number(r.nilaiRemedial),akhir=Number(r.score||0);return 'Siswa telah mengikuti remedial. Nilai awal '+String(d).replace('.',',')+' dan nilai remedial '+String(rem).replace('.',',')+' dirata-ratakan: ('+String(d).replace('.',',')+' + '+String(rem).replace('.',',')+') : 2 = '+String(akhir).replace('.',',')+'. '+(akhir>=70?'Hasil akhir setelah remedial mencapai ketuntasan.':'Hasil akhir setelah remedial masih perlu ditingkatkan.');}return Number(r.score||0)>=70?'Hasil belajar menunjukkan pencapaian yang baik. Pertahankan ketekunan, kedisiplinan, dan semangat belajar untuk meningkatkan pencapaian pada penilaian berikutnya.':'Hasil belajar masih perlu ditingkatkan. Siswa perlu mengikuti remedial sesuai ketentuan sekolah.';}
 async function cetakHasilSiswa(rid,npsn){
  const sb=D.sch,ssb=D.ss;
  try{
@@ -7082,10 +7237,10 @@ async function cetakHasilSiswa(rid,npsn){
     <tr><td><b>Mapel</b>: ${escHasil(r.mapel)}</td><td><b>Status</b>: ${st}</td></tr>
    </table>
    <table class="ringkas" style="width:100%;border-collapse:collapse;border:1px solid #000">
-    <tr><th>PG</th><th>Uraian</th><th>Nilai Akhir</th></tr>
-    <tr><td>${ps}</td><td>${escore}</td><td><b>${fs}</b></td></tr>
+    <tr><th>PG</th><th>Uraian</th><th>Nilai Awal</th><th>Remedial</th><th>Nilai Akhir</th></tr>
+    <tr><td>${ps}</td><td>${escore}</td><td>${nilaiDasarRemedial(r)}</td><td>${r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null?r.nilaiRemedial:'-'}</td><td><b>${fs}</b></td></tr>
    </table>
-   <div style="margin:3px 0"><b>Perhitungan:</b> ${pgc?'PG '+Number(r.correct||0)+'/'+pgc+' = '+ps+'. ':''}${es.length?'Uraian rata-rata '+escore+'. ':''}${pgc&&es.length?'Nilai akhir = 50% PG + 50% Uraian = '+fs+'.':'Nilai akhir = '+fs+'.'}</div>
+   <div style="margin:3px 0"><b>Perhitungan:</b> ${pgc?'PG '+Number(r.correct||0)+'/'+pgc+' = '+ps+'. ':''}${es.length?'Uraian rata-rata '+escore+'. ':''}${r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''?'Nilai akhir setelah remedial = ('+nilaiDasarRemedial(r)+' + '+r.nilaiRemedial+') : 2 = '+fs+'.':(pgc&&es.length?'Nilai akhir = 50% PG + 50% Uraian = '+fs+'.':'Nilai akhir = '+fs+'.')}</div>
    ${pg.length?`<h3>A. PG — KUNCI & JAWABAN SISWA (tanpa soal)</h3><table class="pg-tabel" style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th>No</th><th>Jawaban Siswa</th><th>Kunci</th><th>Hasil</th></tr></thead><tbody>${pgr}</tbody></table>`:''}
    ${es.length?`<h3>B. URAIAN — SOAL, JAWABAN SISWA & NILAI</h3><table style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th style="width:5%">No</th><th>Soal Uraian</th><th>Jawaban Siswa</th><th style="width:12%">Nilai</th></tr></thead><tbody>${esr}</tbody></table>`:''}
    <p class="blok-cetak" style="padding:4px;border:1px solid #aaa"><b>Catatan:</b> ${catatanHasilCetak(r)}</p>
@@ -7116,6 +7271,53 @@ async function cetakRekapHasilSemua(){
 }
 
 /* ===== HASIL UJIAN ===== */ 
+function nilaiDasarRemedial(r){
+  const has=Number.isFinite(Number(r.nilaiSebelumRemedial));
+  return has?Number(r.nilaiSebelumRemedial):Number(r.score||0);
+}
+function nilaiAkhirDenganRemedial(r){
+  const dasar=nilaiDasarRemedial(r), rem=r.nilaiRemedial;
+  if(rem===undefined||rem===null||rem==='') return Number(r.score||dasar);
+  const n=Number(rem);
+  return Number.isFinite(n)?Math.round(((dasar+n)/2)*10)/10:Number(r.score||dasar);
+}
+async function inputNilaiRemedial(rid,npsn){
+  if(D.isPusat)return tt('Input nilai remedial hanya tersedia untuk Admin Sekolah.','er');
+  const r=D.rs.find(x=>x.id===rid);
+  if(!r)return tt('Hasil siswa tidak ditemukan.','er');
+  const dasar=nilaiDasarRemedial(r);
+  if(dasar>=70 && (r.nilaiRemedial===undefined||r.nilaiRemedial===null||r.nilaiRemedial===''))return tt('Siswa sudah tuntas, tidak memerlukan remedial.','in');
+  const cur=(r.nilaiRemedial===undefined||r.nilaiRemedial===null)?'':r.nilaiRemedial;
+  const val=prompt(`Nilai awal siswa ${r.nama}: ${dasar}\nMasukkan nilai remedial (0-100):`,cur);
+  if(val===null)return;
+  if(String(val).trim()===''){
+    delete r.nilaiRemedial;
+    delete r.nilaiSebelumRemedial;
+    r.score=dasar;
+  }else{
+    const rem=Number(String(val).replace(',','.'));
+    if(!Number.isFinite(rem)||rem<0||rem>100)return tt('Nilai remedial harus 0 sampai 100.','er');
+    r.nilaiSebelumRemedial=dasar;
+    r.nilaiRemedial=rem;
+    r.score=Math.round(((dasar+rem)/2)*10)/10;
+  }
+  const payload={score:r.score};
+  if(r.nilaiRemedial===undefined){payload.nilaiRemedial=firebase.firestore.FieldValue.delete();payload.nilaiSebelumRemedial=firebase.firestore.FieldValue.delete();}
+  else{payload.nilaiRemedial=r.nilaiRemedial;payload.nilaiSebelumRemedial=r.nilaiSebelumRemedial;}
+  try{
+    ld('Menyimpan nilai remedial...');
+    await Promise.allSettled([
+      rR(npsn).doc(rid).update(payload),
+      (db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).update(payload)
+    ]);
+    hd();
+    renderHasil($('aC'));
+    const final=r.score;
+    if(r.nilaiRemedial!==undefined) tt(`Nilai remedial ${r.nama}: ${dasar} + ${r.nilaiRemedial} = ${(dasar+r.nilaiRemedial)} : 2 = ${String(final).replace('.',',')}.`,'ok');
+    else tt(`Nilai remedial ${r.nama} dihapus. Nilai kembali ${String(final).replace('.',',')}.`,'in');
+  }catch(e){hd();tt('Gagal menyimpan nilai remedial: '+e.message,'er');}
+}
+
 function renderHasil(c){ 
   if(!D.hasilFilter)D.hasilFilter={kelas:'',rombel:'',mapel:''}; 
   const fk=D.hasilFilter.kelas||'',fr=D.hasilFilter.rombel||'',fm=D.hasilFilter.mapel||''; 
@@ -7160,13 +7362,13 @@ function renderHasil(c){
   Object.values(grouped).forEach(g=>{ 
     const gAvg=Math.round(g.items.reduce((a,r)=>a+(r.score||0),0)/g.items.length); 
     h+=`<div class="cd mb-4" style="padding:18px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><p style="font-weight:800">${D.isPusat?`<i class="fas fa-school mr-2" style="color:var(--ac)"></i>${g.schoolName} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(NPSN: ${g.schoolNpsn})</span>`:`<i class="fas fa-list-ol mr-2" style="color:var(--ac)"></i>Daftar Nilai Siswa`}</p><p style="font-size:.75rem;color:var(--mt)">${g.items.length} siswa &middot; Rata-rata: ${gAvg}</p></div> 
-    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Foto</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">PG</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Uraian</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Akhir</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`; 
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Foto</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">PG</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Uraian</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Nilai Awal</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Remedial</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Akhir</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`; 
     g.items.sort((a,b)=>(b.score||0)-(a.score||0)).forEach((r,i)=>{ 
       const sc=r.score||0;let stC,stL; 
-      if(r.essays&&r.essays.length>0){const isGraded=r.essays.every(e=>e.graded===true);if(isGraded){if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}}else{stC='var(--inf)';stL='Menunggu';}} 
-      else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';} 
-      const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-'; 
-      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
+      if(r.essays&&r.essays.length>0){const isGraded=r.essays.every(e=>e.graded===true);if(isGraded){if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='REMEDIAL';}}else{stC='var(--inf)';stL='Menunggu';}} 
+      else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='REMEDIAL';} 
+      const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-'; const dasarSc=nilaiDasarRemedial(r); const remSc=(r.nilaiRemedial===undefined||r.nilaiRemedial===null||r.nilaiRemedial==='')?'-':r.nilaiRemedial; const finalSc=Number(r.score||dasarSc); if(r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''){stL='SETELAH REMEDIAL';stC=finalSc>=70?'var(--ok)':'var(--er)';} 
+      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700">${String(dasarSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700;color:${r.nilaiRemedial!==undefined?'var(--ac)':'var(--mt)'}">${remSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${String(finalSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}${!D.isPusat&&(Number(r.nilaiRemedial??-1)>=0||nilaiDasarRemedial(r)<70)?`<button class="bt bt5 btx" onclick="inputNilaiRemedial('${r.id}','${g.schoolNpsn}')" title="Input/Ubah Nilai Remedial" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-user-check"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
     h+=`</tbody></table></div></div>`;}); 
   h+=`</div>`;c.innerHTML=h; 
 } 
@@ -7236,12 +7438,12 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
           const isGraded = r.essays.every(e => e.graded === true); 
           if(isGraded) { 
             if((r.score||0) >= 70) { st = 'Tuntas'; }  
-            else { st = 'Belum Tuntas'; } 
+            else { st = 'REMEDIAL'; } 
           } else { 
             st = 'Menunggu'; 
           } 
         } else { 
-          st = (r.score||0) >= 70 ? 'Tuntas' : 'Belum Tuntas'; 
+          st = (r.score||0) >= 70 ? 'Tuntas' : 'REMEDIAL'; 
         } 
          
         const pgSc2=r.autoScore||0;const esSc2=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-';html += `<tr style="page-break-inside:avoid;break-inside:avoid"> 
@@ -10389,6 +10591,56 @@ function rR(n){return db.collection('schools').doc(n).collection('results')}
 
 function wR(n){return db.collection('schools').doc(n).collection('students')}
 
+function examAssignmentR(npsn){return db.collection('schools').doc(npsn).collection('examAssignments');}
+function examAssignmentDocId(examId,kelas,rombel){
+  return encodeURIComponent(String(examId||''))+'__'+encodeURIComponent(String(kelas||''))+'__'+encodeURIComponent(String(rombel||'-'));
+}
+async function loadSchoolExamAssignment(npsn,examId,kelas,rombel){
+  if(!npsn||!examId||kelas===''||kelas==null)return null;
+  const id=examAssignmentDocId(examId,kelas,rombel);
+  const snap=await examAssignmentR(npsn).doc(id).get();
+  return snap.exists?{id:snap.id,...snap.data()}:null;
+}
+function applySchoolExamAssignment(ex,assignment){
+  if(!ex||!assignment)return null;
+  const ids=Array.isArray(assignment.questionIds)?assignment.questionIds.map(String):[];
+  if(!ids.length)return null;
+  const wanted=new Set(ids);
+  const qs=(Array.isArray(ex.questions)?ex.questions:[]).filter(q=>q&&wanted.has(String(q.id)));
+  if(!qs.length)return null;
+  const order=new Map(ids.map((id,i)=>[id,i]));
+  qs.sort((a,b)=>(order.get(String(a.id))??999999)-(order.get(String(b.id))??999999));
+  const out=JSON.parse(JSON.stringify(ex));
+  out.questions=qs;
+  out.schoolAssignmentId=assignment.id||'';
+  out.schoolAssignmentScope=String(assignment.kelas||'')+'|'+String(assignment.rombel||'-');
+  out.schoolAssignmentUpdatedAt=Number(assignment.updatedAt||0);
+  out.schoolAssignmentQuestionIds=ids;
+  return out;
+}
+async function getAssignedPusatExamsForStudent(npsn,kelas,rombel){
+  const [examSnap,assignSnap]=await Promise.all([soalR().get(),examAssignmentR(npsn).get()]);
+  const rb=String(rombel||'-');
+  const amap=new Map();
+  assignSnap.docs.forEach(d=>{
+    const a={id:d.id,...d.data()};
+    if(String(a.kelas)===String(kelas)&&String(a.rombel||'-')===rb&&Array.isArray(a.questionIds)&&a.questionIds.length){
+      amap.set(String(a.examId),a);
+    }
+  });
+  const out=[];
+  examSnap.docs.forEach(d=>{
+    const ex=normalizeExamRecord({id:d.id,...d.data()});
+    const a=amap.get(String(ex.id));
+    if(a){
+      const assigned=applySchoolExamAssignment(ex,a);
+      if(assigned)out.push(assigned);
+    }
+  });
+  return out;
+}
+
+
 /* Kunci lokal Admin Sekolah: hanya sekolah + kelas + rombel terkait. */
 function keyOverrideDocId(examId,kelas,rombel){
   return encodeURIComponent(String(examId||''))+'__'+encodeURIComponent(String(kelas||''))+'__'+encodeURIComponent(String(rombel||'-'));
@@ -10976,9 +11228,8 @@ async function loadSiswaInit(){
     // LOGIN SISWA dibuat ringan: baca sekolah, data siswa, dan soal langsung
     // dari Server Cadangan. Koleksi hasil ujian tidak dibaca di tahap ini.
     const siswaSnap=await wR(npsn).get();
-    const examSnap=await soalR().get();
     D.ss=siswaSnap.docs.map(d=>({id:d.id,...d.data()}));
-    D.ex=examSnap.docs.map(d=>normalizeExamRecord({id:d.id,...d.data()}));
+    D.ex=[];
     D.rs=[];
     D.studentOnlineReady=true;
     D.studentOfflineMode=false;
@@ -10990,6 +11241,8 @@ async function loadSiswaInit(){
     $('sK').innerHTML='<option value="">-- Pilih Kelas --</option>'+kelasUnik.map(k=>`<option value="${k}">Kelas ${k}</option>`).join('');
 
     $('sR').innerHTML='<option value="">-- Pilih Kelas Dulu --</option>';$('sR').disabled=true;
+    // Soal siswa dimuat khusus setelah Kelas + Rombel diketahui, sehingga
+    // setiap sekolah/kelas/rombel dapat memakai pilihan soal yang berbeda.
 
     $('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;
 
@@ -11027,11 +11280,22 @@ function updRombelList(){
 
 }
 
-function updNamaList(){
+async function refreshStudentAssignedExams(kelas,rombel){
+  if(D.aIn||D.isPusat||!D.sch?.npsn||kelas==null||kelas==='')return;
+  try{
+    D.ex=await getAssignedPusatExamsForStudent(D.sch.npsn,kelas,rombel||'-');
+  }catch(e){
+    console.warn('[ASSIGNMENT] Gagal memuat pilihan soal:',e);
+    D.ex=[];
+  }
+}
+async function updNamaList(){
 
   const k=parseInt($('sK').value),r=$('sR').value;
 
   if(!k||!r){$('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;$('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;return;}
+
+  await refreshStudentAssignedExams(k,r);
 
   const list=D.ss.filter(s=>s.kelas===k&&(s.rombel||'-')===r).sort((a,b)=>a.nama.localeCompare(b.nama));
 
@@ -11398,8 +11662,9 @@ function antiCheatStart(){
 /* ===== UJIAN MODE OFFLINE MURNI ===== */
 
 async function startEx(id){
-  const ex=D.ex.find(e=>e.id===id);
-  if(!ex||!ex.questions||!ex.questions.length)return tt('Ujian belum punya soal!','er');
+  let ex=D.ex.find(e=>e.id===id);
+  if(!ex||!ex.questions||!ex.questions.length)return tt('Ujian belum dipilihkan soal oleh Admin Sekolah untuk kelas/rombel Anda.','er');
+  if(!D.isPusat && !ex.schoolAssignmentId)return tt('Ujian ini belum diatur untuk Kelas/Rombel Anda.','er');
   if(!isStudentEligibleForExam(D.st,ex))return tt(isSimulasiExam(ex)?'Ujian Simulasi hanya untuk siswa Kelas 3, 4, 5, atau 6.':'Ujian ini bukan untuk kelas Anda.','er');
   if(D.st&&!isExamScheduledTodayForStudent(ex,D.st))return tt('Mapel ini belum dijadwalkan untuk hari ini.','er');
 
@@ -13076,6 +13341,98 @@ async function resetSchoolKeyOverride(examId,kelas,rombel,nis){
     await renderEditKunciSekolah(examId,kelas,rombel,nis);
   }catch(e){hd();tt('Gagal mengembalikan kunci: '+(e.code||e.message),'er');}
 }
+
+async function showPilihSoalSekolah(examId){
+  if(D.isPusat)return tt('Pilihan soal per Kelas/Rombel dilakukan dari Admin Sekolah.','er');
+  const ex=D.ex.find(e=>e.id===examId)||await getLatestPusatExam(examId);
+  if(!ex)return tt('Paket soal pusat tidak ditemukan.','er');
+  const siswa=D.ss||[];
+  const kelasUnik=[...new Set(siswa.map(s=>s.kelas).filter(v=>v!==''&&v!=null))].sort((a,b)=>Number(a)-Number(b));
+  if(!kelasUnik.length)return tt('Belum ada data siswa untuk menentukan Kelas/Rombel.','er');
+  window._schoolExamPicker={examId,ex};
+  const firstK=String(kelasUnik[0]);
+  const firstR=[...new Set(siswa.filter(s=>String(s.kelas)===firstK).map(s=>s.rombel||'-'))].sort()[0]||'-';
+  oMo(`<div style="max-width:900px">
+    <div class="flex items-center justify-between mb-4">
+      <div><h3 style="font-size:1.15rem"><i class="fas fa-list-check mr-2" style="color:var(--ac)"></i>Pilih Soal Ujian</h3>
+      <p style="font-size:.76rem;color:var(--mt);margin-top:3px">${escHasil(ex.mapel)} — sumber soal dari Admin Pusat. Pilihan ini hanya berlaku untuk sekolah ini.</p></div>
+      <button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button>
+    </div>
+    <div class="flex gap-3 flex-wrap mb-4">
+      <div style="flex:1;min-width:160px"><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas</label>
+        <select id="pickKelas" class="ip" onchange="refreshSchoolExamPicker()">${kelasUnik.map(k=>`<option value="${escHasil(String(k))}">Kelas ${escHasil(String(k))}</option>`).join('')}</select>
+      </div>
+      <div style="flex:1;min-width:160px"><label class="block mb-1 font-bold" style="font-size:.82rem">Rombel</label>
+        <select id="pickRombel" class="ip" onchange="refreshSchoolExamPicker()"></select>
+      </div>
+    </div>
+    <div id="schoolExamPickerBody"><div class="spn"></div></div>
+  </div>`);
+  await refreshSchoolExamPicker(firstR);
+}
+async function refreshSchoolExamPicker(forceRombel){
+  const box=$('schoolExamPickerBody'); if(!box)return;
+  const ex=window._schoolExamPicker?.ex; const examId=window._schoolExamPicker?.examId;
+  const k=String($('pickKelas')?.value||''); if(!ex||!examId||!k)return;
+  const siswa=(D.ss||[]).filter(s=>String(s.kelas)===k);
+  const rombels=[...new Set(siswa.map(s=>s.rombel||'-'))].sort();
+  const selR=$('pickRombel');
+  const current=forceRombel!=null?String(forceRombel):String(selR?.value||'');
+  if(selR){
+    selR.innerHTML=rombels.map(r=>`<option value="${escHasil(String(r))}">Rombel ${escHasil(String(r))}</option>`).join('');
+    selR.value=rombels.includes(current)?current:(rombels[0]||'-');
+  }
+  const r=String(selR?.value||'-');
+  const ov=await loadSchoolExamAssignment(D.sch.npsn,examId,k,r);
+  const selected=new Set((ov?.questionIds||[]).map(String));
+  const qs=(ex.questions||[]).filter(questionIsUsable);
+  box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+    <p style="font-size:.8rem;color:var(--mt)">Centang soal yang akan diujikan untuk <b>Kelas ${escHasil(k)} Rombel ${escHasil(r)}</b>. Terpilih: <b id="pickCount">${selected.size}</b> dari ${qs.length}</p>
+    <div class="flex gap-2"><button class="bt bt3 btx" onclick="toggleAllSchoolQuestions(true)">Pilih Semua</button><button class="bt bt3 btx" onclick="toggleAllSchoolQuestions(false)">Kosongkan</button></div>
+  </div>
+  <div style="max-height:52vh;overflow:auto;border:1px solid #E2E8F0;border-radius:12px;padding:8px">
+    ${qs.map((q,i)=>`<label style="display:flex;gap:10px;align-items:flex-start;padding:9px;border-bottom:1px solid #eef2f7;cursor:pointer">
+      <input class="school-q-check" type="checkbox" value="${escHasil(String(q.id))}" ${selected.has(String(q.id))?'checked':''} onchange="updateSchoolPickCount()">
+      <span style="min-width:32px;font-weight:800">No. ${i+1}</span>
+      <span style="font-size:.8rem;line-height:1.4">${escHasil(q.text||'').slice(0,500)}</span>
+    </label>`).join('')}
+  </div>
+  <div class="flex gap-2 mt-4 flex-wrap">
+    <button class="bt bt1 bts" onclick="saveSchoolExamSelection()"><i class="fas fa-save"></i> Simpan Pilihan Soal</button>
+    ${ov?`<button class="bt bt3 bts" onclick="deleteSchoolExamSelection()"><i class="fas fa-trash"></i> Hapus Pengaturan</button>`:''}
+    <button class="bt bt3 bts" onclick="cMo()">Tutup</button>
+  </div>`;
+  updateSchoolPickCount();
+}
+function updateSchoolPickCount(){
+  const el=document.getElementById('pickCount'); if(el)el.textContent=document.querySelectorAll('.school-q-check:checked').length;
+}
+function toggleAllSchoolQuestions(v){
+  document.querySelectorAll('.school-q-check').forEach(x=>x.checked=v);updateSchoolPickCount();
+}
+async function saveSchoolExamSelection(){
+  const p=window._schoolExamPicker; if(!p||!D.sch?.npsn)return;
+  const kelas=String($('pickKelas')?.value||''),rombel=String($('pickRombel')?.value||'-');
+  const questionIds=[...document.querySelectorAll('.school-q-check:checked')].map(x=>String(x.value));
+  if(!questionIds.length)return tt('Pilih minimal 1 soal.','er');
+  const id=examAssignmentDocId(p.examId,kelas,rombel);
+  const payload={examId:p.examId,schoolNpsn:D.sch.npsn,schoolName:D.sch.nama||'',kelas,rombel,mapel:canonicalMapel(p.ex.mapel),questionIds,questionCount:questionIds.length,updatedAt:Date.now(),updatedBy:'Admin Sekolah'};
+  ld('Menyimpan pilihan soal...');
+  try{
+    await examAssignmentR(D.sch.npsn).doc(id).set(payload,{merge:true});
+    hd();tt(`Berhasil: ${questionIds.length} soal untuk Kelas ${kelas} Rombel ${rombel}.`,'ok');
+    await refreshSchoolExamPicker(rombel);
+  }catch(e){hd();tt('Gagal menyimpan pilihan soal: '+(e.code||e.message),'er');}
+}
+async function deleteSchoolExamSelection(){
+  const p=window._schoolExamPicker;if(!p||!D.sch?.npsn)return;
+  const kelas=String($('pickKelas')?.value||''),rombel=String($('pickRombel')?.value||'-');
+  if(!confirm(`Hapus pengaturan soal untuk Kelas ${kelas} Rombel ${rombel}?`))return;
+  try{
+    await examAssignmentR(D.sch.npsn).doc(examAssignmentDocId(p.examId,kelas,rombel)).delete();
+    tt('Pengaturan soal dihapus.','ok');await refreshSchoolExamPicker(rombel);
+  }catch(e){tt('Gagal menghapus pengaturan: '+(e.code||e.message),'er');}
+}
 function renderSoal(c){
 
   if(!D.soalFilter)D.soalFilter={kelas:'',mapel:''};
@@ -13084,7 +13441,7 @@ function renderSoal(c){
 
   let h=`<div class="asu"><div class="flex items-center justify-between flex-wrap gap-3 mb-6">
 
-    <div><h2 style="font-size:1.5rem;margin-bottom:2px">Kelola Soal</h2><p style="color:var(--mt);font-size:.85rem">${D.isPusat?'Buat dan kelola semua soal dari Admin Pusat.':'Soal berasal dari Admin Pusat. Admin Sekolah dapat menyesuaikan kunci secara lokal berdasarkan Kelas + Rombel tanpa mengubah sekolah lain.'}</p></div>
+    <div><h2 style="font-size:1.5rem;margin-bottom:2px">Kelola Soal</h2><p style="color:var(--mt);font-size:.85rem">${D.isPusat?'Buat dan kelola semua soal dari Admin Pusat.':'Soal berasal dari Admin Pusat. Admin Sekolah memilih nomor soal yang dipakai untuk setiap Kelas + Rombel + Mapel. Pengaturan hanya berlaku di sekolah ini.'}</p></div>
 
     <div class="flex gap-2 flex-wrap">
 
@@ -15041,8 +15398,8 @@ function cssCetakPage(){
   return '<style>table{page-break-inside:auto}tr{page-break-inside:avoid !important;break-inside:avoid !important}thead{display:table-header-group}tfoot{display:table-footer-group}h3,.blok-cetak{page-break-inside:avoid;break-inside:avoid}</style>';
 }
 
-function statusHasilCetak(r){if(r.essays&&r.essays.length&&!r.essays.every(e=>e.graded===true))return 'Menunggu Koreksi';return Number(r.score||0)>=70?'Tuntas':'Perlu Perbaikan';}
-function catatanHasilCetak(r){return Number(r.score||0)>=70?'Hasil belajar menunjukkan pencapaian yang baik. Pertahankan ketekunan, kedisiplinan, dan semangat belajar untuk meningkatkan pencapaian pada penilaian berikutnya.':'Hasil belajar masih perlu ditingkatkan. Tetap semangat, lakukan latihan secara bertahap, perhatikan materi yang belum dikuasai, dan manfaatkan bimbingan guru agar pencapaian berikutnya semakin baik.';}
+function statusHasilCetak(r){if(r.essays&&r.essays.length&&!r.essays.every(e=>e.graded===true))return 'Menunggu Koreksi';if(r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!=='')return Number(r.score||0)>=70?'SETELAH REMEDIAL — TUNTAS':'SETELAH REMEDIAL — BELUM TUNTAS';return Number(r.score||0)>=70?'Tuntas':'REMEDIAL';}
+function catatanHasilCetak(r){if(r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''){const d=nilaiDasarRemedial(r),rem=Number(r.nilaiRemedial),akhir=Number(r.score||0);return 'Siswa telah mengikuti remedial. Nilai awal '+String(d).replace('.',',')+' dan nilai remedial '+String(rem).replace('.',',')+' dirata-ratakan: ('+String(d).replace('.',',')+' + '+String(rem).replace('.',',')+') : 2 = '+String(akhir).replace('.',',')+'. '+(akhir>=70?'Hasil akhir setelah remedial mencapai ketuntasan.':'Hasil akhir setelah remedial masih perlu ditingkatkan.');}return Number(r.score||0)>=70?'Hasil belajar menunjukkan pencapaian yang baik. Pertahankan ketekunan, kedisiplinan, dan semangat belajar untuk meningkatkan pencapaian pada penilaian berikutnya.':'Hasil belajar masih perlu ditingkatkan. Siswa perlu mengikuti remedial sesuai ketentuan sekolah.';}
 async function cetakHasilSiswa(rid,npsn){
  const sb=D.sch,ssb=D.ss;
  try{
@@ -15113,10 +15470,10 @@ async function cetakHasilSiswa(rid,npsn){
     <tr><td><b>Mapel</b>: ${escHasil(r.mapel)}</td><td><b>Status</b>: ${st}</td></tr>
    </table>
    <table class="ringkas" style="width:100%;border-collapse:collapse;border:1px solid #000">
-    <tr><th>PG</th><th>Uraian</th><th>Nilai Akhir</th></tr>
-    <tr><td>${ps}</td><td>${escore}</td><td><b>${fs}</b></td></tr>
+    <tr><th>PG</th><th>Uraian</th><th>Nilai Awal</th><th>Remedial</th><th>Nilai Akhir</th></tr>
+    <tr><td>${ps}</td><td>${escore}</td><td>${nilaiDasarRemedial(r)}</td><td>${r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null?r.nilaiRemedial:'-'}</td><td><b>${fs}</b></td></tr>
    </table>
-   <div style="margin:3px 0"><b>Perhitungan:</b> ${pgc?'PG '+Number(r.correct||0)+'/'+pgc+' = '+ps+'. ':''}${es.length?'Uraian rata-rata '+escore+'. ':''}${pgc&&es.length?'Nilai akhir = 50% PG + 50% Uraian = '+fs+'.':'Nilai akhir = '+fs+'.'}</div>
+   <div style="margin:3px 0"><b>Perhitungan:</b> ${pgc?'PG '+Number(r.correct||0)+'/'+pgc+' = '+ps+'. ':''}${es.length?'Uraian rata-rata '+escore+'. ':''}${r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''?'Nilai akhir setelah remedial = ('+nilaiDasarRemedial(r)+' + '+r.nilaiRemedial+') : 2 = '+fs+'.':(pgc&&es.length?'Nilai akhir = 50% PG + 50% Uraian = '+fs+'.':'Nilai akhir = '+fs+'.')}</div>
    ${pg.length?`<h3>A. PG — KUNCI & JAWABAN SISWA (tanpa soal)</h3><table class="pg-tabel" style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th>No</th><th>Jawaban Siswa</th><th>Kunci</th><th>Hasil</th></tr></thead><tbody>${pgr}</tbody></table>`:''}
    ${es.length?`<h3>B. URAIAN — SOAL, JAWABAN SISWA & NILAI</h3><table style="width:100%;border-collapse:collapse;border:1px solid #000"><thead><tr><th style="width:5%">No</th><th>Soal Uraian</th><th>Jawaban Siswa</th><th style="width:12%">Nilai</th></tr></thead><tbody>${esr}</tbody></table>`:''}
    <p class="blok-cetak" style="padding:4px;border:1px solid #aaa"><b>Catatan:</b> ${catatanHasilCetak(r)}</p>
@@ -15147,6 +15504,53 @@ async function cetakRekapHasilSemua(){
 }
 
 /* ===== HASIL UJIAN ===== */ 
+function nilaiDasarRemedial(r){
+  const has=Number.isFinite(Number(r.nilaiSebelumRemedial));
+  return has?Number(r.nilaiSebelumRemedial):Number(r.score||0);
+}
+function nilaiAkhirDenganRemedial(r){
+  const dasar=nilaiDasarRemedial(r), rem=r.nilaiRemedial;
+  if(rem===undefined||rem===null||rem==='') return Number(r.score||dasar);
+  const n=Number(rem);
+  return Number.isFinite(n)?Math.round(((dasar+n)/2)*10)/10:Number(r.score||dasar);
+}
+async function inputNilaiRemedial(rid,npsn){
+  if(D.isPusat)return tt('Input nilai remedial hanya tersedia untuk Admin Sekolah.','er');
+  const r=D.rs.find(x=>x.id===rid);
+  if(!r)return tt('Hasil siswa tidak ditemukan.','er');
+  const dasar=nilaiDasarRemedial(r);
+  if(dasar>=70 && (r.nilaiRemedial===undefined||r.nilaiRemedial===null||r.nilaiRemedial===''))return tt('Siswa sudah tuntas, tidak memerlukan remedial.','in');
+  const cur=(r.nilaiRemedial===undefined||r.nilaiRemedial===null)?'':r.nilaiRemedial;
+  const val=prompt(`Nilai awal siswa ${r.nama}: ${dasar}\nMasukkan nilai remedial (0-100):`,cur);
+  if(val===null)return;
+  if(String(val).trim()===''){
+    delete r.nilaiRemedial;
+    delete r.nilaiSebelumRemedial;
+    r.score=dasar;
+  }else{
+    const rem=Number(String(val).replace(',','.'));
+    if(!Number.isFinite(rem)||rem<0||rem>100)return tt('Nilai remedial harus 0 sampai 100.','er');
+    r.nilaiSebelumRemedial=dasar;
+    r.nilaiRemedial=rem;
+    r.score=Math.round(((dasar+rem)/2)*10)/10;
+  }
+  const payload={score:r.score};
+  if(r.nilaiRemedial===undefined){payload.nilaiRemedial=firebase.firestore.FieldValue.delete();payload.nilaiSebelumRemedial=firebase.firestore.FieldValue.delete();}
+  else{payload.nilaiRemedial=r.nilaiRemedial;payload.nilaiSebelumRemedial=r.nilaiSebelumRemedial;}
+  try{
+    ld('Menyimpan nilai remedial...');
+    await Promise.allSettled([
+      rR(npsn).doc(rid).update(payload),
+      (db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).update(payload)
+    ]);
+    hd();
+    renderHasil($('aC'));
+    const final=r.score;
+    if(r.nilaiRemedial!==undefined) tt(`Nilai remedial ${r.nama}: ${dasar} + ${r.nilaiRemedial} = ${(dasar+r.nilaiRemedial)} : 2 = ${String(final).replace('.',',')}.`,'ok');
+    else tt(`Nilai remedial ${r.nama} dihapus. Nilai kembali ${String(final).replace('.',',')}.`,'in');
+  }catch(e){hd();tt('Gagal menyimpan nilai remedial: '+e.message,'er');}
+}
+
 function renderHasil(c){ 
   if(!D.hasilFilter)D.hasilFilter={kelas:'',rombel:'',mapel:''}; 
   const fk=D.hasilFilter.kelas||'',fr=D.hasilFilter.rombel||'',fm=D.hasilFilter.mapel||''; 
@@ -15191,13 +15595,13 @@ function renderHasil(c){
   Object.values(grouped).forEach(g=>{ 
     const gAvg=Math.round(g.items.reduce((a,r)=>a+(r.score||0),0)/g.items.length); 
     h+=`<div class="cd mb-4" style="padding:18px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><p style="font-weight:800">${D.isPusat?`<i class="fas fa-school mr-2" style="color:var(--ac)"></i>${g.schoolName} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(NPSN: ${g.schoolNpsn})</span>`:`<i class="fas fa-list-ol mr-2" style="color:var(--ac)"></i>Daftar Nilai Siswa`}</p><p style="font-size:.75rem;color:var(--mt)">${g.items.length} siswa &middot; Rata-rata: ${gAvg}</p></div> 
-    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Foto</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">PG</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Uraian</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Akhir</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`; 
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Foto</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">PG</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Uraian</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Nilai Awal</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Remedial</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Akhir</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`; 
     g.items.sort((a,b)=>(b.score||0)-(a.score||0)).forEach((r,i)=>{ 
       const sc=r.score||0;let stC,stL; 
       if(r.essays&&r.essays.length>0){const isGraded=r.essays.every(e=>e.graded===true);if(isGraded){if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}}else{stC='var(--inf)';stL='Menunggu';}} 
       else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';} 
-      const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-'; 
-      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${sc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
+      const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-'; const dasarSc=nilaiDasarRemedial(r); const remSc=(r.nilaiRemedial===undefined||r.nilaiRemedial===null||r.nilaiRemedial==='')?'-':r.nilaiRemedial; const finalSc=Number(r.score||dasarSc); if(r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''){stL='SETELAH REMEDIAL';stC=finalSc>=70?'var(--ok)':'var(--er)';} 
+      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700">${String(dasarSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700;color:${r.nilaiRemedial!==undefined?'var(--ac)':'var(--mt)'}">${remSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${String(finalSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}${!D.isPusat&&(Number(r.nilaiRemedial??-1)>=0||nilaiDasarRemedial(r)<70)?`<button class="bt bt5 btx" onclick="inputNilaiRemedial('${r.id}','${g.schoolNpsn}')" title="Input/Ubah Nilai Remedial" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-user-check"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
     h+=`</tbody></table></div></div>`;}); 
   h+=`</div>`;c.innerHTML=h; 
 } 
@@ -15267,12 +15671,12 @@ async function cRekapPDF(filterKelas, filterMapel, filterRombel){
           const isGraded = r.essays.every(e => e.graded === true); 
           if(isGraded) { 
             if((r.score||0) >= 70) { st = 'Tuntas'; }  
-            else { st = 'Belum Tuntas'; } 
+            else { st = 'REMEDIAL'; } 
           } else { 
             st = 'Menunggu'; 
           } 
         } else { 
-          st = (r.score||0) >= 70 ? 'Tuntas' : 'Belum Tuntas'; 
+          st = (r.score||0) >= 70 ? 'Tuntas' : 'REMEDIAL'; 
         } 
          
         const pgSc2=r.autoScore||0;const esSc2=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-';html += `<tr style="page-break-inside:avoid;break-inside:avoid"> 
