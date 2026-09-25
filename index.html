@@ -2912,6 +2912,12 @@ async function loadPusatExams(){
   D.ex=docs.map(normalizeExamRecord);
 }
 
+// Hasil remedial lama tidak lagi ditampilkan sebagai baris terpisah.
+// Mulai sekarang nilai remedial hidup di dokumen hasil ujian awal.
+function filterDisplayResults(rows){
+  return (rows||[]).filter(r=>!r.isRemedial);
+}
+
 async function loadD(npsn){
   const [exDocs,b,c]=await Promise.all([
     getMergedPusatExams(),
@@ -2919,10 +2925,10 @@ async function loadD(npsn){
     wR(npsn).get()
   ]);
   D.ex=exDocs.map(normalizeExamRecord);
-  D.rs=b.docs.map(d=>{
+  D.rs=filterDisplayResults(b.docs.map(d=>{
     const data=d.data();
     return {id:d.id,...data,mapel:canonicalMapel(data.mapel)};
-  });
+  }));
   D.ss=c.docs.map(d=>({id:d.id,...d.data()}));
 }
 
@@ -3367,10 +3373,10 @@ async function logS(){
 
   try{
     const resultSnap=await rR(D.sch.npsn).where('nis','==',nis).get();
-    D.rs=resultSnap.docs.map(d=>{
+    D.rs=filterDisplayResults(resultSnap.docs.map(d=>{
       const data=d.data();
       return {id:d.id,...data,mapel:canonicalMapel(data.mapel)};
-    });
+    }));
   }catch(e){
     console.warn('[HASIL SISWA] Gagal memuat riwayat hasil:',e);
     D.rs=[];
@@ -3492,6 +3498,11 @@ function examStatus(ex){
 
 function antiCheatEnabled(){
   const k=Number(D.st?.kelas);
+
+  // REMEDIAL TIDAK memakai anti-curang.
+  // Anti-curang tetap aktif untuk ujian biasa Kelas 4-6.
+  if(D.cEx?.isRemedial)return false;
+
   return !!D.cEx && [4,5,6].includes(k);
 }
 
@@ -3691,7 +3702,10 @@ async function startEx(id){
   ld('Memverifikasi data ujian...');
   try{
     const snap=await rR(D.sch.npsn).where('nis','==',D.st.nis).where('examId','==',id).get();
-    if(!snap.empty){
+    // Ujian biasa hanya boleh dikerjakan sekali.
+    // REMEDIAL boleh dikerjakan ulang karena hasilnya selalu meng-update
+    // dokumen hasil ujian awal yang sama, bukan membuat dokumen baru.
+    if(!ex.isRemedial && !snap.empty){
       hd();
       tt('Anda sudah mengerjakan ujian ini. Hubungi Admin untuk reset nilai.','er');
       oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px;color:var(--er)"><i class="fas fa-lock"></i></div><h3 style="margin-bottom:10px">Sudah Pernah Mengerjakan</h3><p style="color:var(--mt);font-size:.85rem;margin-bottom:16px">Anda telah menyelesaikan ujian ini. Jika ingin mengulang, minta Admin Sekolah untuk menghapus nilai Anda terlebih dahulu di menu Hasil Ujian.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo();outS()">Kembali ke Beranda</button></div></div>`);
@@ -4246,102 +4260,280 @@ async function finEx(){
   antiCheatCleanup();
   clearInterval(D.tI);
 
-  const ex=D.cEx,s=D.st;let cor=0;let essays=[];
-
-  
+  const ex=D.cEx,s=D.st;
+  let cor=0;
+  let essays=[];
 
   ld('Mengirim jawaban ke server...');
 
-  
-
   let pgList=[];
 
+  // ============================================================
+  // HITUNG JAWABAN
+  // ============================================================
   ex.questions.forEach((q,i)=>{
-
-    if(q.type==='essay'){essays.push({id:q.id,text:q.text,image:q.image||'',key:q.key||'',answer:D.an[i]||'',score:0,graded:false});}
-
-    else{
-
+    if(q.type==='essay'){
+      essays.push({
+        id:q.id,
+        text:q.text,
+        image:q.image||'',
+        key:q.key||'',
+        answer:D.an[i]||'',
+        score:0,
+        graded:false
+      });
+    }else{
       if(sameStudentAnswer(D.an[i],q.answer))cor++;
 
-      const optT=o=>typeof o==='object'&&o!==null?(o.text||''):String(o);
+      const optT=o=>typeof o==='object'&&o!==null
+        ?(o.text||'')
+        :String(o);
 
-      pgList.push({id:q.id,text:q.text,image:q.image||'',options:(q.options||[]).map(optT),studentAns:normalizeStudentAnswer(D.an[i]),correctAns:normalizeStudentAnswer(q.answer)});
-
+      pgList.push({
+        id:q.id,
+        text:q.text,
+        image:q.image||'',
+        options:(q.options||[]).map(optT),
+        studentAns:normalizeStudentAnswer(D.an[i]),
+        correctAns:normalizeStudentAnswer(q.answer)
+      });
     }
-
   });
 
-  
+  const hasEssay=essays.length>0;
+  const pgOnly=ex.questions.length-essays.length;
+  const autoScore=pgOnly>0?Math.round(cor/pgOnly*100):0;
+  const finalScore=hasEssay?0:autoScore;
+  const tu=Math.max(0,(ex.timeLimit*60)-D.tL);
 
-  const hasEssay=essays.length>0;const pgOnly=ex.questions.length-essays.length;const autoScore=pgOnly>0?Math.round(cor/pgOnly*100):0;const finalScore=hasEssay?0:autoScore;const tu=ex.timeLimit*60-D.tL;
+  // ============================================================
+  // REMEDIAL
+  // PENTING: hasil remedial TIDAK disimpan sebagai dokumen results baru.
+  // Nilai remedial langsung masuk ke dokumen hasil ujian awal.
+  // Dengan demikian nama siswa tetap 1 baris.
+  // ============================================================
+  if(ex.isRemedial){
+    try{
+      const baseId=String(ex.baseResultMap?.[s.nis]||'');
+      let base=null;
 
-  const r={id:uid(),examId:ex.id,kelas:s.kelas,rombel:s.rombel||'-',mapel:canonicalMapel(ex.mapel),nama:s.nama,nis:s.nis,foto:s.foto||'',score:finalScore,autoScore,essayScore:hasEssay?0:undefined,correct:cor,total:ex.questions.length,essays,pg:pgList,timeUsed:tu,timestamp:Date.now(),isRemedial:!!ex.isRemedial};
+      // 1. Cari hasil ujian awal berdasarkan baseResultMap.
+      if(baseId){
+        const bs=await rR(D.sch.npsn).doc(baseId).get();
+        if(bs.exists){
+          const data=bs.data();
+          if(!data.isRemedial){
+            base={id:bs.id,...data};
+          }
+        }
+      }
 
-  try {
-    if(ex.isRemedial){
-      const baseId=String(ex.baseResultMap?.[s.nis]||'');let base=null;
-      if(baseId){const bs=await rR(D.sch.npsn).doc(baseId).get();if(bs.exists)base={id:bs.id,...bs.data()};}
-      if(!base){const bs=await rR(D.sch.npsn).where('nis','==',s.nis).where('mapel','==',canonicalMapel(ex.mapel)).get();const arr=bs.docs.map(d=>({id:d.id,...d.data()})).filter(x=>!x.isRemedial).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));base=arr[0]||null;}
-      if(base){const dasar=Number(base.nilaiSebelumRemedial!==undefined?base.nilaiSebelumRemedial:base.score||0);const akhir=Math.round(((dasar+finalScore)/2)*10)/10;const patch={nilaiSebelumRemedial:dasar,nilaiRemedial:finalScore,score:akhir,remedialResultId:r.id,remedialCompletedAt:Date.now()};await Promise.allSettled([rR(D.sch.npsn).doc(base.id).update(patch),(db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(D.sch.npsn).collection('results').doc(base.id).update(patch)]);r.baseResultId=base.id;r.nilaiDasar=dasar;r.nilaiRemedial=finalScore;r.nilaiAkhirSetelahRemedial=akhir;}
-      await saveResultBoth(D.sch.npsn,r.id,r);localStorage.removeItem('ujian_'+s.nis+'_'+ex.id);
-      try{const snap=await rR(D.sch.npsn).where('nis','==',s.nis).get();D.rs=snap.docs.map(d=>({id:d.id,...d.data(),mapel:canonicalMapel(d.data().mapel)}));}catch(_e){}
-      hd();showR(r.baseResultId?{...r,score:r.nilaiAkhirSetelahRemedial,autoScore:r.nilaiAkhirSetelahRemedial}:r);kirimNotifWA(r);tt(r.baseResultId?`Remedial selesai. Nilai ${finalScore}, nilai akhir otomatis menjadi ${r.nilaiAkhirSetelahRemedial}.`:'Remedial selesai dan tersimpan.','ok');return;
+      // 2. Fallback: cari hasil ujian awal terbaru untuk siswa + mapel.
+      if(!base){
+        const bs=await rR(D.sch.npsn)
+          .where('nis','==',s.nis)
+          .where('mapel','==',canonicalMapel(ex.mapel))
+          .get();
+
+        const arr=bs.docs
+          .map(d=>({id:d.id,...d.data()}))
+          .filter(x=>!x.isRemedial)
+          .sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+
+        base=arr[0]||null;
+      }
+
+      if(!base){
+        hd();
+        tt('Hasil ujian awal siswa tidak ditemukan. Remedial tidak dapat disimpan.','er');
+        return;
+      }
+
+      // Nilai awal dikunci dari hasil ujian pertama.
+      const dasar=Number(
+        base.nilaiSebelumRemedial!==undefined
+          ?base.nilaiSebelumRemedial
+          :(base.score||0)
+      );
+
+      // Untuk remedial, nilai yang dihitung adalah hasil remedial saat ini.
+      const nilaiRemedial=Number(finalScore||0);
+
+      // Nilai akhir = rata-rata nilai awal + remedial.
+      const akhir=Math.round(((dasar+nilaiRemedial)/2)*10)/10;
+
+      const completedAt=Date.now();
+
+      const patch={
+        // Data remedial berada di DOKUMEN HASIL AWAL.
+        nilaiSebelumRemedial:dasar,
+        nilaiRemedial,
+        score:akhir,
+        hasRemedial:true,
+        remedialExamId:ex.id,
+        remedialCompletedAt:completedAt,
+
+        // Tidak lagi menunjuk ke dokumen hasil remedial terpisah.
+        remedialResultId:null
+      };
+
+      // Simpan ke Server Cadangan/aktif + server pasangan.
+      const otherDb=(db===backupDb?dbMigrationPrimary:backupDb);
+      const baseRef=rR(D.sch.npsn).doc(base.id);
+      const otherBaseRef=otherDb
+        .collection('schools')
+        .doc(D.sch.npsn)
+        .collection('results')
+        .doc(base.id);
+
+      const writes=await Promise.allSettled([
+        baseRef.update(patch),
+        otherBaseRef.update(patch)
+      ]);
+
+      const failed=writes.filter(x=>x.status==='rejected');
+      if(failed.length===2)throw failed[0].reason;
+      if(failed.length)console.warn('[REMEDIAL] Salah satu server gagal memperbarui hasil awal:',failed[0].reason);
+
+      // ========================================================
+      // BERSIHKAN DOKUMEN HASIL REMEDIAL LAMA
+      // Versi lama aplikasi pernah membuat results terpisah dengan
+      // isRemedial:true. Semua dokumen tersebut dibuang agar nama siswa
+      // tidak muncul dua kali di Admin Sekolah.
+      // ========================================================
+      try{
+        const oldSnap=await rR(D.sch.npsn)
+          .where('nis','==',s.nis)
+          .where('isRemedial','==',true)
+          .get();
+
+        const cleanup=[];
+        oldSnap.docs.forEach(doc=>{
+          cleanup.push(rR(D.sch.npsn).doc(doc.id).delete());
+          cleanup.push(
+            otherDb.collection('schools')
+              .doc(D.sch.npsn)
+              .collection('results')
+              .doc(doc.id)
+              .delete()
+          );
+        });
+
+        if(cleanup.length)await Promise.allSettled(cleanup);
+      }catch(cleanErr){
+        // Jangan menggagalkan nilai yang sudah berhasil disimpan.
+        console.warn('[REMEDIAL CLEANUP] Gagal membersihkan hasil lama:',cleanErr);
+      }
+
+      // Muat ulang hasil siswa. Hanya hasil ujian utama yang ditampilkan.
+      try{
+        const snap=await rR(D.sch.npsn)
+          .where('nis','==',s.nis)
+          .get();
+
+        D.rs=snap.docs
+          .map(d=>({id:d.id,...d.data(),mapel:canonicalMapel(d.data().mapel)}))
+          .filter(r=>!r.isRemedial);
+      }catch(_e){}
+
+      // Bersihkan draft lokal remedial.
+      localStorage.removeItem('ujian_'+s.nis+'_'+ex.id);
+
+      // Tampilkan HASIL UJIAN AWAL yang sekarang sudah memiliki nilai remedial.
+      const resultForDisplay={
+        ...base,
+        ...patch,
+        id:base.id,
+        mapel:canonicalMapel(base.mapel),
+        nilaiDasar:dasar,
+        nilaiRemedial,
+        nilaiAkhirSetelahRemedial:akhir,
+        score:akhir
+      };
+
+      hd();
+      showR(resultForDisplay);
+      kirimNotifWA(resultForDisplay);
+
+      tt(
+        `Remedial selesai. Nilai remedial ${nilaiRemedial}. Nilai akhir otomatis menjadi ${akhir}.`,
+        'ok'
+      );
+
+      return;
+
+    }catch(e){
+      hd();
+      console.error('[REMEDIAL] Gagal menyimpan:',e);
+      tt('Gagal menyimpan nilai remedial: '+(e.message||e),'er');
+      return;
     }
-    await saveResultBoth(D.sch.npsn,r.id,r);
+  }
 
-    
+  // ============================================================
+  // UJIAN BIASA
+  // Hanya ujian biasa yang membuat dokumen hasil baru.
+  // ============================================================
+  const r={
+    id:uid(),
+    examId:ex.id,
+    kelas:s.kelas,
+    rombel:s.rombel||'-',
+    mapel:canonicalMapel(ex.mapel),
+    nama:s.nama,
+    nis:s.nis,
+    foto:s.foto||'',
+    score:finalScore,
+    autoScore,
+    essayScore:hasEssay?0:undefined,
+    correct:cor,
+    total:ex.questions.length,
+    essays,
+    pg:pgList,
+    timeUsed:tu,
+    timestamp:Date.now(),
+    isRemedial:false
+  };
+
+  try{
+    await saveResultBoth(D.sch.npsn,r.id,r);
 
     localStorage.removeItem('ujian_'+s.nis+'_'+ex.id);
 
-    
+    D.rs.push(r);
+    hd();
+    showR(r);
+    kirimNotifWA(r);
 
-    D.rs.push(r);hd();showR(r);kirimNotifWA(r);
-
+    // Notifikasi email guru untuk ujian biasa.
     try{
-
       const gN=getGuruFor(s.kelas,s.rombel,ex.mapel);
-
       const em=String(gN.email||D.sch.emailGuru||'').trim();
 
       if(em){
-
         const hasEs2=r.essays&&r.essays.length>0;
-
         const pgC2=r.total-(r.essays?r.essays.length:0);
-
-        const mnt2=Math.floor(r.timeUsed/60),dtk2=r.timeUsed%60;
+        const mnt2=Math.floor(r.timeUsed/60);
+        const dtk2=r.timeUsed%60;
 
         await db.collection('mail').add({
-
-          to: em,
-
-          message: {
-
-            subject: `[UTS Digital] ${s.nama} menyelesaikan ujian ${ex.mapel}`,
-
-            text: `Assalamu'alaikum Wr. Wb.\n\nYth. Bapak/Ibu ${gN.nama||'Guru'},\n\nSiswa ${r.nama} (Kelas ${r.kelas}, NIS ${r.nis}) telah MENYELESAIKAN ulangan tengah semester mapel ${ex.mapel} di ${D.sch.nama}.\n\nPILIHAN GANDA (Soal No. 1 s.d. ${pgC2}):\nBenar: ${r.correct}/${pgC2} soal -> Nilai otomatis: ${r.autoScore}\n${hasEs2?`\nURAIAN (Soal No. ${pgC2+1} s.d. ${r.total}):\n${r.essays.length} soal sudah masuk, TINGGAL DIKOREKSI via Admin -> Hasil Ujian.\n`:''}\nWaktu pengerjaan: ${mnt2} menit ${dtk2} detik.\n\n-- Notifikasi otomatis UTS Digital`
-
+          to:em,
+          message:{
+            subject:`[UTS Digital] ${s.nama} menyelesaikan ujian ${ex.mapel}`,
+            text:`Assalamu'alaikum Wr. Wb.\n\nYth. Bapak/Ibu ${gN.nama||'Guru'},\n\nSiswa ${r.nama} (Kelas ${r.kelas}, NIS ${r.nis}) telah MENYELESAIKAN ulangan tengah semester mapel ${ex.mapel} di ${D.sch.nama}.\n\nPILIHAN GANDA (Soal No. 1 s.d. ${pgC2}):\nBenar: ${r.correct}/${pgC2} soal -> Nilai otomatis: ${r.autoScore}\n${hasEs2?`\nURAIAN (Soal No. ${pgC2+1} s.d. ${r.total}):\n${r.essays.length} soal sudah masuk, TINGGAL DIKOREKSI via Admin -> Hasil Ujian.\n`:''}\nWaktu pengerjaan: ${mnt2} menit ${dtk2} detik.\n\n-- Notifikasi otomatis UTS Digital`
           }
-
         });
-
       }
+    }catch(e){
+      console.warn('Gagal antre email:',e);
+    }
 
-    }catch(e){console.warn('Gagal antre email:',e);}
-
-  } catch(e) {
-
+  }catch(e){
     hd();
-
-    tt('Gagal mengirim. Periksa koneksi internet!', 'er');
-
+    tt('Gagal mengirim. Periksa koneksi internet!','er');
     oMo(`<div class="text-center"><div style="font-size:2.6rem;margin-bottom:10px;color:var(--er)"><i class="fas fa-wifi"></i></div><h3 style="margin-bottom:10px">Gagal Mengirim</h3><p style="color:var(--mt);font-size:.85rem;margin-bottom:16px">Jawaban gagal terkirim ke server. Periksa koneksi internet Anda. Jangan khawatir, jawaban Anda tersimpan aman di perangkat ini.</p><div class="flex gap-3 justify-center"><button class="bt bt3 bts" onclick="cMo()">Kembali ke Ujian</button><button class="bt bt1 bts" onclick="cMo();finEx()">Coba Kirim Lagi</button></div></div>`);
-
   }
-
 }
-
 
 
 /* Cari guru penerima notifikasi berdasarkan kelas+rombel siswa & mapel */
@@ -4774,10 +4966,10 @@ function aTab(t,el){
           await loadAllResults();
         }else if(D.sch?.npsn){
           const snap=await rR(D.sch.npsn).get();
-          D.rs=snap.docs.map(d=>{
+          D.rs=filterDisplayResults(snap.docs.map(d=>{
             const data=d.data();
             return {id:d.id,...data,mapel:canonicalMapel(data.mapel)};
-          });
+          }));
         }
         renderHasil(c);
       }catch(e){
@@ -7631,7 +7823,7 @@ function renderHasil(c){
     c.innerHTML=h;return; 
   } 
  
-  const list=listAll.filter(r=>String(r.kelas)===String(fk)&&(r.rombel||'-')===fr&&canonicalMapel(r.mapel)===canonicalMapel(fm)).map(r=>{
+  const list=listAll.filter(r=>!r.isRemedial&&String(r.kelas)===String(fk)&&(r.rombel||'-')===fr&&canonicalMapel(r.mapel)===canonicalMapel(fm)).map(r=>{
     const stu=(D.ss||[]).find(s=>String(s.nis)===String(r.nis));
     return {...r,foto:r.foto||stu?.foto||''};
   }); 
