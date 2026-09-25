@@ -7836,7 +7836,7 @@ function renderHasil(c){
   h+=`<div class="flex items-center justify-between flex-wrap gap-2 mb-4"> 
     <p style="font-size:.88rem;color:var(--mt)"><i class="fas ${mf.ic} mr-1" style="color:${mf.c}"></i><b style="color:var(--fg)">${fm} &mdash; Kelas ${fk} Rombel ${fr}</b> &middot; ${list.length} siswa &middot; Rata-rata: ${avg}</p> 
      
-  <button class="bt bt3 bts" onclick="cetakFilterRekap()"><i class="fas fa-print"></i> Cetak Rekap Semua Siswa</button></div>`; 
+  <div class="flex gap-2 flex-wrap"><button class="bt bt3 bts" onclick="cetakFilterRekap()"><i class="fas fa-print"></i> Cetak Rekap Awal Ujian</button><button class="bt bt1 bts" onclick="cetakRekapNilaiAkhirRemedial()"><i class="fas fa-file-invoice"></i> Cetak Nilai Setelah Remedial</button></div></div>`; 
  
   const grouped={}; 
   list.forEach(r=>{const k=D.isPusat?(r.schoolNpsn||'-'):'-';if(!grouped[k])grouped[k]={schoolName:r.schoolName||D.sch.nama,schoolNpsn:r.schoolNpsn||D.sch.npsn,items:[]};grouped[k].items.push(r);}); 
@@ -7854,6 +7854,61 @@ function renderHasil(c){
   h+=`</div>`;c.innerHTML=h; 
 } 
  
+/* ===== CETAK REKAP NILAI AKHIR SETELAH REMEDIAL =====
+   Fitur baru ini TERPISAH dari cetak hasil perorangan dan cetak rekap awal. */
+async function cetakRekapNilaiAkhirRemedial(){
+  const f=D.hasilFilter||{};
+  if(!f.kelas||!f.rombel||!f.mapel) return tt('Pilih Kelas, Rombel & Mapel dulu!','er');
+  ld('Menyiapkan Rekap Nilai Akhir...');
+  try{
+    let sumber=[];
+    if(D.isPusat) sumber=D.allResults||[];
+    else{
+      try{const snap=await rR(D.sch.npsn).get();sumber=snap.docs.map(d=>({id:d.id,...d.data()}));}
+      catch(_e){sumber=D.rs||[];}
+    }
+    const mapelFilter=canonicalMapel(f.mapel);
+    const list=sumber.filter(r=>!r.isRemedial)
+      .filter(r=>String(r.kelas)===String(f.kelas))
+      .filter(r=>String(r.rombel||'-')===String(f.rombel))
+      .filter(r=>canonicalMapel(r.mapel)===mapelFilter)
+      .sort((a,b)=>String(a.nama||'').localeCompare(String(b.nama||''),'id'));
+    if(!list.length){hd();return tt('Belum ada hasil siswa untuk filter tersebut.','er');}
+
+    const sekolah=D.sch||{};
+    const hasRemedial=r=>r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!=='';
+    const nilaiAwal=r=>nilaiDasarRemedial(r);
+    const nilaiRem=r=>hasRemedial(r)?Number(r.nilaiRemedial):null;
+    const nilaiAkhir=r=>nilaiAkhirDenganRemedial(r);
+    const keterangan=r=>{
+      const akhir=nilaiAkhir(r);
+      if(hasRemedial(r)) return akhir>=70?'Tuntas Hasil Remedial':'Belum Tuntas Hasil Remedial';
+      return akhir>=70?'Tuntas Murni':'Belum Tuntas';
+    };
+    const avg=Math.round(list.reduce((sum,r)=>sum+nilaiAkhir(r),0)/list.length);
+    const rows=list.map((r,i)=>{
+      const awal=nilaiAwal(r),rem=nilaiRem(r),akhir=nilaiAkhir(r),ket=keterangan(r);
+      return `<tr><td style="border:1px solid #000;padding:7px;text-align:center">${i+1}</td><td style="border:1px solid #000;padding:7px">${escHasil(r.nama||'-')}</td><td style="border:1px solid #000;padding:7px;text-align:center">${escHasil(r.nis||r.nisn||'-')}</td><td style="border:1px solid #000;padding:7px;text-align:center">${String(awal).replace('.',',')}</td><td style="border:1px solid #000;padding:7px;text-align:center">${rem===null?'-':String(rem).replace('.',',')}</td><td style="border:1px solid #000;padding:7px;text-align:center;font-weight:800">${String(akhir).replace('.',',')}</td><td style="border:1px solid #000;padding:7px;text-align:center;font-weight:700">${escHasil(ket)}</td></tr>`;
+    }).join('');
+    const jumlahRem=list.filter(hasRemedial).length;
+    const jumlahMurni=list.length-jumlahRem;
+    const jumlahTuntas=list.filter(r=>nilaiAkhir(r)>=70).length;
+    const jumlahBelum=list.length-jumlahTuntas;
+    const b=$('pB');b.style.left='0';b.style.top='0';b.style.zIndex='9999';
+    b.innerHTML=`<div class="pd" id="pdRekapNilaiAkhir" style="font-family:Arial,sans-serif;background:#fff;color:#111;font-size:9pt;line-height:1.25;width:190mm;max-width:190mm;margin:0 auto">
+      ${cssCetakPage()}<style>@page{size:A4 portrait;margin:10mm}#pdRekapNilaiAkhir{width:190mm!important;max-width:190mm!important;box-sizing:border-box}#pdRekapNilaiAkhir table{width:100%;border-collapse:collapse;page-break-inside:auto}#pdRekapNilaiAkhir tr{page-break-inside:avoid;break-inside:avoid}#pdRekapNilaiAkhir th{border:1px solid #000;padding:7px;background:#eee;text-align:center}.ringkas td{border:1px solid #000;padding:6px;text-align:center}.ttd{page-break-inside:avoid;break-inside:avoid}</style>
+      <div style="text-align:center;border-bottom:3px double #000;padding-bottom:9px;margin-bottom:12px"><h2 style="font-size:15pt;margin:2px 0">${escHasil(sekolah.nama||'SEKOLAH').toUpperCase()}</h2><div style="font-size:9pt">${escHasil(sekolah.prov||'Jawa Barat')}</div><div style="font-size:13pt;font-weight:800;margin-top:8px">REKAP NILAI AKHIR SETELAH REMEDIAL</div><div style="font-size:10pt;margin-top:4px">Kelas ${escHasil(f.kelas)} &nbsp;|&nbsp; Rombel ${escHasil(f.rombel)} &nbsp;|&nbsp; ${escHasil(f.mapel)}</div></div>
+      <table class="ringkas" style="width:100%;border-collapse:collapse;margin-bottom:12px"><tr><td><b>Jumlah Siswa</b><br>${list.length}</td><td><b>Remedial</b><br>${jumlahRem}</td><td><b>Tuntas Murni</b><br>${jumlahMurni}</td><td><b>Tuntas</b><br>${jumlahTuntas}</td><td><b>Belum Tuntas</b><br>${jumlahBelum}</td><td><b>Rata-rata Akhir</b><br>${String(avg).replace('.',',')}</td></tr></table>
+      <table><thead><tr><th style="width:6%">No</th><th style="text-align:left">Nama Siswa</th><th style="width:15%">NIS</th><th style="width:13%">Nilai Awal</th><th style="width:13%">Remedial</th><th style="width:13%">Nilai Akhir</th><th style="width:24%">Keterangan</th></tr></thead><tbody>${rows}</tbody></table>
+      <div style="margin-top:10px;font-size:8.5pt"><b>Keterangan:</b> <b>Tuntas Murni</b> = tuntas tanpa remedial. <b>Tuntas Hasil Remedial</b> = nilai akhir mencapai ketuntasan setelah remedial.</div>
+      <div class="ttd" style="display:flex;justify-content:space-between;gap:30px;margin-top:35px"><div style="width:45%;text-align:center"><b>Guru ${/pai|agama/i.test(String(f.mapel||''))?'PAI':/pjok|jasmani|olahraga/i.test(String(f.mapel||''))?'PJOK':'Kelas'}</b><div style="height:55px"></div><b>(........................................)</b></div><div style="width:45%;text-align:center"><div>Majalengka, ....................</div><b>Kepala Sekolah</b><div style="height:55px"></div><b>(........................................)</b></div></div>
+    </div>`;
+    await new Promise(resolve=>setTimeout(resolve,100));
+    await html2pdf().set({margin:[8,8,8,8],filename:'Rekap_Nilai_Akhir_Setelah_Remedial_Kelas_'+String(f.kelas)+'_'+String(f.rombel)+'_'+String(f.mapel||'Mapel').replace(/[^a-z0-9_-]/gi,'_')+'.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},pagebreak:{mode:['css','legacy']},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdRekapNilaiAkhir')).save();
+    hd();tt('Rekap nilai akhir setelah remedial berhasil dicetak.','ok');b.style.left='-9999px';b.style.zIndex='-1';
+  }catch(e){hd();tt('Gagal mencetak rekap nilai akhir: '+(e.message||e),'er');}
+}
+
 function cetakFilterRekap(){ 
   const f=D.hasilFilter||{}; 
   if(!f.kelas||!f.rombel||!f.mapel) return tt('Pilih Kelas, Rombel & Mapel dulu!', 'er'); 
