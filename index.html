@@ -43,6 +43,7 @@ const backupFirebaseConfig={
 };
 const backupApp=firebase.initializeApp(backupFirebaseConfig,"BACKUP");
 const backupDb=firebase.firestore(backupApp);
+try{ backupDb.settings({experimentalForceLongPolling:true, useFetchStreams:false}); }catch(_e){}
 /* Server aktif aplikasi: pilihan pengguna. Default tetap Server Cadangan. */
 let db=backupDb;
 const dbBackup=backupDb;
@@ -79,6 +80,7 @@ const MIGRATION_PRIMARY_CONFIG={
 };
 const migrationPrimaryApp=firebase.initializeApp(MIGRATION_PRIMARY_CONFIG,"MIGRATION_PRIMARY");
 const dbMigrationPrimary=firebase.firestore(migrationPrimaryApp);
+try{ dbMigrationPrimary.settings({experimentalForceLongPolling:true, useFetchStreams:false}); }catch(_e){}
 const migrationPrimaryRTDB=MIGRATION_PRIMARY_CONFIG.databaseURL;
 
 async function migrationWriteDocs(dstCol, docs, report){
@@ -3152,30 +3154,50 @@ async function logP(){
 
 
 
+function withTimeout(promise,ms,message){
+  return new Promise((resolve,reject)=>{
+    let done=false;
+    const timer=setTimeout(()=>{if(done)return;done=true;reject(new Error(message||'Koneksi terlalu lama.'));},ms);
+    Promise.resolve(promise).then(v=>{if(done)return;done=true;clearTimeout(timer);resolve(v);},e=>{if(done)return;done=true;clearTimeout(timer);reject(e);});
+  });
+}
+
 async function logA(){
-
-  const npsn=$v('aSN'),user=$v('aSU'),pass=$v('aSW');if(!npsn||!user||!pass)return tt('Semua field wajib!','er');ld('Memverifikasi...');try{
-
-    const doc=await sR(npsn).get();if(!doc.exists){hd();return tt('NPSN tidak ditemukan!','er')}
-
-    const sch=doc.data();if(sch.isPusat){hd();return tt('Gunakan Login Admin Pusat!','er')}
-
+  const npsn=$v('aSN'),user=$v('aSU'),pass=$v('aSW');
+  if(!npsn||!user||!pass)return tt('Semua field wajib!','er');
+  ld('Memverifikasi admin...');
+  try{
+    const doc=await withTimeout(sR(npsn).get(),20000,'Koneksi verifikasi terlalu lama. Periksa internet lalu coba lagi.');
+    if(!doc.exists){hd();return tt('NPSN tidak ditemukan!','er')}
+    const sch=doc.data();
+    if(sch.isPusat){hd();return tt('Gunakan Login Admin Pusat!','er')}
     if(sch.adminUser!==user||sch.adminPass!==pass){hd();return tt('Username atau password salah!','er')}
 
     D.sch=sch;D.aIn=true;D.isPusat=false;clearSchoolKeyOverrideCache();
-    /* Tidak ada lagi sinkronisasi soal ke koleksi sekolah dan tidak ada
-       dedupe otomatis saat login. Soal dibaca langsung dari Server Cadangan. */
-    await enforcePusatOnlySchoolExams(npsn);
-    await loadD(npsn);
-    D.remedialExams=await loadSchoolRemedials(npsn);
-    attachLiveListeners(npsn);hd();go('pAD');
-
+    D.ex=[];D.rs=[];D.ss=[];D.remedialExams=[];
+    hd();go('pAD');
     $('aSN2').textContent=sch.nama;$('navSch').style.display='none';$('navRemedial').style.display='';
+    aTab('d',document.querySelector('#aSB a'));
+    tt('Verifikasi berhasil. Memuat data sekolah...','in');
 
-    aTab('d',document.querySelector('#aSB a'));tt('Selamat datang, Admin '+sch.nama+'!');
-
-  }catch(e){hd();tt('Gagal: '+e.message,'er')}
-
+    (async()=>{
+      try{
+        await enforcePusatOnlySchoolExams(npsn);
+        await loadD(npsn);
+        D.remedialExams=await loadSchoolRemedials(npsn);
+        attachLiveListeners(npsn);
+        refreshStudentUI();
+        tt('Data sekolah siap.','ok');
+      }catch(e){
+        console.warn('[LOGIN ADMIN] pemuatan data latar belakang gagal:',e);
+        tt('Login berhasil, tetapi data belum lengkap. Tekan refresh setelah koneksi stabil.','er');
+      }
+    })();
+  }catch(e){
+    hd();
+    console.error('[LOGIN ADMIN]',e);
+    tt('Verifikasi gagal: '+(e.message||e),'er');
+  }
 }
 
 
