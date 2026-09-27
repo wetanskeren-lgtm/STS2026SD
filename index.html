@@ -2141,9 +2141,11 @@ service cloud.firestore {
 
       <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Pilih Rombel</label><select id="sR" class="ip" disabled onchange="updNamaList()"><option value="">-- Pilih Kelas Dulu --</option></select></div>
 
-      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Nama Siswa</label><select id="sI" class="ip" disabled onchange="updMapelList()"><option value="">-- Pilih Rombel Dulu --</option></select></div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Nama Siswa</label><select id="sI" class="ip" disabled onchange="updJenisUjian()"><option value="">-- Pilih Rombel Dulu --</option></select></div>
 
-      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Mata Pelajaran</label><select id="sM" class="ip" disabled><option value="">-- Pilih Nama Dulu --</option></select></div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Jenis Ujian</label><select id="sJenis" class="ip" disabled onchange="updMapelList()"><option value="">-- Pilih Nama Siswa Dulu --</option></select></div>
+
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Mata Pelajaran</label><select id="sM" class="ip" disabled><option value="">-- Pilih Jenis Ujian Dulu --</option></select></div>
 
       <div class="mb-5"><label class="block mb-1 font-bold" style="font-size:.82rem">Password</label><input id="sW" class="ip" type="password" placeholder="Password dari admin" onkeydown="if(event.key==='Enter')logS()"></div>
 
@@ -3260,7 +3262,7 @@ async function loadSiswaInit(){
 
     $('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;
 
-    $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;
+    $('sJenis').innerHTML='<option value="">-- Pilih Nama Siswa Dulu --</option>';$('sJenis').disabled=true;$('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';$('sM').disabled=true;
 
     $('sLKA').style.display='block';$('sLError').style.display='none';hd();tt('Data '+D.sch.nama+' dimuat!');
 
@@ -3278,7 +3280,7 @@ function updRombelList(){
 
     $('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;
 
-    $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;return;
+    $('sJenis').innerHTML='<option value="">-- Pilih Nama Siswa Dulu --</option>';$('sJenis').disabled=true;$('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';$('sM').disabled=true;return;
 
   }
 
@@ -3290,7 +3292,7 @@ function updRombelList(){
 
   $('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;
 
-  $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;
+  $('sJenis').innerHTML='<option value="">-- Pilih Nama Siswa Dulu --</option>';$('sJenis').disabled=true;$('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';$('sM').disabled=true;
 
 }
 
@@ -3309,7 +3311,7 @@ async function updNamaList(){
 
   if(!k||!r){
     $('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;
-    $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;
+    $('sJenis').innerHTML='<option value="">-- Pilih Nama Siswa Dulu --</option>';$('sJenis').disabled=true;$('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';$('sM').disabled=true;
     return;
   }
 
@@ -3353,6 +3355,8 @@ async function updNamaList(){
   if(tersedia.length===0){
     $('sI').innerHTML='<option value="">-- Tidak ada siswa yang memiliki ujian hari ini --</option>';
     $('sI').disabled=true;
+    $('sJenis').innerHTML='<option value="">-- Tidak ada ujian hari ini --</option>';
+    $('sJenis').disabled=true;
     $('sM').innerHTML='<option value="">-- Tidak ada ujian hari ini --</option>';
     $('sM').disabled=true;
     return;
@@ -3364,7 +3368,9 @@ async function updNamaList(){
   }).join('');
   $('sI').disabled=false;
 
-  $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';
+  $('sJenis').innerHTML='<option value="">-- Pilih Nama Siswa Dulu --</option>';
+  $('sJenis').disabled=true;
+  $('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';
   $('sM').disabled=true;
 
   /* Simpan hasil filter agar saat nama dipilih kita tidak perlu
@@ -3384,31 +3390,129 @@ function isExamScheduledTodayForStudent(ex,stu){
   const date=getExamScheduleDate(ex);
   return !!date && date===todayLocalDateString();
 }
-async function updMapelList(){
+function getExamType(ex){
+  if(ex?.isRemedial)return 'remedial';
+  if(ex?.isSusulan)return 'susulan';
+  return 'utama';
+}
+function getExamTypeLabel(type){
+  return type==='remedial'?'Remedial':(type==='susulan'?'Ujian Susulan':'Ujian Utama');
+}
+function resetStudentExamSelectors(msg='-- Pilih Nama Siswa Dulu --'){
+  $('sJenis').innerHTML=`<option value="">${msg}</option>`;
+  $('sJenis').disabled=true;
+  $('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';
+  $('sM').disabled=true;
+}
+async function updJenisUjian(){
   const nis=$('sI').value;
-  if(!nis){$('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;return;}
-  const stu=D.ss.find(s=>String(s.nis)===String(nis));
-  if(!stu){$('sM').innerHTML='<option value="">-- Siswa tidak ditemukan --</option>';$('sM').disabled=true;return;}
+  resetStudentExamSelectors();
+  const jenisBox=$('sJenis')?.parentElement;
+  if(jenisBox) jenisBox.style.display='';
+  if(!nis)return;
 
-  /* Muat hasil terlebih dahulu supaya siswa yang sudah mengerjakan ujian
-     utama tidak pernah ditawari Ujian Susulan. */
+  const stu=D.ss.find(s=>String(s.nis)===String(nis));
+  if(!stu){resetStudentExamSelectors('-- Siswa tidak ditemukan --');return;}
+
+  /* Muat hasil siswa terlebih dahulu. Ini penting agar:
+     1) ujian utama yang sudah selesai tidak ditawarkan lagi;
+     2) susulan hanya muncul setelah jadwal utama terlewat;
+     3) remedial hanya muncul untuk siswa yang memang ditugaskan. */
   try{
     const snap=await rR(D.sch.npsn).where('nis','==',nis).get();
     D.rs=filterDisplayResults(snap.docs.map(d=>({id:d.id,...d.data(),mapel:canonicalMapel(d.data().mapel)})));
   }catch(e){
-    console.warn('[LOGIN SISWA] Gagal memuat hasil untuk cek susulan:',e);
+    console.warn('[LOGIN SISWA] Gagal memuat hasil untuk cek jenis ujian:',e);
     D.rs=[];
   }
 
   await refreshStudentAssignedExams(stu.kelas,stu.rombel||'-');
   const exs=getStudentTodayExams(stu);
-  if(exs.length===0){
-    $('sM').innerHTML='<option value="">-- Belum ada ujian/susulan hari ini --</option>';$('sM').disabled=true;return;
+  if(!exs.length){
+    resetStudentExamSelectors('-- Tidak ada ujian untuk siswa ini saat ini --');
+    return;
   }
-  $('sM').innerHTML=exs.map(e=>{
-    const label=e.isSusulan?'Ujian Susulan':'Ujian Utama';
-    return `<option value="${e.id}">${e.mapel} · ${label} · ${e.questions.length} Soal</option>`;
-  }).join('');
+
+  const utama=exs.filter(e=>getExamType(e)==='utama');
+  const susulan=exs.filter(e=>getExamType(e)==='susulan');
+  const remedial=exs.filter(e=>getExamType(e)==='remedial');
+
+  /* =============================================================
+     ALUR LOGIN SISWA
+     -------------------------------------------------------------
+     A. Jadwal ujian utama masih aktif dan siswa belum mengerjakan:
+        langsung diarahkan ke pilihan mata pelajaran Ujian Utama.
+        Tidak perlu memilih "Jenis Ujian" agar tidak membingungkan.
+
+     B. Jadwal utama sudah lewat dan siswa belum mengerjakan:
+        Ujian Utama tidak ditampilkan. Jika ada jadwal susulan hari ini,
+        tampilkan pilihan "Ujian Susulan".
+
+     C. Nilai awal siswa di bawah 70 dan Admin Sekolah telah membuat
+        paket remedial untuk siswa tersebut pada hari ini:
+        tampilkan pilihan "Remedial".
+
+     D. Jika Susulan dan Remedial kebetulan berlangsung pada tanggal yang
+        sama, keduanya tetap boleh tampil karena peserta/soalnya dapat
+        berbeda. Tidak ada pemeriksaan bentrok jadwal di sini.
+     ============================================================= */
+
+  if(utama.length){
+    // Ujian utama adalah jalur pertama dan tidak perlu memilih jenis ujian.
+    $('sJenis').innerHTML='<option value="utama">Ujian Utama</option>';
+    $('sJenis').value='utama';
+    $('sJenis').disabled=true;
+    if(jenisBox) jenisBox.style.display='none';
+
+    $('sM').innerHTML='<option value="">-- Pilih Mata Pelajaran --</option>'+
+      utama.map(e=>`<option value="${String(e.id).replace(/"/g,'&quot;')}">${String(e.mapel||'').replace(/[<>&]/g,m=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[m]))} · ${e.questions.length} Soal</option>`).join('');
+    $('sM').disabled=false;
+    if(utama.length===1) $('sM').value=utama[0].id;
+
+    D._studentExamAvailability=D._studentExamAvailability||{};
+    D._studentExamAvailability[String(nis)]=exs;
+    return;
+  }
+
+  /* Tidak ada ujian utama hari ini. Berarti jika ada kegiatan,
+     yang ditampilkan hanya Susulan dan/atau Remedial. */
+  const types=[];
+  if(susulan.length)types.push('susulan');
+  if(remedial.length)types.push('remedial');
+
+  $('sJenis').innerHTML='<option value="">-- Pilih Jenis Ujian --</option>'+
+    types.map(t=>`<option value="${t}">${getExamTypeLabel(t)}</option>`).join('');
+  $('sJenis').disabled=false;
+  if(jenisBox) jenisBox.style.display='';
+
+  $('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';
+  $('sM').disabled=true;
+
+  D._studentExamAvailability=D._studentExamAvailability||{};
+  D._studentExamAvailability[String(nis)]=exs;
+}
+
+async function updMapelList(){
+  const nis=$('sI').value;
+  const type=$('sJenis').value;
+  $('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';
+  $('sM').disabled=true;
+  if(!nis||!type)return;
+  const stu=D.ss.find(s=>String(s.nis)===String(nis));
+  if(!stu){$('sM').innerHTML='<option value="">-- Siswa tidak ditemukan --</option>';return;}
+
+  const cached=(D._studentExamAvailability||{})[String(nis)]||[];
+  let exs=cached.filter(e=>getExamType(e)===type);
+  if(!exs.length){
+    try{
+      const snap=await rR(D.sch.npsn).where('nis','==',nis).get();
+      D.rs=filterDisplayResults(snap.docs.map(d=>({id:d.id,...d.data(),mapel:canonicalMapel(d.data().mapel)})));
+    }catch(e){D.rs=[];}
+    await refreshStudentAssignedExams(stu.kelas,stu.rombel||'-');
+    exs=getStudentTodayExams(stu).filter(e=>getExamType(e)===type);
+  }
+  if(!exs.length){$('sM').innerHTML='<option value="">-- Tidak ada soal untuk jenis ujian ini --</option>';return;}
+  $('sM').innerHTML='<option value="">-- Pilih Mata Pelajaran --</option>'+exs.map(e=>`<option value="${e.id}">${e.mapel} · ${e.questions.length} Soal</option>`).join('');
   $('sM').disabled=false;
 }
 
@@ -3425,11 +3529,14 @@ async function prepareStudentOfflineCache(stu){
 
 async function logS(){
 
-  const nis=$('sI').value,pass=$v('sW'),exId=$('sM').value;
+  const nis=$('sI').value,jenis=$('sJenis').value,pass=$v('sW'),exId=$('sM').value;
 
-  if(!nis)return tt('Pilih nama!','er');if(!exId)return tt('Pilih mapel!','er');if(!pass)return tt('Password wajib!','er');
+  if(!nis)return tt('Pilih nama!','er');
+  if(!jenis)return tt('Pilih jenis ujian!','er');
+  if(!exId)return tt('Pilih mata pelajaran!','er');
+  if(!pass)return tt('Password wajib!','er');
 
-  const stu=D.ss.find(s=>s.nis===nis);if(!stu)return tt('Tidak valid!','er');if(stu.password!==pass)return tt('Password salah!','er');
+  const stu=D.ss.find(s=>String(s.nis)===String(nis));if(!stu)return tt('Tidak valid!','er');if(stu.password!==pass)return tt('Password salah!','er');
 
   try{
     const resultSnap=await rR(D.sch.npsn).where('nis','==',nis).get();
@@ -3442,13 +3549,18 @@ async function logS(){
     D.rs=[];
   }
 
+  await refreshStudentAssignedExams(stu.kelas,stu.rombel||'-');
+  const pilihan=getStudentTodayExams(stu).find(e=>String(e.id)===String(exId));
+  if(!pilihan)return tt('Ujian yang dipilih sudah tidak tersedia untuk siswa ini. Silakan pilih ulang.','er');
+  if(getExamType(pilihan)!==jenis)return tt('Jenis ujian tidak sesuai dengan soal yang dipilih. Silakan pilih ulang.','er');
+
   D.st=stu;
   ld('Menyiapkan ujian offline...');
   prepareStudentOfflineCache(stu).finally(()=>startEx(exId));
 
 }
 
-function outS(){clearUnsub();D.studentOnlineReady=false;D.studentOfflineMode=false;D.st=null;D.sch=null;D.ex=[];D.remedialExams=[];['sN','sK','sR','sI','sM','sW'].forEach(i=>$(i).value='');$('sLKA').style.display='none';go('pH')}
+function outS(){clearUnsub();D.studentOnlineReady=false;D.studentOfflineMode=false;D.st=null;D.sch=null;D.ex=[];D.remedialExams=[];['sN','sK','sR','sI','sJenis','sM','sW'].forEach(i=>$(i).value='');$('sLKA').style.display='none';go('pH')}
 
 
 
