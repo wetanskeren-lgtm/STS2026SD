@@ -3307,26 +3307,72 @@ async function updNamaList(){
 
   const k=parseInt($('sK').value),r=$('sR').value;
 
-  if(!k||!r){$('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;$('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;return;}
+  if(!k||!r){
+    $('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;
+    $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;
+    return;
+  }
 
   await refreshStudentAssignedExams(k,r);
 
-  const list=D.ss.filter(s=>s.kelas===k&&(s.rombel||'-')===r).sort((a,b)=>a.nama.localeCompare(b.nama));
+  /* =============================================================
+     FILTER NAMA SISWA SEBELUM DITAMPILKAN
+     -------------------------------------------------------------
+     Siswa hanya boleh muncul pada login apabila HARI INI memang ada
+     ujian yang dapat dia kerjakan: Ujian Utama, Ujian Susulan, atau
+     Remedial. Siswa yang tidak termasuk ketiganya tidak ditampilkan
+     agar tidak terkecoh.
+     ============================================================= */
+  const semuaSiswa=D.ss
+    .filter(s=>String(s.kelas)===String(k)&&(s.rombel||'-')===r)
+    .sort((a,b)=>String(a.nama||'').localeCompare(String(b.nama||'')));
 
-  if(list.length===0){
-
-    $('sI').innerHTML='<option value="">-- Tidak ada siswa --</option>';$('sI').disabled=true;
-
-    $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;return;
-
+  let hasilSnap=null;
+  try{
+    hasilSnap=await rR(D.sch.npsn).get();
+  }catch(e){
+    console.warn('[LOGIN SISWA] Gagal memuat hasil untuk filter siswa:',e);
   }
 
-  $('sI').innerHTML='<option value="">-- Pilih Nama --</option>'+list.map(s=>`<option value="${s.nis}">${s.nama}</option>`).join('');
+  const semuaHasil=hasilSnap?hasilSnap.docs.map(d=>{
+    const data=d.data()||{};
+    return {id:d.id,...data,mapel:canonicalMapel(data.mapel)};
+  }):[];
 
+  const tersedia=[];
+
+  for(const siswa of semuaSiswa){
+    const hasilSiswa=filterDisplayResults(semuaHasil.filter(x=>String(x.nis||'')===String(siswa.nis||'')));
+    D.rs=hasilSiswa;
+    const ujianHariIni=getStudentTodayExams(siswa);
+    if(ujianHariIni.length>0){
+      tersedia.push({siswa,ujianHariIni});
+    }
+  }
+
+  if(tersedia.length===0){
+    $('sI').innerHTML='<option value="">-- Tidak ada siswa yang memiliki ujian hari ini --</option>';
+    $('sI').disabled=true;
+    $('sM').innerHTML='<option value="">-- Tidak ada ujian hari ini --</option>';
+    $('sM').disabled=true;
+    return;
+  }
+
+  $('sI').innerHTML='<option value="">-- Pilih Nama --</option>'+tersedia.map(x=>{
+    const s=x.siswa;
+    return `<option value="${String(s.nis).replace(/"/g,'&quot;')}">${String(s.nama||'').replace(/[<>&]/g,m=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[m]))}</option>`;
+  }).join('');
   $('sI').disabled=false;
 
-  $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;
+  $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';
+  $('sM').disabled=true;
 
+  /* Simpan hasil filter agar saat nama dipilih kita tidak perlu
+     menganggap semua siswa memiliki ujian. */
+  D._studentExamAvailability={};
+  tersedia.forEach(x=>{
+    D._studentExamAvailability[String(x.siswa.nis)]=x.ujianHariIni;
+  });
 }
 
 function todayLocalDateString(){
@@ -3460,23 +3506,49 @@ function makeStudentSusulanExam(ex){
 }
 function getStudentTodayExams(stu){
   if(!stu)return [];
+
   const base=(D.ex||[]).filter(ex=>isStudentEligibleForExam(stu,ex));
   const done=(D.rs||[]).filter(r=>!r.isRemedial&&String(r.nis||'')===String(stu.nis||''));
   const regular=[];
   const susulan=[];
+  const remedial=[];
+  const today=todayLocalDateString();
+
   base.forEach(ex=>{
+    if(ex.isRemedial){
+      /* Remedial hanya muncul untuk siswa yang memang ditugaskan dan
+         pada tanggal remedial yang ditentukan sekolah. */
+      const date=getExamScheduleDate(ex);
+      if(date===today){
+        remedial.push(ex);
+      }
+      return;
+    }
+
     const mainToday=isExamScheduledTodayForStudent(ex,stu);
-    if(mainToday && !hasCompletedExamResult(done,ex.id))regular.push(ex);
-    if(!mainToday && !hasCompletedExamResult(done,ex.id)){
+    const sudahMengerjakan=hasCompletedExamResult(done,ex.id);
+
+    if(mainToday && !sudahMengerjakan){
+      regular.push(ex);
+      return;
+    }
+
+    /* Susulan hanya muncul jika ujian utama tidak sedang dijadwalkan
+       hari ini dan siswa belum mempunyai nilai murni untuk examId itu. */
+    if(!mainToday && !sudahMengerjakan){
       const sx=makeStudentSusulanExam(ex);
-      if(sx && getSusulanScheduleDate(ex)===todayLocalDateString())susulan.push(sx);
+      if(sx && getSusulanScheduleDate(ex)===today){
+        susulan.push(sx);
+      }
     }
   });
-  /* Jika jadwal utama dan susulan kebetulan sama tanggal, prioritaskan
-     ujian utama agar siswa tidak melihat dua pilihan untuk paket yang sama. */
+
   const ids=new Set(regular.map(e=>String(e.id)));
-  return regular.concat(susulan.filter(e=>!ids.has(String(e.id))));
+  return regular
+    .concat(susulan.filter(e=>!ids.has(String(e.id))))
+    .concat(remedial);
 }
+
 function fmtTanggalHari(dateStr){
   if(!dateStr)return 'Tidak dijadwalkan';
   const b=localDateBounds(dateStr);
