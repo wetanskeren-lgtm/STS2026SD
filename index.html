@@ -2966,17 +2966,51 @@ function filterDisplayResults(rows){
 }
 
 async function loadD(npsn){
-  const [exDocs,b,c]=await Promise.all([
-    getMergedPusatExams(),
-    rR(npsn).get(),
-    wR(npsn).get()
-  ]);
-  D.ex=exDocs.map(normalizeExamRecord);
-  D.rs=filterDisplayResults(b.docs.map(d=>{
-    const data=d.data();
-    return {id:d.id,...data,mapel:canonicalMapel(data.mapel)};
-  }));
-  D.ss=c.docs.map(d=>({id:d.id,...d.data()}));
+  if(!npsn) throw new Error('NPSN sekolah kosong.');
+
+  // Pastikan identitas sekolah selalu mengikuti NPSN yang dipakai saat login.
+  if(D.sch) D.sch={...D.sch,npsn:String(npsn)};
+
+  // Jangan biarkan kegagalan satu koleksi membuat semua data sekolah kosong.
+  D.ex=[]; D.rs=[]; D.ss=[];
+
+  // SOAL ADMIN PUSAT
+  try{
+    const exDocs=await getMergedPusatExams();
+    D.ex=exDocs.map(normalizeExamRecord);
+  }catch(e){
+    console.error('[ADMIN SEKOLAH] Gagal memuat soal pusat:',e);
+    D.ex=[];
+  }
+
+  // HASIL UJIAN SEKOLAH
+  try{
+    const b=await withTimeout(rR(npsn).get(),20000,'Memuat hasil ujian terlalu lama.');
+    D.rs=filterDisplayResults(b.docs.map(d=>{
+      const data=d.data();
+      return {id:d.id,...data,mapel:canonicalMapel(data.mapel)};
+    }));
+  }catch(e){
+    console.error('[ADMIN SEKOLAH] Gagal memuat hasil:',e);
+    D.rs=[];
+  }
+
+  // SISWA SEKOLAH
+  try{
+    const c=await withTimeout(wR(npsn).get(),20000,'Memuat data siswa terlalu lama.');
+    D.ss=c.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){
+    console.error('[ADMIN SEKOLAH] Gagal memuat siswa:',e);
+    D.ss=[];
+  }
+
+  console.log('[ADMIN SEKOLAH] Data selesai dimuat:',{
+    npsn:String(npsn),
+    sekolah:D.sch?.nama||'',
+    soal:D.ex.length,
+    hasil:D.rs.length,
+    siswa:D.ss.length
+  });
 }
 
 /* Sekolah hanya boleh memakai paket yang berasal dari Admin Pusat.
@@ -3228,7 +3262,7 @@ async function logA(){
     if(sch.isPusat){hd();return tt('Gunakan Login Admin Pusat!','er')}
     if(sch.adminUser!==user||sch.adminPass!==pass){hd();return tt('Username atau password salah!','er')}
 
-    D.sch=sch;D.aIn=true;D.isPusat=false;clearSchoolKeyOverrideCache();
+    D.sch={...sch,npsn:String(npsn)};D.aIn=true;D.isPusat=false;clearSchoolKeyOverrideCache();
     D.ex=[];D.rs=[];D.ss=[];D.remedialExams=[];
     hd();go('pAD');
     $('aSN2').textContent=sch.nama;$('navSch').style.display='none';$('navRemedial').style.display='';
