@@ -8810,6 +8810,26 @@ async function cetakRekapNilaiAkhirRemedial(){
 /* ===== CETAK REKAP NILAI AKHIR SEBAGAI GAMBAR =====
    Tampilan dibuat menyerupai kartu/infografis pada contoh pengguna.
    Data tetap dinamis mengikuti Kelas, Rombel dan Mapel yang dipilih. */
+async function muatHtml2CanvasRekap(){
+  if(typeof window.html2canvas==='function') return window.html2canvas;
+  if(window.__html2canvasLoading) return window.__html2canvasLoading;
+  window.__html2canvasLoading=new Promise((resolve,reject)=>{
+    const existing=document.querySelector('script[data-rekap-html2canvas]');
+    if(existing){
+      existing.addEventListener('load',()=>typeof window.html2canvas==='function'?resolve(window.html2canvas):reject(new Error('html2canvas gagal dimuat.')),{once:true});
+      existing.addEventListener('error',()=>reject(new Error('html2canvas gagal dimuat dari CDN.')),{once:true});
+      return;
+    }
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    sc.async=true; sc.dataset.rekapHtml2canvas='1';
+    sc.onload=()=>typeof window.html2canvas==='function'?resolve(window.html2canvas):reject(new Error('html2canvas tidak tersedia setelah dimuat.'));
+    sc.onerror=()=>reject(new Error('Gagal memuat html2canvas. Periksa koneksi internet lalu coba lagi.'));
+    document.head.appendChild(sc);
+  });
+  try{return await window.__html2canvasLoading;}finally{delete window.__html2canvasLoading;}
+}
+
 async function cetakRekapNilaiAkhirRemedialImage(){
   const f=D.hasilFilter||{};
   if(!f.kelas||!f.rombel||!f.mapel) return tt('Pilih Kelas, Rombel & Mapel dulu!','er');
@@ -8913,8 +8933,8 @@ async function cetakRekapNilaiAkhirRemedialImage(){
       // Jangan menampilkan kanvas di atas halaman aplikasi.
       // Buat elemen sementara di luar viewport khusus untuk html2canvas.
       const stage=document.createElement('div');
-      stage.style.cssText='position:fixed;left:-100000px;top:0;width:1120px;z-index:-2147483647;display:block;visibility:visible;pointer-events:none;background:#fff;';
-      stage.innerHTML=`<div id="pdRekapNilaiAkhirImage" style="font-family:Arial,Helvetica,sans-serif;width:1120px;background:#f8f2df;color:#17345f;box-sizing:border-box;overflow:hidden;position:relative">
+      stage.style.cssText='position:fixed;left:-100000px;top:0;width:1120px;min-width:1120px;max-width:none;z-index:-2147483647;display:block;visibility:visible;pointer-events:none;background:#fff;overflow:visible;';
+      stage.innerHTML=`<div id="pdRekapNilaiAkhirImage" style="font-family:Arial,Helvetica,sans-serif;width:1120px;min-width:1120px;max-width:1120px;background:#f8f2df;color:#17345f;box-sizing:border-box;overflow:visible;position:relative">
         <style>
           #pdRekapNilaiAkhirImage *{box-sizing:border-box}
           #pdRekapNilaiAkhirImage .sheet{
@@ -9114,21 +9134,27 @@ async function cetakRekapNilaiAkhirRemedialImage(){
       const target=stage.querySelector('#pdRekapNilaiAkhirImage');
       await new Promise(resolve=>setTimeout(resolve,250));
 
-      // Render bagian ini menjadi PNG saja. TIDAK membuka window.print() dan TIDAK membuka menu print.
-      // Gunakan html2canvas yang dibawa oleh html2pdf.js.
-      // Tidak memanggil html2canvas() global agar tidak muncul error
-      // "html2canvas is not defined" pada browser tertentu.
-      if(typeof html2pdf!=='function') throw new Error('Library pembuat gambar belum termuat. Muat ulang aplikasi lalu coba lagi.');
-      const canvas=await html2pdf().set({
-        html2canvas:{
-          scale:2,
-          useCORS:true,
-          backgroundColor:'#f8f2df',
-          logging:false,
-          scrollX:0,
-          scrollY:0
-        }
-      }).from(target).toCanvas().get('canvas');
+      // Render HANYA kartu rekap menjadi PNG. Tidak memakai html2pdf/toCanvas
+      // karena mode tersebut dapat mengikuti lebar halaman PDF dan memotong sisi kanan.
+      // html2canvas dimuat khusus untuk menangkap ukuran elemen secara utuh.
+      const html2canvasRekap=await muatHtml2CanvasRekap();
+      const fullW=Math.ceil(target.scrollWidth || target.getBoundingClientRect().width || 1120);
+      const fullH=Math.ceil(target.scrollHeight || target.getBoundingClientRect().height);
+      const canvas=await html2canvasRekap(target,{
+        scale:2,
+        useCORS:true,
+        allowTaint:false,
+        backgroundColor:'#f8f2df',
+        logging:false,
+        width:fullW,
+        height:fullH,
+        windowWidth:fullW,
+        windowHeight:fullH,
+        x:0,
+        y:0,
+        scrollX:0,
+        scrollY:0
+      });
 
       const filename='Rekap_Nilai_Akhir_Setelah_Remedial_'+
         safeFilePart(f.kelas)+'_'+safeFilePart(f.rombel)+'_'+safeFilePart(f.mapel||'Mapel')+
