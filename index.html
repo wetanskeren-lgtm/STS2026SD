@@ -2141,9 +2141,11 @@ service cloud.firestore {
 
       <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Pilih Rombel</label><select id="sR" class="ip" disabled onchange="updNamaList()"><option value="">-- Pilih Kelas Dulu --</option></select></div>
 
-      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Nama Siswa</label><select id="sI" class="ip" disabled onchange="updMapelList()"><option value="">-- Pilih Rombel Dulu --</option></select></div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Nama Siswa</label><select id="sI" class="ip" disabled onchange="updJenisUjian()"><option value="">-- Pilih Rombel Dulu --</option></select></div>
 
-      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Mata Pelajaran</label><select id="sM" class="ip" disabled><option value="">-- Pilih Nama Dulu --</option></select></div>
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Jenis Ujian</label><select id="sJenis" class="ip" disabled onchange="updMapelList()"><option value="">-- Pilih Nama Siswa Dulu --</option></select></div>
+
+      <div class="mb-3"><label class="block mb-1 font-bold" style="font-size:.82rem">Mata Pelajaran</label><select id="sM" class="ip" disabled><option value="">-- Pilih Jenis Ujian Dulu --</option></select></div>
 
       <div class="mb-5"><label class="block mb-1 font-bold" style="font-size:.82rem">Password</label><input id="sW" class="ip" type="password" placeholder="Password dari admin" onkeydown="if(event.key==='Enter')logS()"></div>
 
@@ -2602,69 +2604,24 @@ function applySchoolExamAssignment(ex,assignment){
   return out;
 }
 async function getAssignedPusatExamsForStudent(npsn,kelas,rombel){
-  /*
-     ATURAN PENTING:
-     - Ujian Utama tetap memakai paket yang ditugaskan sekolah.
-     - Ujian Susulan memakai paket ASLI dari Admin Pusat.
-       Jadi jika paket Pusat berisi 40 soal, Susulan tetap 40 soal.
-     - Karena jadwal Susulan dibuat di Admin Pusat, siswa tetap boleh
-       melihat Susulan walaupun assignment sekolah untuk paket Utama
-       sudah tidak ada/berbeda. Syaratnya kelas siswa sama dengan kelas
-       paket Pusat dan tanggal Susulan memang hari ini.
-  */
-  const [examSnap,assignSnap]=await Promise.all([
-    soalR().get(),
-    examAssignmentR(npsn).get()
-  ]);
-
+  const [examSnap,assignSnap]=await Promise.all([soalR().get(),examAssignmentR(npsn).get()]);
   const rb=String(rombel||'-');
-  const today=todayLocalDateString();
   const amap=new Map();
-
   assignSnap.docs.forEach(d=>{
     const a={id:d.id,...d.data()};
-    if(
-      String(a.kelas)===String(kelas) &&
-      String(a.rombel||'-')===rb &&
-      Array.isArray(a.questionIds) &&
-      a.questionIds.length
-    ){
+    if(String(a.kelas)===String(kelas)&&String(a.rombel||'-')===rb&&Array.isArray(a.questionIds)&&a.questionIds.length){
       amap.set(String(a.examId),a);
     }
   });
-
   const out=[];
-
   examSnap.docs.forEach(d=>{
     const ex=normalizeExamRecord({id:d.id,...d.data()});
-    if(!ex || String(ex.kelas)!==String(kelas))return;
-
-    const susulanDate=getSusulanScheduleDate(ex);
-    const susulanHariIni=isValidScheduleDate(susulanDate) && susulanDate===today;
-
-    /* ============================================================
-       SUSULAN = PAKET PUSAT UTUH
-       Jangan dipotong oleh questionIds assignment sekolah.
-       Ini yang membuat contoh 40 soal tetap 40 soal.
-       ============================================================ */
-    if(susulanHariIni && !ex.isRemedial){
-      const full=JSON.parse(JSON.stringify(ex));
-      full.isSusulanSource=true;
-      full.susulanSource='pusat';
-      full.schoolAssignmentId='';
-      full.schoolAssignmentScope='';
-      out.push(full);
-      return;
-    }
-
-    /* Ujian Utama normal: tetap wajib memakai assignment sekolah. */
     const a=amap.get(String(ex.id));
     if(a){
       const assigned=applySchoolExamAssignment(ex,a);
       if(assigned)out.push(assigned);
     }
   });
-
   return out;
 }
 
@@ -3305,7 +3262,7 @@ async function loadSiswaInit(){
 
     $('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;
 
-    $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;
+    $('sJenis').innerHTML='<option value="">-- Pilih Nama Siswa Dulu --</option>';$('sJenis').disabled=true;$('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';$('sM').disabled=true;
 
     $('sLKA').style.display='block';$('sLError').style.display='none';hd();tt('Data '+D.sch.nama+' dimuat!');
 
@@ -3323,7 +3280,7 @@ function updRombelList(){
 
     $('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;
 
-    $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;return;
+    $('sJenis').innerHTML='<option value="">-- Pilih Nama Siswa Dulu --</option>';$('sJenis').disabled=true;$('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';$('sM').disabled=true;return;
 
   }
 
@@ -3335,18 +3292,50 @@ function updRombelList(){
 
   $('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;
 
-  $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;
+  $('sJenis').innerHTML='<option value="">-- Pilih Nama Siswa Dulu --</option>';$('sJenis').disabled=true;$('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';$('sM').disabled=true;
 
+}
+
+async function getPusatSusulanExamsForStudent(kelas,rombel){
+  try{
+    const snap=await soalR().get();
+    const rb=String(rombel||'-');
+    return snap.docs.map(d=>normalizeExamRecord({id:d.id,...d.data()})).filter(ex=>{
+      if(!ex || ex.isRemedial) return false;
+      if(String(ex.kelas)!==String(kelas)) return false;
+      if(ex.rombel!=null && ex.rombel!=='' && String(ex.rombel)!==rb) return false;
+      const t=getSusulanScheduleDate(ex);
+      return isValidScheduleDate(t) && Array.isArray(ex.questions) && ex.questions.length>0;
+    }).map(ex=>{
+      const out=JSON.parse(JSON.stringify(ex));
+      out.isSusulanSource=true;
+      return out;
+    });
+  }catch(e){
+    console.warn('[SUSULAN PUSAT] Gagal memuat paket susulan dari Admin Pusat:',e);
+    return [];
+  }
 }
 
 async function refreshStudentAssignedExams(kelas,rombel){
   if(D.aIn||D.isPusat||!D.sch?.npsn||kelas==null||kelas==='')return;
   try{
-    const pusatExams=await getAssignedPusatExamsForStudent(D.sch.npsn,kelas,rombel||'-');
-    const rems=await loadSchoolRemedials(D.sch.npsn);
+    /* Ujian Utama berasal dari assignment sekolah.
+       Ujian Susulan sengaja diambil LANGSUNG dari paket Admin Pusat
+       agar jumlah soal mengikuti paket Pusat (mis. 40 soal), bukan
+       paket remedial sekolah atau potongan assignment. */
+    const [pusatUtama,rems,pusatSusulan]=await Promise.all([
+      getAssignedPusatExamsForStudent(D.sch.npsn,kelas,rombel||'-'),
+      loadSchoolRemedials(D.sch.npsn),
+      getPusatSusulanExamsForStudent(kelas,rombel||'-')
+    ]);
     D.remedialExams=rems;
-    D.ex=pusatExams.concat(rems.filter(ex=>String(ex.kelas)===String(kelas)&&String(ex.rombel||'-')===String(rombel||'-')));
-  }catch(e){console.warn('[ASSIGNMENT] Gagal memuat pilihan soal/remedial:',e);D.ex=[];D.remedialExams=[];}
+    const remedial=rems.filter(ex=>String(ex.kelas)===String(kelas)&&String(ex.rombel||'-')===String(rombel||'-'));
+    D.ex=pusatUtama.concat(pusatSusulan,remedial);
+  }catch(e){
+    console.warn('[ASSIGNMENT] Gagal memuat pilihan soal/remedial:',e);
+    D.ex=[];D.remedialExams=[];
+  }
 }
 async function updNamaList(){
 
@@ -3354,7 +3343,7 @@ async function updNamaList(){
 
   if(!k||!r){
     $('sI').innerHTML='<option value="">-- Pilih Rombel Dulu --</option>';$('sI').disabled=true;
-    $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;
+    $('sJenis').innerHTML='<option value="">-- Pilih Nama Siswa Dulu --</option>';$('sJenis').disabled=true;$('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';$('sM').disabled=true;
     return;
   }
 
@@ -3387,32 +3376,10 @@ async function updNamaList(){
   const tersedia=[];
 
   for(const siswa of semuaSiswa){
-    /*
-      PENTING:
-      Nama siswa yang hanya memiliki Ujian Susulan TETAP dimunculkan
-      bersama siswa yang memiliki Remedial. Jangan hanya mencari siswa
-      yang mempunyai Remedial.
-
-      Satu nama siswa boleh memiliki lebih dari satu pilihan ujian:
-      - Ujian Susulan = paket Pusat (contoh 40 soal)
-      - Ujian Remedial = paket remedial sekolah (contoh 10 soal)
-
-      Saat nama dipilih, pilihan tersebut dipisahkan di dropdown sM.
-    */
     const hasilSiswa=filterDisplayResults(semuaHasil.filter(x=>String(x.nis||'')===String(siswa.nis||'')));
     D.rs=hasilSiswa;
     const ujianHariIni=getStudentTodayExams(siswa);
-
-    const adaSusulan=ujianHariIni.some(e=>!!e && e.isSusulan && !e.isRemedial);
-    const adaRemedial=ujianHariIni.some(e=>!!e && e.isRemedial);
-    const adaUtama=ujianHariIni.some(e=>!!e && !e.isSusulan && !e.isRemedial);
-
-    /*
-      Jika ada salah satu dari tiga jenis ujian, nama siswa harus tampil.
-      Khusus siswa yang belum Ujian Utama dan masuk jadwal Susulan, nama
-      tetap tampil walaupun dia juga mempunyai/tidak mempunyai Remedial.
-    */
-    if(adaUtama || adaSusulan || adaRemedial){
+    if(ujianHariIni.length>0){
       tersedia.push({siswa,ujianHariIni});
     }
   }
@@ -3420,6 +3387,8 @@ async function updNamaList(){
   if(tersedia.length===0){
     $('sI').innerHTML='<option value="">-- Tidak ada siswa yang memiliki ujian hari ini --</option>';
     $('sI').disabled=true;
+    $('sJenis').innerHTML='<option value="">-- Tidak ada ujian hari ini --</option>';
+    $('sJenis').disabled=true;
     $('sM').innerHTML='<option value="">-- Tidak ada ujian hari ini --</option>';
     $('sM').disabled=true;
     return;
@@ -3431,7 +3400,9 @@ async function updNamaList(){
   }).join('');
   $('sI').disabled=false;
 
-  $('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';
+  $('sJenis').innerHTML='<option value="">-- Pilih Nama Siswa Dulu --</option>';
+  $('sJenis').disabled=true;
+  $('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';
   $('sM').disabled=true;
 
   /* Simpan hasil filter agar saat nama dipilih kita tidak perlu
@@ -3451,56 +3422,129 @@ function isExamScheduledTodayForStudent(ex,stu){
   const date=getExamScheduleDate(ex);
   return !!date && date===todayLocalDateString();
 }
-async function updMapelList(){
+function getExamType(ex){
+  if(ex?.isRemedial)return 'remedial';
+  if(ex?.isSusulan)return 'susulan';
+  return 'utama';
+}
+function getExamTypeLabel(type){
+  return type==='remedial'?'Ujian Remedial':(type==='susulan'?'Ujian Susulan':'Ujian Utama');
+}
+function resetStudentExamSelectors(msg='-- Pilih Nama Siswa Dulu --'){
+  $('sJenis').innerHTML=`<option value="">${msg}</option>`;
+  $('sJenis').disabled=true;
+  $('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';
+  $('sM').disabled=true;
+}
+async function updJenisUjian(){
   const nis=$('sI').value;
-  if(!nis){$('sM').innerHTML='<option value="">-- Pilih Nama Dulu --</option>';$('sM').disabled=true;return;}
-  const stu=D.ss.find(s=>String(s.nis)===String(nis));
-  if(!stu){$('sM').innerHTML='<option value="">-- Siswa tidak ditemukan --</option>';$('sM').disabled=true;return;}
+  resetStudentExamSelectors();
+  const jenisBox=$('sJenis')?.parentElement;
+  if(jenisBox) jenisBox.style.display='';
+  if(!nis)return;
 
-  /* Muat hasil terlebih dahulu supaya siswa yang sudah mengerjakan ujian
-     utama tidak pernah ditawari Ujian Susulan. */
+  const stu=D.ss.find(s=>String(s.nis)===String(nis));
+  if(!stu){resetStudentExamSelectors('-- Siswa tidak ditemukan --');return;}
+
+  /* Muat hasil siswa terlebih dahulu. Ini penting agar:
+     1) ujian utama yang sudah selesai tidak ditawarkan lagi;
+     2) susulan hanya muncul setelah jadwal utama terlewat;
+     3) remedial hanya muncul untuk siswa yang memang ditugaskan. */
   try{
     const snap=await rR(D.sch.npsn).where('nis','==',nis).get();
     D.rs=filterDisplayResults(snap.docs.map(d=>({id:d.id,...d.data(),mapel:canonicalMapel(d.data().mapel)})));
   }catch(e){
-    console.warn('[LOGIN SISWA] Gagal memuat hasil untuk cek susulan:',e);
+    console.warn('[LOGIN SISWA] Gagal memuat hasil untuk cek jenis ujian:',e);
     D.rs=[];
   }
 
   await refreshStudentAssignedExams(stu.kelas,stu.rombel||'-');
   const exs=getStudentTodayExams(stu);
-  if(exs.length===0){
-    $('sM').innerHTML='<option value="">-- Belum ada ujian/susulan hari ini --</option>';$('sM').disabled=true;return;
+  if(!exs.length){
+    resetStudentExamSelectors('-- Tidak ada ujian untuk siswa ini saat ini --');
+    return;
   }
-  /*
-    Nama siswa yang sama dapat mempunyai SUSULAN dan REMEDIAL sekaligus.
-    Jangan memilih berdasarkan jumlah soal atau posisi array.
-    Penentu jenis ujian WAJIB memakai flag isSusulan / isRemedial.
 
-    Contoh:
-      40 soal dari Pusat  -> Ujian Susulan
-      10 soal dari Remedial -> Ujian Remedial
-  */
-  const urutanJenis={utama:1,susulan:2,remedial:3};
-  const labelUjian=e=>{
-    if(e && e.isRemedial) return 'Ujian Remedial';
-    if(e && e.isSusulan) return 'Ujian Susulan';
-    return 'Ujian Utama';
-  };
-  const jenisUjian=e=>e&&e.isRemedial?'remedial':(e&&e.isSusulan?'susulan':'utama');
+  const utama=exs.filter(e=>getExamType(e)==='utama');
+  const susulan=exs.filter(e=>getExamType(e)==='susulan');
+  const remedial=exs.filter(e=>getExamType(e)==='remedial');
 
-  exs.sort((a,b)=>{
-    const ja=urutanJenis[jenisUjian(a)]||99;
-    const jb=urutanJenis[jenisUjian(b)]||99;
-    if(ja!==jb)return ja-jb;
-    return String(a.mapel||'').localeCompare(String(b.mapel||''));
-  });
+  /* =============================================================
+     ALUR LOGIN SISWA
+     -------------------------------------------------------------
+     A. Jadwal ujian utama masih aktif dan siswa belum mengerjakan:
+        langsung diarahkan ke pilihan mata pelajaran Ujian Utama.
+        Tidak perlu memilih "Jenis Ujian" agar tidak membingungkan.
 
-  $('sM').innerHTML=exs.map(e=>{
-    const label=labelUjian(e);
-    const jumlahSoal=Array.isArray(e.questions)?e.questions.length:0;
-    return `<option value="${e.id}">${e.mapel} · ${label} · ${jumlahSoal} Soal</option>`;
-  }).join('');
+     B. Jadwal utama sudah lewat dan siswa belum mengerjakan:
+        Ujian Utama tidak ditampilkan. Jika ada jadwal susulan hari ini,
+        tampilkan pilihan "Ujian Susulan".
+
+     C. Nilai awal siswa di bawah 70 dan Admin Sekolah telah membuat
+        paket remedial untuk siswa tersebut pada hari ini:
+        tampilkan pilihan "Remedial".
+
+     D. Jika Susulan dan Remedial kebetulan berlangsung pada tanggal yang
+        sama, keduanya tetap boleh tampil karena peserta/soalnya dapat
+        berbeda. Tidak ada pemeriksaan bentrok jadwal di sini.
+     ============================================================= */
+
+  if(utama.length){
+    // Ujian utama adalah jalur pertama dan tidak perlu memilih jenis ujian.
+    $('sJenis').innerHTML='<option value="utama">Ujian Utama</option>';
+    $('sJenis').value='utama';
+    $('sJenis').disabled=true;
+    if(jenisBox) jenisBox.style.display='none';
+
+    $('sM').innerHTML='<option value="">-- Pilih Mata Pelajaran --</option>'+
+      utama.map(e=>`<option value="${String(e.id).replace(/"/g,'&quot;')}">${String(e.mapel||'').replace(/[<>&]/g,m=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[m]))} · ${e.questions.length} Soal</option>`).join('');
+    $('sM').disabled=false;
+    if(utama.length===1) $('sM').value=utama[0].id;
+
+    D._studentExamAvailability=D._studentExamAvailability||{};
+    D._studentExamAvailability[String(nis)]=exs;
+    return;
+  }
+
+  /* Tidak ada ujian utama hari ini. Berarti jika ada kegiatan,
+     yang ditampilkan hanya Susulan dan/atau Remedial. */
+  const types=[];
+  if(susulan.length)types.push('susulan');
+  if(remedial.length)types.push('remedial');
+
+  $('sJenis').innerHTML='<option value="">-- Pilih Jenis Ujian --</option>'+
+    types.map(t=>`<option value="${t}">${getExamTypeLabel(t)}</option>`).join('');
+  $('sJenis').disabled=false;
+  if(jenisBox) jenisBox.style.display='';
+
+  $('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';
+  $('sM').disabled=true;
+
+  D._studentExamAvailability=D._studentExamAvailability||{};
+  D._studentExamAvailability[String(nis)]=exs;
+}
+
+async function updMapelList(){
+  const nis=$('sI').value;
+  const type=$('sJenis').value;
+  $('sM').innerHTML='<option value="">-- Pilih Jenis Ujian Dulu --</option>';
+  $('sM').disabled=true;
+  if(!nis||!type)return;
+  const stu=D.ss.find(s=>String(s.nis)===String(nis));
+  if(!stu){$('sM').innerHTML='<option value="">-- Siswa tidak ditemukan --</option>';return;}
+
+  const cached=(D._studentExamAvailability||{})[String(nis)]||[];
+  let exs=cached.filter(e=>getExamType(e)===type);
+  if(!exs.length){
+    try{
+      const snap=await rR(D.sch.npsn).where('nis','==',nis).get();
+      D.rs=filterDisplayResults(snap.docs.map(d=>({id:d.id,...d.data(),mapel:canonicalMapel(d.data().mapel)})));
+    }catch(e){D.rs=[];}
+    await refreshStudentAssignedExams(stu.kelas,stu.rombel||'-');
+    exs=getStudentTodayExams(stu).filter(e=>getExamType(e)===type);
+  }
+  if(!exs.length){$('sM').innerHTML='<option value="">-- Tidak ada soal untuk jenis ujian ini --</option>';return;}
+  $('sM').innerHTML='<option value="">-- Pilih Mata Pelajaran --</option>'+exs.map(e=>`<option value="${e.id}">${e.mapel} · ${e.questions.length} Soal</option>`).join('');
   $('sM').disabled=false;
 }
 
@@ -3517,11 +3561,14 @@ async function prepareStudentOfflineCache(stu){
 
 async function logS(){
 
-  const nis=$('sI').value,pass=$v('sW'),exId=$('sM').value;
+  const nis=$('sI').value,jenis=$('sJenis').value,pass=$v('sW'),exId=$('sM').value;
 
-  if(!nis)return tt('Pilih nama!','er');if(!exId)return tt('Pilih mapel!','er');if(!pass)return tt('Password wajib!','er');
+  if(!nis)return tt('Pilih nama!','er');
+  if(!jenis)return tt('Pilih jenis ujian!','er');
+  if(!exId)return tt('Pilih mata pelajaran!','er');
+  if(!pass)return tt('Password wajib!','er');
 
-  const stu=D.ss.find(s=>s.nis===nis);if(!stu)return tt('Tidak valid!','er');if(stu.password!==pass)return tt('Password salah!','er');
+  const stu=D.ss.find(s=>String(s.nis)===String(nis));if(!stu)return tt('Tidak valid!','er');if(stu.password!==pass)return tt('Password salah!','er');
 
   try{
     const resultSnap=await rR(D.sch.npsn).where('nis','==',nis).get();
@@ -3534,13 +3581,18 @@ async function logS(){
     D.rs=[];
   }
 
+  await refreshStudentAssignedExams(stu.kelas,stu.rombel||'-');
+  const pilihan=getStudentTodayExams(stu).find(e=>String(e.id)===String(exId));
+  if(!pilihan)return tt('Ujian yang dipilih sudah tidak tersedia untuk siswa ini. Silakan pilih ulang.','er');
+  if(getExamType(pilihan)!==jenis)return tt('Jenis ujian tidak sesuai dengan soal yang dipilih. Silakan pilih ulang.','er');
+
   D.st=stu;
   ld('Menyiapkan ujian offline...');
   prepareStudentOfflineCache(stu).finally(()=>startEx(exId));
 
 }
 
-function outS(){clearUnsub();D.studentOnlineReady=false;D.studentOfflineMode=false;D.st=null;D.sch=null;D.ex=[];D.remedialExams=[];['sN','sK','sR','sI','sM','sW'].forEach(i=>$(i).value='');$('sLKA').style.display='none';go('pH')}
+function outS(){clearUnsub();D.studentOnlineReady=false;D.studentOfflineMode=false;D.st=null;D.sch=null;D.ex=[];D.remedialExams=[];['sN','sK','sR','sI','sJenis','sM','sW'].forEach(i=>$(i).value='');$('sLKA').style.display='none';go('pH')}
 
 
 
@@ -3575,9 +3627,7 @@ function getExamScheduleDate(ex){
      dengan penanda isSusulan=true agar riwayat tetap dapat dibedakan.
    ================================================================ */
 function getSusulanScheduleDate(ex){
-  if(!ex)return '';
-  const v=ex.susulanScheduleDate ?? ex.susulanDate ?? ex.scheduleSusulanDate ?? ex.susulanSchedule;
-  return v ? String(v) : '';
+  return ex&&ex.susulanScheduleDate ? String(ex.susulanScheduleDate) : '';
 }
 function isValidScheduleDate(v){return /^\d{4}-\d{2}-\d{2}$/.test(String(v||''));}
 function hasCompletedExamResult(results,examId){
@@ -3601,107 +3651,67 @@ function makeStudentSusulanExam(ex){
 function getStudentTodayExams(stu){
   if(!stu)return [];
 
-  const today=todayLocalDateString();
   const base=(D.ex||[]).filter(ex=>isStudentEligibleForExam(stu,ex));
-  const done=(D.rs||[]).filter(r=>
-    !r.isRemedial &&
-    String(r.nis||'')===String(stu.nis||'')
-  );
-
+  const done=(D.rs||[]).filter(r=>!r.isRemedial&&String(r.nis||'')===String(stu.nis||''));
   const regular=[];
   const susulan=[];
   const remedial=[];
+  const today=todayLocalDateString();
 
   base.forEach(ex=>{
-
-    /* ================= REMEDIAL ================= */
     if(ex.isRemedial){
-      const tanggalRemedial=getExamScheduleDate(ex);
-      if(tanggalRemedial===today){
-        remedial.push(ex);
+      /* REMEDIAL = selalu berasal dari Admin Sekolah. */
+      const date=getExamScheduleDate(ex);
+      if(date===today) remedial.push(ex);
+      return;
+    }
+
+    const sudahMengerjakan=hasCompletedExamResult(done,ex.id);
+
+    /* Paket ini berasal langsung dari Admin Pusat khusus untuk Susulan.
+       Jangan pernah memprosesnya sebagai Ujian Utama. */
+    if(ex.isSusulanSource){
+      if(!sudahMengerjakan && getSusulanScheduleDate(ex)===today){
+        const sx=makeStudentSusulanExam(ex);
+        if(sx){
+          sx.isSusulan=true;
+          sx.originalExamId=String(ex.id);
+          sx.susulanSource='pusat';
+          susulan.push(sx);
+        }
       }
       return;
     }
 
-    /* ================= NILAI UJIAN UTAMA ================= */
-    const sudahMengerjakan=hasCompletedExamResult(done,ex.id);
+    const mainToday=isExamScheduledTodayForStudent(ex,stu);
 
-    /*
-      Jika siswa sudah mempunyai hasil Ujian Utama,
-      jangan tampilkan Ujian Utama maupun Ujian Susulan.
-    */
-    if(sudahMengerjakan){
-      return;
-    }
-
-    /* ================= UJIAN UTAMA ================= */
-    const tanggalUtama=getExamScheduleDate(ex);
-
-    /*
-      Ujian Utama hanya aktif tepat pada tanggal
-      scheduleDate-nya. Setelah tanggal ini lewat,
-      paket TIDAK boleh lagi masuk sebagai Ujian Utama.
-    */
-    if(isValidScheduleDate(tanggalUtama) && tanggalUtama===today){
+    if(mainToday && !sudahMengerjakan){
       regular.push(ex);
       return;
     }
 
-    /* ================= UJIAN SUSULAN ================= */
-    /*
-      Jadwal Utama sudah lewat/tidak sedang aktif.
-      Sekarang cek tanggal Susulan secara langsung.
-    */
-    const tanggalSusulan=getSusulanScheduleDate(ex);
-
-    if(
-      isValidScheduleDate(tanggalSusulan) &&
-      tanggalSusulan===today
-    ){
+    /* Jika jadwal utama sudah lewat dan siswa belum punya hasil murni,
+       paket Pusat yang mempunyai jadwal Susulan hari ini dibuat sebagai
+       Ujian Susulan. */
+    if(!mainToday && !sudahMengerjakan){
       const sx=makeStudentSusulanExam(ex);
-
-      if(sx){
-        sx.isSusulan=true;
-        sx.originalExamId=String(ex.id);
-        sx.scheduleDate=tanggalSusulan;
-        const b=localDateBounds(tanggalSusulan);
-        sx.startAt=b.start;
-        sx.endAt=b.end;
+      if(sx && getSusulanScheduleDate(ex)===today){
+        sx.susulanSource='pusat';
         susulan.push(sx);
       }
-      return;
     }
-
-    /*
-      Jika jadwal Utama sudah lewat tetapi hari ini bukan
-      jadwal Susulan, jangan tampilkan ujian.
-    */
   });
 
-  /*
-    Urutan pilihan siswa:
-    1. Ujian Utama
-    2. Ujian Susulan
-    3. Ujian Remedial
-  */
-  const regularIds=new Set(regular.map(e=>String(e.id)));
-  const susulanFinal=susulan.filter(e=>
-    !regularIds.has(String(e.id))
-  );
+  const ids=new Set(regular.map(e=>String(e.id)));
+  const seenSusulan=new Set();
+  const susulanUnik=susulan.filter(e=>{
+    const id=String(e.id);
+    if(ids.has(id)||seenSusulan.has(id))return false;
+    seenSusulan.add(id);
+    return true;
+  });
 
-  /*
-    JANGAN menghapus salah satu jenis jika siswa memiliki keduanya.
-    Seorang siswa bisa sekaligus:
-      - belum Ujian Utama -> mendapat Ujian Susulan (paket Pusat, mis. 40 soal)
-      - mendapat Remedial -> mendapat Ujian Remedial (paket mis. 10 soal)
-
-    Keduanya ditampilkan pada dropdown ujian setelah nama siswa dipilih.
-  */
-  return [
-    ...regular,
-    ...susulanFinal,
-    ...remedial
-  ];
+  return regular.concat(susulanUnik,remedial);
 }
 
 function fmtTanggalHari(dateStr){
@@ -3992,14 +4002,7 @@ async function startEx(id){
     }
   }
   if(!ex||!ex.questions||!ex.questions.length)return tt('Ujian belum dipilihkan soal oleh Admin Sekolah untuk kelas/rombel Anda.','er');
-  /*
-     Ujian Susulan berasal langsung dari paket Pusat. Karena itu Susulan
-     TIDAK membutuhkan schoolAssignmentId seperti Ujian Utama.
-     Remedial juga tetap memakai aturan lamanya.
-  */
-  if(!D.isPusat && !ex.isRemedial && !ex.isSusulan && !ex.schoolAssignmentId){
-    return tt('Ujian ini belum diatur untuk Kelas/Rombel Anda.','er');
-  }
+  if(!D.isPusat && !ex.isRemedial && !ex.schoolAssignmentId)return tt('Ujian ini belum diatur untuk Kelas/Rombel Anda.','er');
   if(!isStudentEligibleForExam(D.st,ex))return tt(isSimulasiExam(ex)?'Ujian Simulasi hanya untuk siswa Kelas 3, 4, 5, atau 6.':'Ujian ini bukan untuk kelas Anda.','er');
   if(D.st&&!isExamScheduledTodayForStudent(ex,D.st))return tt('Mapel ini belum dijadwalkan untuk hari ini.','er');
 
