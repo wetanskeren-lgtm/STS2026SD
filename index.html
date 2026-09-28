@@ -2181,8 +2181,6 @@ service cloud.firestore {
 
       <a href="#" id="navRemedial" onclick="aTab('r',this)" style="display:none"><i class="fas fa-user-check w-5 text-center"></i> <span>Remedial</span></a>
 
-      <a href="#" id="navKoreksiRemedial" onclick="aTab('kr',this)" style="display:none"><i class="fas fa-pen-to-square w-5 text-center"></i> <span>Koreksi Uraian Remedial</span></a>
-
       <a href="#" id="navSiswa" onclick="aTab('w',this)"><i class="fas fa-users w-5 text-center"></i> <span>Data Siswa</span></a>
 
       <a href="#" id="navSch" onclick="aTab('k',this)" style="display:none"><i class="fas fa-school w-5 text-center"></i> <span>Daftar Sekolah</span></a>
@@ -3235,7 +3233,7 @@ async function logP(){
     await loadPusatExams();
     attachPusatLiveListeners();
 
-    hd();go('pAD');$('aSN2').textContent='Admin Pusat';$('navSch').style.display='';$('navRemedial').style.display='none';$('navKoreksiRemedial').style.display='none';
+    hd();go('pAD');$('aSN2').textContent='Admin Pusat';$('navSch').style.display='';$('navRemedial').style.display='none';
 
     aTab('d',document.querySelector('#aSB a'));tt('Selamat datang, Admin Pusat!');
 
@@ -3267,7 +3265,7 @@ async function logA(){
     D.sch={...sch,npsn:String(npsn)};D.aIn=true;D.isPusat=false;clearSchoolKeyOverrideCache();
     D.ex=[];D.rs=[];D.ss=[];D.remedialExams=[];
     hd();go('pAD');
-    $('aSN2').textContent=sch.nama;$('navSch').style.display='none';$('navRemedial').style.display='';$('navKoreksiRemedial').style.display='';
+    $('aSN2').textContent=sch.nama;$('navSch').style.display='none';$('navRemedial').style.display='';
     aTab('d',document.querySelector('#aSB a'));
     tt('Verifikasi berhasil. Memuat data sekolah...','in');
 
@@ -3293,7 +3291,7 @@ async function logA(){
 
 
 
-function outA(e){if(e)e.preventDefault();clearUnsub();D.aIn=false;D.sch=null;D.isPusat=false;clearSchoolKeyOverrideCache();D.ex=[];D.rs=[];D.ss=[];D.remedialExams=[];D.remedialForm={kelas:'',rombel:'',mapel:'',sourceExamId:'',scheduleDate:'',studentNis:[],questionIds:[]};D.allSchools=[];D.allResults=[];$('navRemedial').style.display='none';$('navKoreksiRemedial').style.display='none';go('pH');tt('Keluar','in')}
+function outA(e){if(e)e.preventDefault();clearUnsub();D.aIn=false;D.sch=null;D.isPusat=false;clearSchoolKeyOverrideCache();D.ex=[];D.rs=[];D.ss=[];D.remedialExams=[];D.remedialForm={kelas:'',rombel:'',mapel:'',sourceExamId:'',scheduleDate:'',studentNis:[],questionIds:[]};D.allSchools=[];D.allResults=[];$('navRemedial').style.display='none';go('pH');tt('Keluar','in')}
 
 
 
@@ -5362,17 +5360,7 @@ function aTab(t,el){
   }
 
   else if(t==='r')renderRemedial(c);
-  else if(t==='kr'){
-    c.innerHTML='<div class="asu"><div class="cd" style="padding:30px;text-align:center"><div class="spn"></div><p style="margin-top:12px;font-weight:800">Mencari jawaban uraian remedial di database...</p></div></div>';
-    (async()=>{
-      try{
-        await renderKoreksiRemedial(c);
-      }catch(e){
-        console.error('[KOREKSI REMEDIAL] Gagal menyegarkan:',e);
-        c.innerHTML='<div class="asu"><div class="cd" style="padding:30px;text-align:center;color:var(--er)">Gagal membaca data remedial: '+escHasil(e.message||e)+'</div></div>';
-      }
-    })();
-  }else if(t==='w')renderSiswa(c);else if(t==='k')renderDaftarSekolah(c);else if(t==='c')renderSetting(c);
+  else if(t==='w')renderSiswa(c);else if(t==='k')renderDaftarSekolah(c);else if(t==='c')renderSetting(c);
 
 }
 
@@ -9347,7 +9335,7 @@ async function simpanKoreksi(rid,npsn,mode='normal'){
     }
     const writes=await Promise.allSettled(writeTargets);
     if(writes.every(x=>x.status==='rejected'))throw writes.find(x=>x.status==='rejected')?.reason||new Error('Gagal menyimpan koreksi remedial.');
-    hd();cMo();renderKoreksiRemedial($('aC'));tt('Koreksi uraian remedial disimpan! Nilai remedial: '+remedialScore+' · Nilai akhir: '+finalScore,'ok');return;
+    hd();cMo();aTab('h',document.getElementById('navHasil'));tt('Koreksi uraian remedial disimpan! Nilai remedial: '+remedialScore+' · Nilai akhir: '+finalScore,'ok');return;
   }
   // KOREKSI UJIAN PERTAMA: pulihkan dari `mainEssays` bila data lama
   // kehilangan field `essays`. Jangan pernah memakai remedialEssays di sini.
