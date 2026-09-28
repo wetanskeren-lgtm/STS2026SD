@@ -8460,6 +8460,46 @@ async function loadPendingRemedialCorrections(npsn){
 
   const pending=[];
 
+  // ================================================================
+  // PEMULIHAN DATA REMEDIAL BERDASARKAN PAKET REMEDIAL
+  // Jika hasil siswa terlanjur menyimpan jawaban remedial di field
+  // `essays` dan `remedialExamId` belum ada, tetap cari melalui
+  // baseResultMap + assignedNis pada paket remedial. Dengan cara ini
+  // jawaban 10 soal uraian remedial tetap bisa ditemukan.
+  // ================================================================
+  for(const rem of remedialById.values()){
+    const assigned=(Array.isArray(rem.assignedNis)?rem.assignedNis:[]).map(String);
+    const map=rem.baseResultMap||{};
+    const remEssayQs=(Array.isArray(rem.questions)?rem.questions:[])
+      .filter(q=>q && q.type==='essay')
+      .slice(0,10);
+    if(!remEssayQs.length)continue;
+
+    for(const nis of assigned){
+      let base=null;
+      const mappedId=String(map[nis]||'');
+      if(mappedId)base=byId.get(mappedId)||null;
+      if(!base){
+        const candidates=rows.filter(x=>!x.isRemedial && String(x.nis||'')===nis);
+        base=candidates
+          .filter(x=>canonicalMapel(x.mapel)===canonicalMapel(rem.mapel||rem.sourceExamName||''))
+          .sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0))[0]||null;
+      }
+      if(!base)continue;
+
+      // Tandai bahwa paket ini memang remedial, lalu pindahkan HANYA
+      // soal uraian yang cocok dengan maksimal 10 soal pada paket.
+      base.remedialExamId=String(rem.id);
+      base.hasRemedial=true;
+      if(base.kelas===undefined||base.kelas===null||base.kelas==='')base.kelas=rem.kelas;
+      if(!base.rombel||base.rombel==='-')base.rombel=rem.rombel||'-';
+      if(!base.mapel)base.mapel=canonicalMapel(rem.mapel||rem.sourceExamName||'');
+
+      await pindahkanUraianRemedialYangTerlanjurMasukSoalUtama(base,rem);
+      enrichFromStudent(base);
+    }
+  }
+
   for(const r of baseRows){
     applyRemedialMeta(r);
 
