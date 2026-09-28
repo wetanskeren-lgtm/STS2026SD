@@ -4737,7 +4737,17 @@ async function finEx(){
       const remedialHasEssay=remedialEssays.length>0;
       const remedialScoreSaved=remedialHasEssay?0:Number(nilaiRemedial||0);
       const remedialFinalNow=remedialHasEssay?Math.round(((dasar+remedialScoreSaved)/2)*10)/10:akhir;
+      // `essays` = uraian ujian pertama; `remedialEssays` = uraian remedial.
+
+      // Keduanya disimpan terpisah dan tidak saling menimpa.
+
+      const preservedMainEssays=Array.isArray(base.essays)
+        ?JSON.parse(JSON.stringify(base.essays))
+        :(Array.isArray(base.mainEssays)?JSON.parse(JSON.stringify(base.mainEssays)):[]);
+
       const patch={
+        essays:preservedMainEssays,
+        mainEssays:preservedMainEssays,
         nilaiSebelumRemedial:dasar,nilaiRemedial:remedialScoreSaved,score:remedialFinalNow,
         hasRemedial:true,remedialExamId:ex.id,remedialCompletedAt:completedAt,
         remedialPendingCorrection:remedialHasEssay,
@@ -4856,6 +4866,9 @@ async function finEx(){
     correct:cor,
     total:ex.questions.length,
     essays,
+    // Salinan pengaman khusus jawaban uraian ujian pertama.
+    // Tidak dipakai sebagai jawaban remedial.
+    mainEssays:JSON.parse(JSON.stringify(essays)),
     pg:pgList,
     timeUsed:tu,
     timestamp:Date.now(),
@@ -8329,64 +8342,40 @@ function essayMatchesRemedialQuestion(e,q){
 
 async function pindahkanUraianRemedialYangTerlanjurMasukSoalUtama(r,rem){
   /*
-    PERBAIKAN PENTING:
-    - Jawaban ujian utama TIDAK dihapus lagi dari `essays`.
-    - Jawaban yang benar-benar berasal dari paket remedial disalin ke
-      `remedialEssays` dan kuncinya diambil dari soal remedial/soal utama.
-    - Ini mencegah jawaban ujian utama hilang hanya karena soal remedial
-      memakai ID soal yang sama.
-    - Maksimal 10 soal uraian remedial. PG tidak ikut.
+    PEMISAHAN AMAN UJIAN PERTAMA vs REMEDIAL.
+    Jangan mengambil r.essays/mainEssays sebagai jawaban remedial karena
+    paket remedial dapat memakai salinan ID/teks soal yang sama.
   */
   if(!r || !rem || r.isRemedial===true)return false;
-  if(!String(r.remedialExamId||'').trim())return false;
-
-  const remQs=(Array.isArray(rem.questions)?rem.questions:[])
-    .filter(q=>q&&q.type==='essay')
-    .slice(0,10);
-  if(!remQs.length)return false;
-
-  const mainEssays=Array.isArray(r.essays)?r.essays:[];
   const existing=Array.isArray(r.remedialEssays)?r.remedialEssays:[];
-  const existingById=new Map(existing.map(e=>[String(e?.id||''),e]));
-  const existingByText=new Map(existing.map(e=>[
-    String(e?.text||e?.question||e?.soal||'').trim().replace(/\s+/g,' ').toLowerCase(),e
-  ]));
+  if(!existing.length)return false;
 
-  const rows=[];
-  remQs.forEach((q,i)=>{
-    const qid=String(q.id||'');
-    const qtext=String(q.text||q.question||q.soal||'').trim();
-    const normText=qtext.replace(/\s+/g,' ').toLowerCase();
-    let prev=existingById.get(qid)||existingByText.get(normText)||null;
-    let legacy=mainEssays.find(e=>essayMatchesRemedialQuestion(e,q));
+  r.remedialEssays=existing.map((e,i)=>({
+    id:e?.id||('remEssay_'+i),
+    text:e?.text||e?.question||e?.soal||'',
+    image:e?.image||'',
+    key:e?.key??e?.answerKey??'',
+    answer:e?.answer??e?.studentAnswer??e?.jawaban??'',
+    score:Number.isFinite(Number(e?.score))?Number(e.score):0,
+    graded:e?.graded===true,
+    isRemedialAnswer:true,
+    remedialExamId:e?.remedialExamId||r.remedialExamId||String(rem.id||'')
+  }));
 
-    const key=(q.key!==undefined && q.key!==null && String(q.key)!=='')
-      ?q.key:(legacy?.key??legacy?.answerKey??'');
-    const answer=prev
-      ?(prev.answer??prev.studentAnswer??prev.jawaban??'')
-      :(legacy?.answer??legacy?.studentAnswer??legacy?.jawaban??'');
-
-    if(prev || legacy){
-      rows.push({
-        id:qid || prev?.id || legacy?.id || ('remEssay_'+i),
-        text:qtext || prev?.text || legacy?.text || '',
-        image:q.image||prev?.image||legacy?.image||'',
-        key,
-        answer,
-        score:Number.isFinite(Number(prev?.score??legacy?.score))?Number(prev?.score??legacy?.score):0,
-        graded:prev?.graded===true || legacy?.graded===true
-      });
-    }
-  });
-
-  if(!rows.length)return false;
-  r.remedialEssays=rows;
-  r.remedialPendingCorrection=rows.some(e=>e&&e.graded!==true);
+  r.remedialPendingCorrection=r.remedialEssays.some(e=>e&&e.graded!==true);
   r.hasRemedial=true;
-  r.remedialExamId=String(r.remedialExamId);
+  if(rem.id)r.remedialExamId=String(r.remedialExamId||rem.id);
 
-  /* Jangan pernah menulis `essays` di sini. Data uraian utama tetap utuh. */
+  if((!Array.isArray(r.essays)||!r.essays.length)&&Array.isArray(r.mainEssays)&&r.mainEssays.length){
+    r.essays=JSON.parse(JSON.stringify(r.mainEssays));
+  }
+  if(Array.isArray(r.essays)&&r.essays.length&&!Array.isArray(r.mainEssays)){
+    r.mainEssays=JSON.parse(JSON.stringify(r.essays));
+  }
+
   const payload={
+    essays:r.essays||[],
+    mainEssays:r.mainEssays||r.essays||[],
     remedialEssays:r.remedialEssays,
     remedialPendingCorrection:r.remedialPendingCorrection,
     hasRemedial:true,
@@ -8398,11 +8387,7 @@ async function pindahkanUraianRemedialYangTerlanjurMasukSoalUtama(r,rem){
     rR(schoolNpsn).doc(r.id).update(payload),
     otherDb.collection('schools').doc(schoolNpsn).collection('results').doc(r.id).update(payload)
   ]);
-  if(writes.every(x=>x.status==='rejected')){
-    console.warn('[REMEDIAL MIGRASI] Gagal menyimpan uraian remedial:',writes[0]?.reason);
-    return false;
-  }
-  return true;
+  return writes.some(x=>x.status==='fulfilled');
 }
 
 /*
@@ -9207,9 +9192,15 @@ async function simpanKoreksi(rid,npsn,mode='normal'){
     if(writes.every(x=>x.status==='rejected'))throw writes.find(x=>x.status==='rejected')?.reason||new Error('Gagal menyimpan koreksi remedial.');
     hd();cMo();renderKoreksiRemedial($('aC'));tt('Koreksi uraian remedial disimpan! Nilai remedial: '+remedialScore+' · Nilai akhir: '+finalScore,'ok');return;
   }
+  // KOREKSI UJIAN PERTAMA: pulihkan dari `mainEssays` bila data lama
+  // kehilangan field `essays`. Jangan pernah memakai remedialEssays di sini.
+  if((!Array.isArray(r.essays)||!r.essays.length) && Array.isArray(r.mainEssays)&&r.mainEssays.length){
+    r.essays=JSON.parse(JSON.stringify(r.mainEssays));
+  }
   let totalEssay=0,cor=0;
   if(r.pg&&r.pg.length)r.pg.forEach((g,i)=>{const el=document.getElementById('pgAns'+i);if(!el)return;g.studentAns=el.value===''?null:parseInt(el.value);if(sameStudentAnswer(g.studentAns,g.correctAns))cor++;});
   if(r.essays&&r.essays.length)r.essays.forEach((e,i)=>{const el=document.getElementById('esScore'+i);const sc=el?(parseInt(el.value)||0):0;e.score=Math.min(100,Math.max(0,sc));e.graded=true;totalEssay+=e.score;});
+  r.mainEssays=JSON.parse(JSON.stringify(r.essays||[]));
   r.correct=cor;const pgCount=r.pg?r.pg.length:(r.total-(r.essays?r.essays.length:0));r.autoScore=pgCount?Math.round(cor/pgCount*100):0;
   const essayAvg=r.essays&&r.essays.length?Math.round(totalEssay/r.essays.length):0,pgScore=r.autoScore;
   const finalScore=pgCount&&r.essays&&r.essays.length?Math.round(pgScore*.5+essayAvg*.5):(r.essays&&r.essays.length?essayAvg:pgScore);
@@ -9233,6 +9224,7 @@ async function simpanKoreksi(rid,npsn,mode='normal'){
   const normalPatch={
     pg:r.pg||[],
     essays:r.essays||[],
+    mainEssays:r.mainEssays||r.essays||[],
     correct:r.correct,
     autoScore:r.autoScore,
     essayScore:r.essayScore,
