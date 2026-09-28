@@ -8288,9 +8288,18 @@ function remedialEssayArray(r){
 }
 
 function isRemedialEssayPending(r){
-  // SANGAT KETAT: menu ini hanya boleh menampilkan data yang benar-benar
-  // berasal dari ujian remedial. Hasil ujian utama biasa tidak boleh ikut.
-  const isRemedialRecord=(r?.isRemedial===true)||!!String(r?.remedialExamId||'').trim();
+  // TAHAP KOREKSI BERURUTAN:
+  // Koreksi remedial baru boleh muncul setelah seluruh uraian ujian utama
+  // selesai dikoreksi. Jika masih ada uraian utama yang belum dinilai,
+  // tahan dahulu remedial agar admin mengoreksi tahap pertama lebih dulu.
+  const mainEssays=Array.isArray(r?.essays)?r.essays:[];
+  const mainCorrectionDone=mainEssays.length===0 || mainEssays.every(e=>
+    e && (e.graded===true || e.corrected===true || e.score!==undefined && e.score!==null && e.score!=='')
+  );
+  if(!mainCorrectionDone)return false;
+
+  // Menu ini hanya menampilkan jawaban yang benar-benar berasal dari remedial.
+  const isRemedialRecord=(r?.isRemedial===true)||!!String(r?.remedialExamId||'').trim()||Array.isArray(r?.remedialEssays)&&r.remedialEssays.length>0;
   if(!isRemedialRecord)return false;
 
   const arr=remedialEssayArray(r);
@@ -9163,6 +9172,11 @@ async function simpanKoreksi(rid,npsn,mode='normal'){
   if(D.isPusat)return tt('Admin Pusat tidak bisa menyimpan koreksi!','er');
   const r=D.rs.find(x=>x.id===rid);if(!r)return;
   if(mode==='remedial'){
+    const mainEssays=Array.isArray(r.essays)?r.essays:[];
+    const mainCorrectionDone=mainEssays.length===0 || mainEssays.every(e=>
+      e && (e.graded===true || e.corrected===true || e.score!==undefined && e.score!==null && e.score!=='')
+    );
+    if(!mainCorrectionDone)return tt('Koreksi uraian ujian pertama terlebih dahulu. Menu koreksi remedial akan dibuka setelah koreksi pertama selesai.','er');
     const esArr=r.remedialEssays||[],pgArr=r.remedialPg||[];
     if(!esArr.length)return tt('Tidak ada jawaban uraian remedial yang perlu dikoreksi.','in');
     let totalEssay=0,cor=0;
