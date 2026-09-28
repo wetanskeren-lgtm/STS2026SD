@@ -4670,17 +4670,17 @@ async function finEx(){
 
       const completedAt=Date.now();
 
+      const remedialEssays=JSON.parse(JSON.stringify(essays||[]));
+      const remedialPg=JSON.parse(JSON.stringify(pgList||[]));
+      const remedialHasEssay=remedialEssays.length>0;
+      const remedialScoreSaved=remedialHasEssay?0:Number(nilaiRemedial||0);
+      const remedialFinalNow=remedialHasEssay?Math.round(((dasar+remedialScoreSaved)/2)*10)/10:akhir;
       const patch={
-        // Data remedial berada di DOKUMEN HASIL AWAL.
-        nilaiSebelumRemedial:dasar,
-        nilaiRemedial,
-        score:akhir,
-        hasRemedial:true,
-        remedialExamId:ex.id,
-        remedialCompletedAt:completedAt,
-
-        // Tidak lagi menunjuk ke dokumen hasil remedial terpisah.
-        remedialResultId:null
+        nilaiSebelumRemedial:dasar,nilaiRemedial:remedialScoreSaved,score:remedialFinalNow,
+        hasRemedial:true,remedialExamId:ex.id,remedialCompletedAt:completedAt,
+        remedialPendingCorrection:remedialHasEssay,
+        remedialCorrectedAt:remedialHasEssay?null:completedAt,
+        remedialEssays,remedialPg,remedialResultId:null
       };
 
       // Simpan ke Server Cadangan/aktif + server pasangan.
@@ -4751,10 +4751,9 @@ async function finEx(){
         ...patch,
         id:base.id,
         mapel:canonicalMapel(base.mapel),
-        nilaiDasar:dasar,
-        nilaiRemedial,
-        nilaiAkhirSetelahRemedial:akhir,
-        score:akhir
+        nilaiDasar:dasar,nilaiRemedial:remedialScoreSaved,
+        nilaiAkhirSetelahRemedial:remedialFinalNow,score:remedialFinalNow,
+        remedialPendingCorrection:remedialHasEssay,remedialEssays,remedialPg
       };
 
       hd();
@@ -8097,7 +8096,7 @@ async function hapusNilaiRemedial(rid,npsn){
     hasRemedial:firebase.firestore.FieldValue.delete(),
     remedialExamId:firebase.firestore.FieldValue.delete(),
     remedialCompletedAt:firebase.firestore.FieldValue.delete(),
-    remedialResultId:firebase.firestore.FieldValue.delete()
+    remedialResultId:firebase.firestore.FieldValue.delete(),remedialPendingCorrection:firebase.firestore.FieldValue.delete(),remedialCorrectedAt:firebase.firestore.FieldValue.delete(),remedialEssays:firebase.firestore.FieldValue.delete(),remedialPg:firebase.firestore.FieldValue.delete()
   };
   try{
     ld('Menghapus nilai remedial...');
@@ -8231,11 +8230,13 @@ function renderHasil(c){
     h+=`<div class="cd mb-4" style="padding:18px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><p style="font-weight:800">${D.isPusat?`<i class="fas fa-school mr-2" style="color:var(--ac)"></i>${g.schoolName} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(NPSN: ${g.schoolNpsn})</span>`:`<i class="fas fa-list-ol mr-2" style="color:var(--ac)"></i>Daftar Nilai Siswa`}</p><p style="font-size:.75rem;color:var(--mt)">${g.items.length} siswa &middot; Rata-rata: ${gAvg}</p></div> 
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem"><thead><tr style="background:var(--bg)"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Foto</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">PG</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Uraian</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Nilai Awal</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Remedial</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Akhir</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Status</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`; 
     g.items.sort((a,b)=>(b.score||0)-(a.score||0)).forEach((r,i)=>{ 
-      const sc=r.score||0;let stC,stL; 
-      if(r.essays&&r.essays.length>0){const isGraded=r.essays.every(e=>e.graded===true);if(isGraded){if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}}else{stC='var(--inf)';stL='Menunggu';}} 
-      else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';} 
-      const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-'; const dasarSc=nilaiDasarRemedial(r); const remSc=(r.nilaiRemedial===undefined||r.nilaiRemedial===null||r.nilaiRemedial==='')?'-':r.nilaiRemedial; const finalSc=Number(r.score||dasarSc); if(r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''){stL='SETELAH REMEDIAL';stC=finalSc>=70?'var(--ok)':'var(--er)';} 
-      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700">${String(dasarSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700;color:${r.nilaiRemedial!==undefined?'var(--ac)':'var(--mt)'}">${remSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${String(finalSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}${!D.isPusat&&(Number(r.nilaiRemedial??-1)>=0||nilaiDasarRemedial(r)<70)?`<button class="bt bt5 btx" onclick="inputNilaiRemedial('${r.id}','${g.schoolNpsn}')" title="Input/Ubah Nilai Remedial" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-user-check"></i></button>`:''}${!D.isPusat&&r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''?`<button class="bt bt4 btx" onclick="hapusNilaiRemedial('${r.id}','${g.schoolNpsn}')" title="Hapus Nilai Remedial (kembali ke nilai murni)" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-eraser"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
+      const sc=r.score||0;let stC,stL;
+      const remedialEssayPending=Array.isArray(r.remedialEssays)&&r.remedialEssays.length>0&&r.remedialPendingCorrection===true;
+      if(remedialEssayPending){stC='var(--inf)';stL='KOREKSI URAIAN REMEDIAL';}
+      else if(r.essays&&r.essays.length>0){const isGraded=r.essays.every(e=>e.graded===true);if(isGraded){if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}}else{stC='var(--inf)';stL='Menunggu';}}
+      else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}
+      const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-';const dasarSc=nilaiDasarRemedial(r);const remSc=remedialEssayPending?'Menunggu Koreksi':((r.nilaiRemedial===undefined||r.nilaiRemedial===null||r.nilaiRemedial==='')?'-':r.nilaiRemedial);const finalSc=Number(r.score||dasarSc);if(!remedialEssayPending&&r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''){stL='SETELAH REMEDIAL';stC=finalSc>=70?'var(--ok)':'var(--er)';} 
+      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700">${String(dasarSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700;color:${r.nilaiRemedial!==undefined?'var(--ac)':'var(--mt)'}">${remSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${String(finalSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&remedialEssayPending?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}','remedial')" title="Koreksi Uraian Remedial" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i> Remedial</button>`:''}${!D.isPusat&&!remedialEssayPending&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" title="Koreksi Uraian / Jawaban" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}${!D.isPusat&&(Number(r.nilaiRemedial??-1)>=0||nilaiDasarRemedial(r)<70)?`<button class="bt bt5 btx" onclick="inputNilaiRemedial('${r.id}','${g.schoolNpsn}')" title="Input/Ubah Nilai Remedial" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-user-check"></i></button>`:''}${!D.isPusat&&r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''?`<button class="bt bt4 btx" onclick="hapusNilaiRemedial('${r.id}','${g.schoolNpsn}')" title="Hapus Nilai Remedial (kembali ke nilai murni)" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-eraser"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
     h+=`</tbody></table></div></div>`;}); 
   h+=`</div>`;c.innerHTML=h; 
 } 
@@ -8551,7 +8552,7 @@ async function sinkronKunciTerbaruKeHasil(r,npsn){
   }
 }
 
-async function koreksiEssay(rid, npsn){ 
+async function koreksiEssay(rid, npsn, mode='normal'){ 
   let r; 
   if(D.isPusat){ 
     r = D.allResults.find(x=>x.id===rid && x.schoolNpsn===npsn); 
@@ -8583,9 +8584,10 @@ async function koreksiEssay(rid, npsn){
       }
     }catch(e){ console.warn('[KUNCI LOKAL/PER SISWA KOREKSI]',e); }
   }
-  const pgArr = r.pg || []; 
-  const esArr = r.essays || []; 
-  let h=`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-pen mr-2" style="color:var(--pr)"></i>Koreksi — ${r.nama} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(${r.mapel} · Kelas ${r.kelas} Rombel ${r.rombel||'-'})</span></h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>`; 
+  const isRemedialCorrection=mode==='remedial';
+   const pgArr = isRemedialCorrection ? (r.remedialPg || []) : (r.pg || []);
+   const esArr = isRemedialCorrection ? (r.remedialEssays || []) : (r.essays || []);
+   let h=`<div><div class="flex items-center justify-between mb-4"><h3 style="font-size:1.15rem"><i class="fas fa-pen mr-2" style="color:var(--pr)"></i>${isRemedialCorrection?'Koreksi Uraian Remedial':'Koreksi'} — ${r.nama} <span style="font-size:.72rem;color:var(--mt);font-weight:600">(${r.mapel} · Kelas ${r.kelas} Rombel ${r.rombel||'-'})</span></h3><button onclick="cMo()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--mt)">&times;</button></div>`; 
 
   if(!D.isPusat){
     h+=`<div style="margin:0 0 14px;padding:12px 14px;border:2px solid #C7D2FE;border-radius:12px;background:#EEF2FF;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -8620,7 +8622,7 @@ async function koreksiEssay(rid, npsn){
   } 
  
   if(!pgArr.length && !esArr.length){ h+=`<p style="color:var(--mt);text-align:center;padding:12px">Tidak ada jawaban untuk dikoreksi.</p>`; } 
-  h+=`<button class="bt bt1 w-full justify-center" onclick="simpanKoreksi('${rid}','${npsn}')"><i class="fas fa-save"></i> Simpan Koreksi</button></div>`; 
+  h+=`<button class="bt bt1 w-full justify-center" onclick="simpanKoreksi('${rid}','${npsn}','${isRemedialCorrection?'remedial':'normal'}')"><i class="fas fa-save"></i> ${isRemedialCorrection?'Simpan Koreksi Uraian Remedial':'Simpan Koreksi'}</button></div>`; 
   oMo(h); 
   /* Resolusi gambar uraian via blob cache (URL .json RTDB tidak bisa dimuat langsung oleh <img>) */ 
   document.querySelectorAll('#moC img[data-essay-src]').forEach(async im=>{ 
@@ -8629,40 +8631,37 @@ async function koreksiEssay(rid, npsn){
   }); 
 } 
  
-async function simpanKoreksi(rid, npsn){ 
-  if(D.isPusat){ return tt('Admin Pusat tidak bisa menyimpan koreksi!', 'er'); } 
-  let r = D.rs.find(x=>x.id===rid); 
-  if(!r)return; 
-  let totalEssay=0; 
-  let cor=0; 
-  if(r.pg && r.pg.length){ 
-    r.pg.forEach((g,i)=>{ 
-      const el=document.getElementById('pgAns'+i); 
-      if(!el)return; 
-      const v=el.value; 
-      g.studentAns = v==='' ? null : parseInt(v); 
-      if(sameStudentAnswer(g.studentAns,g.correctAns))cor++; 
-    }); 
-  } 
-  if(r.essays && r.essays.length){ 
-    r.essays.forEach((e,i)=>{const el=document.getElementById('esScore'+i);const sc=el?(parseInt(el.value)||0):0;e.score=Math.min(100,Math.max(0,sc));e.graded=true;totalEssay+=e.score;}); 
-  } 
-  r.correct = cor; 
-  const pgCount = r.pg ? r.pg.length : (r.total - (r.essays?r.essays.length:0)); 
-  r.autoScore = pgCount>0 ? Math.round(cor/pgCount*100) : 0; 
-  const pgScore = r.autoScore; 
-  const essayAvg = (r.essays && r.essays.length>0) ? Math.round(totalEssay/r.essays.length) : 0; 
-  let finalScore; 
-  if(pgCount>0 && r.essays && r.essays.length>0) finalScore=Math.round(pgScore*0.5+essayAvg*0.5); 
-  else if(r.essays && r.essays.length>0) finalScore=essayAvg; 
-  else finalScore=pgScore; 
-  r.score=finalScore; 
-  r.essayScore=essayAvg; 
-  ld('Menyimpan...'); 
-  await Promise.allSettled([rR(npsn).doc(rid).update({pg:r.pg||[],essays:r.essays||[],correct:r.correct,autoScore:r.autoScore,essayScore:r.essayScore,score:finalScore}),(db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).update({pg:r.pg||[],essays:r.essays||[],correct:r.correct,autoScore:r.autoScore,essayScore:r.essayScore,score:finalScore})]); 
-  hd();cMo();renderHasil($('aC'));tt('Koreksi disimpan! Nilai akhir: '+finalScore); 
-} 
- 
+async function simpanKoreksi(rid,npsn,mode='normal'){
+  if(D.isPusat)return tt('Admin Pusat tidak bisa menyimpan koreksi!','er');
+  const r=D.rs.find(x=>x.id===rid);if(!r)return;
+  if(mode==='remedial'){
+    const esArr=r.remedialEssays||[],pgArr=r.remedialPg||[];
+    if(!esArr.length)return tt('Tidak ada jawaban uraian remedial yang perlu dikoreksi.','in');
+    let totalEssay=0,cor=0;
+    esArr.forEach((e,i)=>{const el=document.getElementById('esScore'+i);const sc=el?(parseInt(el.value)||0):0;e.score=Math.min(100,Math.max(0,sc));e.graded=true;totalEssay+=e.score;});
+    pgArr.forEach((g,i)=>{const el=document.getElementById('pgAns'+i);if(el)g.studentAns=el.value===''?null:parseInt(el.value);if(sameStudentAnswer(g.studentAns,g.correctAns))cor++;});
+    const pgCount=pgArr.length,pgScore=pgCount?Math.round(cor/pgCount*100):0,essayAvg=Math.round(totalEssay/esArr.length);
+    const remedialScore=pgCount?Math.round(pgScore*.5+essayAvg*.5):essayAvg;
+    const dasar=nilaiDasarRemedial(r),finalScore=Math.round(((dasar+remedialScore)/2)*10)/10;
+    const correctedAt=Date.now();
+    const payload={remedialEssays:esArr,remedialPg:pgArr,nilaiRemedial:remedialScore,nilaiSebelumRemedial:dasar,score:finalScore,hasRemedial:true,remedialPendingCorrection:false,remedialCorrectedAt:correctedAt,remedialCorrect:cor,remedialAutoScore:pgScore,remedialEssayScore:essayAvg};
+    Object.assign(r,payload);
+    ld('Menyimpan koreksi uraian remedial...');
+    const otherDb=(db===backupDb?dbMigrationPrimary:backupDb);
+    const writes=await Promise.allSettled([rR(npsn).doc(rid).update(payload),otherDb.collection('schools').doc(npsn).collection('results').doc(rid).update(payload)]);
+    if(writes.every(x=>x.status==='rejected'))throw writes[0].reason;
+    hd();cMo();renderHasil($('aC'));tt('Koreksi uraian remedial disimpan! Nilai remedial: '+remedialScore+' · Nilai akhir: '+finalScore,'ok');return;
+  }
+  let totalEssay=0,cor=0;
+  if(r.pg&&r.pg.length)r.pg.forEach((g,i)=>{const el=document.getElementById('pgAns'+i);if(!el)return;g.studentAns=el.value===''?null:parseInt(el.value);if(sameStudentAnswer(g.studentAns,g.correctAns))cor++;});
+  if(r.essays&&r.essays.length)r.essays.forEach((e,i)=>{const el=document.getElementById('esScore'+i);const sc=el?(parseInt(el.value)||0):0;e.score=Math.min(100,Math.max(0,sc));e.graded=true;totalEssay+=e.score;});
+  r.correct=cor;const pgCount=r.pg?r.pg.length:(r.total-(r.essays?r.essays.length:0));r.autoScore=pgCount?Math.round(cor/pgCount*100):0;
+  const essayAvg=r.essays&&r.essays.length?Math.round(totalEssay/r.essays.length):0,pgScore=r.autoScore;
+  const finalScore=pgCount&&r.essays&&r.essays.length?Math.round(pgScore*.5+essayAvg*.5):(r.essays&&r.essays.length?essayAvg:pgScore);
+  r.score=finalScore;r.essayScore=essayAvg;ld('Menyimpan...');
+  await Promise.allSettled([rR(npsn).doc(rid).update({pg:r.pg||[],essays:r.essays||[],correct:r.correct,autoScore:r.autoScore,essayScore:r.essayScore,score:finalScore}),(db===backupDb?dbMigrationPrimary:backupDb).collection('schools').doc(npsn).collection('results').doc(rid).update({pg:r.pg||[],essays:r.essays||[],correct:r.correct,autoScore:r.autoScore,essayScore:r.essayScore,score:finalScore})]);
+  hd();cMo();renderHasil($('aC'));tt('Koreksi disimpan! Nilai akhir: '+finalScore);
+}
 /* ===== DATA SISWA ===== */ 
 function renderSiswa(c){ 
   const fk=D._siswaFilterKelas||'';const fr=D._siswaFilterRombel||''; 
