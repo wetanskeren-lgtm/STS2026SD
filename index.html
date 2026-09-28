@@ -4706,11 +4706,33 @@ async function finEx(){
 
       const completedAt=Date.now();
 
-      /* Pisahkan jawaban remedial dari uraian ujian utama.
-         Kunci berasal dari paket remedial/soal sumber, sedangkan jawaban
-         berasal dari jawaban siswa yang baru saja selesai mengerjakan remedial.
-         `base.essays` tidak dihapus atau diubah. */
-      const remedialEssays=buildRemedialEssayRowsFromSubmission(ex,essays,base);
+      /* ============================================================
+         REMEDIAL URAIAN — SIMPAN LANGSUNG DARI JAWABAN REMEDIAL
+         ------------------------------------------------------------
+         Jangan mengambil jawaban dari `base.essays`, karena itu adalah
+         jawaban ujian utama. Kunci berasal dari paket remedial, sedangkan
+         jawaban berasal dari D.an[] yang baru saja dikerjakan siswa.
+         Dengan cara ini menu Koreksi Uraian Remedial pasti membaca
+         pasangan KUNCI + JAWABAN REMEDIAL yang benar.
+      ============================================================ */
+      const remedialEssays=(Array.isArray(ex.questions)?ex.questions:[])
+        .map((q,i)=>{
+          if(!q || q.type!=='essay')return null;
+          const answer=(D.an[i]===undefined||D.an[i]===null)?'':String(D.an[i]);
+          return {
+            id:q.id||('remEssay_'+i),
+            text:q.text||'',
+            image:q.image||'',
+            key:q.key??q.answerKey??'',
+            answer,
+            score:0,
+            graded:false,
+            isRemedialAnswer:true,
+            remedialExamId:String(ex.id||''),
+            submittedAt:completedAt
+          };
+        })
+        .filter(Boolean);
       const remedialPg=JSON.parse(JSON.stringify(pgList||[]));
       const remedialHasEssay=remedialEssays.length>0;
       const remedialScoreSaved=remedialHasEssay?0:Number(nilaiRemedial||0);
@@ -8273,7 +8295,12 @@ function isRemedialEssayPending(r){
 
   const arr=remedialEssayArray(r);
   if(Array.isArray(r?.remedialEssays) && r.remedialEssays.length){
+    // Setelah siswa selesai remedial uraian, status menunggu koreksi harus
+    // tetap aktif sampai guru menyimpan koreksi. `remedialCompletedAt`
+    // menjadi penanda tambahan agar data tetap muncul walau flag lama
+    // sempat tidak ikut tersimpan.
     if(r.remedialPendingCorrection===true)return true;
+    if(r.remedialCompletedAt && r.remedialCorrectedAt==null)return true;
     return r.remedialEssays.some(e=>e && e.graded!==true);
   }
   if(r?.isRemedial===true && arr.length)return r.remedialPendingCorrection!==false && arr.some(e=>e && e.graded!==true);
@@ -8410,10 +8437,12 @@ function normalizeRemedialEssayRows(r){
     id:e?.id||('remEssay_'+i),
     text:e?.text||e?.question||e?.soal||'',
     image:e?.image||'',
-    key:e?.key??e?.answerKey??'',
-    answer:e?.answer??e?.studentAnswer??e?.jawaban??'',
+    key:e?.key??e?.answerKey??e?.kunci??'',
+    answer:e?.answer??e?.studentAnswer??e?.jawaban??e?.response??'',
     score:Number.isFinite(Number(e?.score))?Number(e.score):0,
-    graded:e?.graded===true
+    graded:e?.graded===true,
+    isRemedialAnswer:e?.isRemedialAnswer===true || e?.attempt==='remedial',
+    remedialExamId:e?.remedialExamId||r?.remedialExamId||''
   }));
 }
 
@@ -8537,15 +8566,19 @@ async function loadPendingRemedialCorrections(npsn){
       }
       if(!base)continue;
 
-      // Tandai bahwa paket ini memang remedial, lalu pindahkan HANYA
-      // soal uraian yang cocok dengan maksimal 10 soal pada paket.
+      // Tandai paket sebagai remedial. JANGAN memindahkan `essays`
+      // ujian utama berdasarkan ID/teks soal, karena soal remedial memang
+      // merupakan salinan soal utama. Jawaban remedial harus berasal dari
+      // field `remedialEssays` hasil pengerjaan remedial.
       base.remedialExamId=String(rem.id);
       base.hasRemedial=true;
       if(base.kelas===undefined||base.kelas===null||base.kelas==='')base.kelas=rem.kelas;
       if(!base.rombel||base.rombel==='-')base.rombel=rem.rombel||'-';
       if(!base.mapel)base.mapel=canonicalMapel(rem.mapel||rem.sourceExamName||'');
-
-      await pindahkanUraianRemedialYangTerlanjurMasukSoalUtama(base,rem);
+      if(Array.isArray(base.remedialEssays)&&base.remedialEssays.length){
+        base.remedialEssays=normalizeRemedialEssayRows(base);
+        base.remedialPendingCorrection=true;
+      }
       enrichFromStudent(base);
     }
   }
@@ -8553,15 +8586,15 @@ async function loadPendingRemedialCorrections(npsn){
   for(const r of baseRows){
     applyRemedialMeta(r);
 
-    // Jika data lama terlanjur masuk ke "essays" ujian utama, pindahkan
-    // hanya bagian yang cocok dengan paket remedial. Ujian utama yang
-    // tidak memiliki remedialExamId sama sekali tidak disentuh.
-    const remId=String(r.remedialExamId||'');
-    const rem=remId?remedialById.get(remId):null;
-    if(rem)await pindahkanUraianRemedialYangTerlanjurMasukSoalUtama(r,rem);
-
+    // Hanya `remedialEssays` yang dianggap jawaban remedial pada
+    // dokumen hasil ujian utama. `essays` tetap milik ujian utama.
     const arr=remedialEssayArray(r);
-    if(arr.length && !Array.isArray(r.remedialEssays))r.remedialEssays=normalizeRemedialEssayRows(r);
+    if(arr.length){
+      r.remedialEssays=normalizeRemedialEssayRows(r);
+      if(r.remedialCompletedAt && r.remedialPendingCorrection!==false){
+        r.remedialPendingCorrection=true;
+      }
+    }
     if(isRemedialEssayPending(r))pending.push(r);
   }
 
