@@ -3406,7 +3406,7 @@ async function updMapelList(){
     $('sM').innerHTML='<option value="">-- Belum ada ujian/susulan hari ini --</option>';$('sM').disabled=true;return;
   }
   $('sM').innerHTML=exs.map(e=>{
-    const label=e.isSusulan?'Ujian Susulan':'Ujian Utama';
+    const label=e.isRemedial?'Ujian Remedial':(e.isSusulan?'Ujian Susulan':'Ujian Utama');
     return `<option value="${e.id}">${e.mapel} · ${label} · ${e.questions.length} Soal</option>`;
   }).join('');
   $('sM').disabled=false;
