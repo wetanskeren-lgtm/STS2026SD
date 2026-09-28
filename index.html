@@ -2362,6 +2362,7 @@ function maxOpts(kelas){ return kelas <= 2 ? 3 : 4; }
 
 
 let D={sch:null,aIn:false,isPusat:false,st:null,ex:[],rs:[],ss:[],remedialExams:[],remedialForm:{kelas:'',rombel:'',mapel:'',sourceExamId:'',scheduleDate:'',studentNis:[],questionIds:[]},allSchools:[],allResults:[],cEx:null,cQ:0,an:{},tI:null,tL:0,editQs:[],editIdx:-1,editTargetNpsn:null,editKelas:3,_schoolKeyOverrides:{},
+  _remedialCorrectionCache:{npsn:'',list:null,promise:null,loadedAt:0},
   antiCheat:{active:false,violations:0,lastViolation:0,submitting:false,cleanup:null}};
 
 
@@ -3293,7 +3294,7 @@ async function logA(){
 
 
 
-function outA(e){if(e)e.preventDefault();clearUnsub();D.aIn=false;D.sch=null;D.isPusat=false;clearSchoolKeyOverrideCache();D.ex=[];D.rs=[];D.ss=[];D.remedialExams=[];D.remedialForm={kelas:'',rombel:'',mapel:'',sourceExamId:'',scheduleDate:'',studentNis:[],questionIds:[]};D.allSchools=[];D.allResults=[];$('navRemedial').style.display='none';$('navKoreksiRemedial').style.display='none';go('pH');tt('Keluar','in')}
+function outA(e){if(e)e.preventDefault();clearUnsub();D.aIn=false;D.sch=null;D.isPusat=false;clearSchoolKeyOverrideCache();D.ex=[];D.rs=[];D.ss=[];D.remedialExams=[];D.remedialForm={kelas:'',rombel:'',mapel:'',sourceExamId:'',scheduleDate:'',studentNis:[],questionIds:[]};D.allSchools=[];D.allResults=[];D._remedialCorrectionCache={npsn:'',list:null,promise:null,loadedAt:0};$('navRemedial').style.display='none';$('navKoreksiRemedial').style.display='none';go('pH');tt('Keluar','in')}
 
 
 
@@ -5350,7 +5351,7 @@ function aTab(t,el){
 
   else if(t==='r')renderRemedial(c);
   else if(t==='kr'){
-    c.innerHTML='<div class="asu"><div class="cd" style="padding:30px;text-align:center"><div class="spn"></div><p style="margin-top:12px;font-weight:800">Mencari jawaban uraian remedial di database...</p></div></div>';
+    c.innerHTML='<div class="asu"><div class="cd" style="padding:30px;text-align:center"><div class="spn"></div><p style="margin-top:12px;font-weight:800">Memuat data uraian remedial (sekali)...</p></div></div>';
     (async()=>{
       try{
         await renderKoreksiRemedial(c);
@@ -8639,6 +8640,41 @@ async function loadPendingRemedialCorrections(npsn){
   return pending.filter(isRemedialEssayPending).map(enrichFromStudent);
 }
 
+function invalidateRemedialCorrectionCache(npsn){
+  const key=String(npsn||'');
+  if(!key)return;
+  if(D._remedialCorrectionCache?.npsn===key){
+    D._remedialCorrectionCache={npsn:'',list:null,promise:null,loadedAt:0};
+  }
+}
+
+function getCachedRemedialCorrections(npsn,force=false){
+  const key=String(npsn||'');
+  if(!key)return Promise.resolve([]);
+  const cache=D._remedialCorrectionCache||{npsn:'',list:null,promise:null,loadedAt:0};
+  D._remedialCorrectionCache=cache;
+
+  // Filter Kelas/Rombel/Mapel tidak lagi membaca Firestore berulang-ulang.
+  // Firestore hanya dibaca saat pertama kali menu dibuka atau cache diminta refresh.
+  if(!force && cache.npsn===key && Array.isArray(cache.list)) return Promise.resolve(cache.list);
+  if(!force && cache.npsn===key && cache.promise) return cache.promise;
+
+  cache.npsn=key;
+  cache.promise=loadPendingRemedialCorrections(key)
+    .then(list=>{
+      cache.list=Array.isArray(list)?list:[];
+      cache.loadedAt=Date.now();
+      cache.promise=null;
+      return cache.list;
+    })
+    .catch(e=>{
+      cache.promise=null;
+      throw e;
+    });
+
+  return cache.promise;
+}
+
 async function renderKoreksiRemedial(c){
   if(D.isPusat){
     c.innerHTML='<div class="asu"><div class="cd" style="padding:30px;text-align:center"><b>Koreksi uraian remedial hanya tersedia untuk Admin Sekolah.</b></div></div>';
@@ -8648,7 +8684,9 @@ async function renderKoreksiRemedial(c){
   let listAll=[];
   if(D.sch?.npsn){
     try{
-      listAll=await loadPendingRemedialCorrections(String(D.sch.npsn));
+      // LOAD HANYA SEKALI. Setelah cache tersedia, pergantian filter
+      // berlangsung murni di memori sehingga tidak menunggu Firestore.
+      listAll=await getCachedRemedialCorrections(String(D.sch.npsn));
     }catch(e){
       console.error('[KOREKSI REMEDIAL] Gagal memuat data:',e);
       c.innerHTML='<div class="asu"><div class="cd" style="padding:30px;text-align:center;color:var(--er)">Gagal membaca data koreksi remedial: '+String(e.message||e)+'</div></div>';
@@ -8695,6 +8733,10 @@ async function renderKoreksiRemedial(c){
         <div style="flex:1;min-width:150px"><label class="block mb-1 font-bold" style="font-size:.82rem">Rombel</label><select class="ip" ${fn?'':'disabled'} onchange="D.remedialCorrectionFilter.rombel=this.value;D.remedialCorrectionFilter.mapel='';renderKoreksiRemedial($('aC'))"><option value="">-- Semua Rombel --</option>${rOpts.map(v=>`<option value="${v}" ${fr===v?'selected':''}>Rombel ${v}</option>`).join('')}</select></div>
         <div style="flex:1;min-width:180px"><label class="block mb-1 font-bold" style="font-size:.82rem">Mata Pelajaran</label><select class="ip" ${fn?'':'disabled'} onchange="D.remedialCorrectionFilter.mapel=this.value;renderKoreksiRemedial($('aC'))"><option value="">-- Semua Mapel --</option>${mOpts.map(m=>`<option value="${m}" ${fm===m?'selected':''}>${m}</option>`).join('')}</select></div>
         ${(fn||fk||fr||fm)?`<button class="bt bt3 bts" onclick="D.remedialCorrectionFilter={npsn:'${String(D.sch?.npsn||'')}',kelas:'',rombel:'',mapel:''};renderKoreksiRemedial($('aC'))"><i class="fas fa-times"></i> Reset</button>`:''}
+      </div>
+      <div style="margin-top:8px;font-size:.72rem;color:#64748B">
+        <i class="fas fa-bolt" style="color:#0EA5E9"></i>
+        Filter berjalan dari data yang sudah dimuat, jadi pergantian Kelas/Rombel/Mapel tidak membaca database lagi.
       </div>
     </div>`;
 
@@ -9191,7 +9233,10 @@ async function simpanKoreksi(rid,npsn,mode='normal'){
     }
     const writes=await Promise.allSettled(writeTargets);
     if(writes.every(x=>x.status==='rejected'))throw writes.find(x=>x.status==='rejected')?.reason||new Error('Gagal menyimpan koreksi remedial.');
-    hd();cMo();renderKoreksiRemedial($('aC'));tt('Koreksi uraian remedial disimpan! Nilai remedial: '+remedialScore+' · Nilai akhir: '+finalScore,'ok');return;
+    hd();cMo();
+    invalidateRemedialCorrectionCache(npsn);
+    renderKoreksiRemedial($('aC'));
+    tt('Koreksi uraian remedial disimpan! Nilai remedial: '+remedialScore+' · Nilai akhir: '+finalScore,'ok');return;
   }
   let totalEssay=0,cor=0;
   if(r.pg&&r.pg.length)r.pg.forEach((g,i)=>{const el=document.getElementById('pgAns'+i);if(!el)return;g.studentAns=el.value===''?null:parseInt(el.value);if(sameStudentAnswer(g.studentAns,g.correctAns))cor++;});
