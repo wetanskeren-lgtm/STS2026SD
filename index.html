@@ -8262,6 +8262,11 @@ function remedialEssayArray(r){
 }
 
 function isRemedialEssayPending(r){
+  // SANGAT KETAT: menu ini hanya boleh menampilkan data yang benar-benar
+  // berasal dari ujian remedial. Hasil ujian utama biasa tidak boleh ikut.
+  const isRemedialRecord=(r?.isRemedial===true)||!!String(r?.remedialExamId||'').trim();
+  if(!isRemedialRecord)return false;
+
   const arr=remedialEssayArray(r);
   if(Array.isArray(r?.remedialEssays) && r.remedialEssays.length){
     if(r.remedialPendingCorrection===true)return true;
@@ -8272,6 +8277,66 @@ function isRemedialEssayPending(r){
     return arr.some(e=>e && e.graded!==true) || r.remedialPendingCorrection===true;
   }
   return false;
+}
+
+function essayMatchesRemedialQuestion(e,q){
+  if(!e||!q)return false;
+  if(e.id!=null && q.id!=null && String(e.id)===String(q.id))return true;
+  const a=String(e.text||e.question||e.soal||'').trim().replace(/\s+/g,' ').toLowerCase();
+  const b=String(q.text||q.question||q.soal||'').trim().replace(/\s+/g,' ').toLowerCase();
+  return !!a && !!b && a===b;
+}
+
+async function pindahkanUraianRemedialYangTerlanjurMasukSoalUtama(r,rem){
+  // Perbaikan data lama: pada beberapa hasil, jawaban remedial sempat
+  // tersimpan di field "essays" milik ujian utama. Kita pindahkan HANYA
+  // jawaban yang cocok dengan soal pada paket remedial yang sebenarnya.
+  if(!r || !rem || r.isRemedial===true)return false;
+  if(!String(r.remedialExamId||'').trim())return false;
+  const mainEssays=Array.isArray(r.essays)?r.essays:[];
+  if(!mainEssays.length)return false;
+  const remQs=(Array.isArray(rem.questions)?rem.questions:[]).filter(q=>q&&q.type==='essay');
+  if(!remQs.length)return false;
+
+  const moved=mainEssays.filter(e=>remQs.some(q=>essayMatchesRemedialQuestion(e,q)));
+  if(!moved.length)return false;
+
+  const remain=mainEssays.filter(e=>!moved.includes(e));
+  const existing=Array.isArray(r.remedialEssays)?r.remedialEssays:[];
+  const existingKeys=new Set(existing.map(e=>String(e.id||e.text||e.answer||'')));
+  const movedNormalized=moved.map((e,i)=>({
+    id:e?.id||('remEssay_migrated_'+Date.now()+'_'+i),
+    text:e?.text||e?.question||e?.soal||'',
+    image:e?.image||'',
+    key:e?.key??e?.answerKey??'',
+    answer:e?.answer??e?.studentAnswer??e?.jawaban??'',
+    score:Number.isFinite(Number(e?.score))?Number(e.score):0,
+    graded:e?.graded===true
+  })).filter(e=>!existingKeys.has(String(e.id||e.text||e.answer||'')));
+
+  r.essays=remain;
+  r.remedialEssays=existing.concat(movedNormalized);
+  r.remedialPendingCorrection=r.remedialEssays.some(e=>e&&e.graded!==true);
+  r.hasRemedial=true;
+  r.remedialExamId=String(r.remedialExamId);
+
+  const payload={
+    essays:r.essays,
+    remedialEssays:r.remedialEssays,
+    remedialPendingCorrection:r.remedialPendingCorrection,
+    hasRemedial:true,
+    remedialExamId:r.remedialExamId
+  };
+  const otherDb=(db===backupDb?dbMigrationPrimary:backupDb);
+  const writes=await Promise.allSettled([
+    rR(r.schoolNpsn||D.sch.npsn).doc(r.id).update(payload),
+    otherDb.collection('schools').doc(r.schoolNpsn||D.sch.npsn).collection('results').doc(r.id).update(payload)
+  ]);
+  if(writes.every(x=>x.status==='rejected')){
+    console.warn('[REMEDIAL MIGRASI] Gagal memindahkan jawaban remedial:',writes[0]?.reason);
+    return false;
+  }
+  return true;
 }
 
 function normalizeRemedialEssayRows(r){
@@ -8382,12 +8447,20 @@ async function loadPendingRemedialCorrections(npsn){
 
   const pending=[];
 
-  baseRows.forEach(r=>{
+  for(const r of baseRows){
     applyRemedialMeta(r);
+
+    // Jika data lama terlanjur masuk ke "essays" ujian utama, pindahkan
+    // hanya bagian yang cocok dengan paket remedial. Ujian utama yang
+    // tidak memiliki remedialExamId sama sekali tidak disentuh.
+    const remId=String(r.remedialExamId||'');
+    const rem=remId?remedialById.get(remId):null;
+    if(rem)await pindahkanUraianRemedialYangTerlanjurMasukSoalUtama(r,rem);
+
     const arr=remedialEssayArray(r);
     if(arr.length && !Array.isArray(r.remedialEssays))r.remedialEssays=normalizeRemedialEssayRows(r);
     if(isRemedialEssayPending(r))pending.push(r);
-  });
+  }
 
   // Dokumen legacy isRemedial:true juga dibaca. Jika ada hasil awalnya,
   // jawaban remedial ditempelkan ke hasil awal agar koreksi tetap 1 siswa.
