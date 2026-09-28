@@ -9074,6 +9074,89 @@ async function sinkronKunciTerbaruKeHasil(r,npsn){
   }
 }
 
+/*
+  PEMULIHAN URAIAN UJIAN PERTAMA SAAT DATA LAMA TIDAK LENGKAP.
+  Versi lama aplikasi pernah menyimpan jawaban uraian ujian pertama
+  ke field remedialEssays. Fungsi ini hanya melakukan pemulihan ketika
+  data benar-benar belum memiliki essays/mainEssays.
+  Jika remedial sudah benar-benar dikerjakan (ada remedialCompletedAt),
+  data remedial TIDAK disentuh.
+*/
+async function pulihkanUraianUjianPertama(r,npsn){
+  if(!r||r.isRemedial===true)return r;
+  if(Array.isArray(r.essays)&&r.essays.length)return r;
+  if(Array.isArray(r.mainEssays)&&r.mainEssays.length){
+    r.essays=JSON.parse(JSON.stringify(r.mainEssays));
+    return r;
+  }
+
+  // Baca ulang dokumen terbaru supaya D.rs/cache lama tidak menghalangi pemulihan.
+  try{
+    const snap=await rR(npsn).doc(r.id).get();
+    if(snap.exists){
+      const fresh={id:snap.id,...snap.data()};
+      if(Array.isArray(fresh.essays)&&fresh.essays.length){
+        Object.assign(r,fresh);
+        return r;
+      }
+      if(Array.isArray(fresh.mainEssays)&&fresh.mainEssays.length){
+        Object.assign(r,fresh);
+        r.essays=JSON.parse(JSON.stringify(fresh.mainEssays));
+        return r;
+      }
+      Object.assign(r,fresh);
+    }
+  }catch(e){console.warn('[PEMULIHAN URAIAN UTAMA] gagal membaca hasil terbaru',e);}
+
+  // Jangan menyentuh remedial yang memang sudah dikerjakan siswa.
+  const remedialSudahDikerjakan=!!r.remedialCompletedAt||!!r.remedialCorrectedAt;
+  if(remedialSudahDikerjakan)return r;
+
+  // Kasus data lama: uraian ujian pertama terlanjur masuk ke remedialEssays.
+  // Sebelum dipindahkan, pastikan bentuknya memang seperti jawaban uraian.
+  const legacy=Array.isArray(r.remedialEssays)?r.remedialEssays:[];
+  if(!legacy.length)return r;
+
+  const main=legacy.map((e,i)=>({
+    id:e?.id||('essay_'+i),
+    text:e?.text||e?.question||e?.soal||'',
+    image:e?.image||e?.img||'',
+    key:e?.key??e?.answerKey??e?.kunci??'',
+    answer:e?.answer??e?.studentAnswer??e?.jawaban??e?.response??'',
+    score:Number.isFinite(Number(e?.score))?Number(e.score):0,
+    graded:e?.graded===true,
+    isRemedialAnswer:false
+  })).filter(e=>e.text||e.answer||e.key);
+  if(!main.length)return r;
+
+  r.essays=main;
+  r.mainEssays=JSON.parse(JSON.stringify(main));
+
+  // Karena belum ada tanda siswa benar-benar mengerjakan remedial,
+  // field remedialEssays tersebut adalah data legacy yang salah tempat.
+  // Hapus dari dua server agar tidak muncul sebagai uraian remedial.
+  const payload={
+    essays:r.essays,
+    mainEssays:r.mainEssays,
+    remedialEssays:firebase.firestore.FieldValue.delete(),
+    remedialPendingCorrection:firebase.firestore.FieldValue.delete(),
+    remedialCompletedAt:firebase.firestore.FieldValue.delete(),
+    remedialCorrectedAt:firebase.firestore.FieldValue.delete()
+  };
+  const otherDb=(db===backupDb?dbMigrationPrimary:backupDb);
+  try{
+    await Promise.allSettled([
+      rR(npsn).doc(r.id).update(payload),
+      otherDb.collection('schools').doc(npsn).collection('results').doc(r.id).update(payload)
+    ]);
+    delete r.remedialEssays;
+    delete r.remedialPendingCorrection;
+    delete r.remedialCompletedAt;
+    delete r.remedialCorrectedAt;
+  }catch(e){console.warn('[PEMULIHAN URAIAN UTAMA] gagal menyimpan hasil pemulihan',e);}
+  return r;
+}
+
 async function koreksiEssay(rid, npsn, mode='normal'){ 
   let r; 
   if(D.isPusat){ 
@@ -9087,6 +9170,11 @@ async function koreksiEssay(rid, npsn, mode='normal'){
   // Sebelum menampilkan koreksi, ambil kunci terbaru dari Admin Pusat
   // lalu perbarui hasil siswa tersebut. Dengan begitu soal lama yang sudah
   // diperbaiki kuncinya tidak lagi menampilkan kunci lama.
+  // Pastikan uraian ujian pertama sudah tersedia sebelum modal koreksi dibuat.
+  // Ini juga memperbaiki data lama yang pernah tertukar dengan uraian remedial.
+  if(mode==='normal' && !D.isPusat){
+    await pulihkanUraianUjianPertama(r,npsn);
+  }
   if(!D.isPusat && r.examId){
     const changed=await sinkronKunciTerbaruKeHasil(r,npsn);
     if(changed>0){
