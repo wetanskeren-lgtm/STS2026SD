@@ -8295,10 +8295,23 @@ async function pindahkanUraianRemedialYangTerlanjurMasukSoalUtama(r,rem){
   if(!String(r.remedialExamId||'').trim())return false;
   const mainEssays=Array.isArray(r.essays)?r.essays:[];
   if(!mainEssays.length)return false;
-  const remQs=(Array.isArray(rem.questions)?rem.questions:[]).filter(q=>q&&q.type==='essay');
+  // Remedial uraian dibatasi MAKSIMAL 10 soal. PG tidak ikut dipindahkan.
+  // Jadi walaupun field essays ujian utama berisi banyak uraian, yang dipindahkan
+  // hanya bagian yang cocok dengan 10 soal uraian pada paket remedial.
+  const remQs=(Array.isArray(rem.questions)?rem.questions:[])
+    .filter(q=>q&&q.type==='essay')
+    .slice(0,10);
   if(!remQs.length)return false;
 
-  const moved=mainEssays.filter(e=>remQs.some(q=>essayMatchesRemedialQuestion(e,q)));
+  const moved=[];
+  const usedMain=new Set();
+  remQs.forEach(q=>{
+    const idx=mainEssays.findIndex((e,i)=>!usedMain.has(i)&&essayMatchesRemedialQuestion(e,q));
+    if(idx>=0){
+      usedMain.add(idx);
+      moved.push(mainEssays[idx]);
+    }
+  });
   if(!moved.length)return false;
 
   const remain=mainEssays.filter(e=>!moved.includes(e));
