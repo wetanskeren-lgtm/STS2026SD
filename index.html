@@ -8891,11 +8891,11 @@ async function cetakRekapNilaiAkhirRemedialImage(){
         </tr>`;
       }).join('');
 
-      const b=$('pB');
-      b.style.left='0';
-      b.style.top='0';
-      b.style.zIndex='9999';
-      b.innerHTML=`<div id="pdRekapNilaiAkhirImage" style="font-family:Arial,Helvetica,sans-serif;width:1120px;background:#f8f2df;color:#17345f;box-sizing:border-box;overflow:hidden;position:relative">
+      // Jangan menampilkan kanvas di atas halaman aplikasi.
+      // Buat elemen sementara di luar viewport khusus untuk html2canvas.
+      const stage=document.createElement('div');
+      stage.style.cssText='position:fixed;left:-100000px;top:0;width:1120px;z-index:-2147483647;display:block;visibility:visible;pointer-events:none;background:#fff;';
+      stage.innerHTML=`<div id="pdRekapNilaiAkhirImage" style="font-family:Arial,Helvetica,sans-serif;width:1120px;background:#f8f2df;color:#17345f;box-sizing:border-box;overflow:hidden;position:relative">
         <style>
           #pdRekapNilaiAkhirImage *{box-sizing:border-box}
           #pdRekapNilaiAkhirImage .sheet{
@@ -9087,7 +9087,8 @@ async function cetakRekapNilaiAkhirRemedialImage(){
         </div>
       </div>`;
 
-      const target=$('pdRekapNilaiAkhirImage');
+      document.body.appendChild(stage);
+      const target=stage.querySelector('#pdRekapNilaiAkhirImage');
       await new Promise(resolve=>setTimeout(resolve,250));
 
       // Render bagian ini menjadi PNG saja. TIDAK membuka window.print() dan TIDAK membuka menu print.
@@ -9114,6 +9115,9 @@ async function cetakRekapNilaiAkhirRemedialImage(){
       a.click();
       a.remove();
 
+      // Hapus kanvas sementara agar halaman aplikasi kembali persis seperti semula.
+      stage.remove();
+
       setTimeout(()=>URL.revokeObjectURL(url),5000);
 
       // Beri jeda kecil agar browser memproses dua download berurutan.
@@ -9126,8 +9130,6 @@ async function cetakRekapNilaiAkhirRemedialImage(){
       : jumlahBagian+' gambar PNG berhasil dibuat dan langsung di-download.'
     ,'ok');
 
-    b.style.left='-9999px';
-    b.style.zIndex='-1';
   }catch(e){
     hd();
     tt('Gagal membuat gambar rekap: '+(e.message||e),'er');
