@@ -2602,24 +2602,69 @@ function applySchoolExamAssignment(ex,assignment){
   return out;
 }
 async function getAssignedPusatExamsForStudent(npsn,kelas,rombel){
-  const [examSnap,assignSnap]=await Promise.all([soalR().get(),examAssignmentR(npsn).get()]);
+  /*
+     ATURAN PENTING:
+     - Ujian Utama tetap memakai paket yang ditugaskan sekolah.
+     - Ujian Susulan memakai paket ASLI dari Admin Pusat.
+       Jadi jika paket Pusat berisi 40 soal, Susulan tetap 40 soal.
+     - Karena jadwal Susulan dibuat di Admin Pusat, siswa tetap boleh
+       melihat Susulan walaupun assignment sekolah untuk paket Utama
+       sudah tidak ada/berbeda. Syaratnya kelas siswa sama dengan kelas
+       paket Pusat dan tanggal Susulan memang hari ini.
+  */
+  const [examSnap,assignSnap]=await Promise.all([
+    soalR().get(),
+    examAssignmentR(npsn).get()
+  ]);
+
   const rb=String(rombel||'-');
+  const today=todayLocalDateString();
   const amap=new Map();
+
   assignSnap.docs.forEach(d=>{
     const a={id:d.id,...d.data()};
-    if(String(a.kelas)===String(kelas)&&String(a.rombel||'-')===rb&&Array.isArray(a.questionIds)&&a.questionIds.length){
+    if(
+      String(a.kelas)===String(kelas) &&
+      String(a.rombel||'-')===rb &&
+      Array.isArray(a.questionIds) &&
+      a.questionIds.length
+    ){
       amap.set(String(a.examId),a);
     }
   });
+
   const out=[];
+
   examSnap.docs.forEach(d=>{
     const ex=normalizeExamRecord({id:d.id,...d.data()});
+    if(!ex || String(ex.kelas)!==String(kelas))return;
+
+    const susulanDate=getSusulanScheduleDate(ex);
+    const susulanHariIni=isValidScheduleDate(susulanDate) && susulanDate===today;
+
+    /* ============================================================
+       SUSULAN = PAKET PUSAT UTUH
+       Jangan dipotong oleh questionIds assignment sekolah.
+       Ini yang membuat contoh 40 soal tetap 40 soal.
+       ============================================================ */
+    if(susulanHariIni && !ex.isRemedial){
+      const full=JSON.parse(JSON.stringify(ex));
+      full.isSusulanSource=true;
+      full.susulanSource='pusat';
+      full.schoolAssignmentId='';
+      full.schoolAssignmentScope='';
+      out.push(full);
+      return;
+    }
+
+    /* Ujian Utama normal: tetap wajib memakai assignment sekolah. */
     const a=amap.get(String(ex.id));
     if(a){
       const assigned=applySchoolExamAssignment(ex,a);
       if(assigned)out.push(assigned);
     }
   });
+
   return out;
 }
 
@@ -3530,7 +3575,9 @@ function getExamScheduleDate(ex){
      dengan penanda isSusulan=true agar riwayat tetap dapat dibedakan.
    ================================================================ */
 function getSusulanScheduleDate(ex){
-  return ex&&ex.susulanScheduleDate ? String(ex.susulanScheduleDate) : '';
+  if(!ex)return '';
+  const v=ex.susulanScheduleDate ?? ex.susulanDate ?? ex.scheduleSusulanDate ?? ex.susulanSchedule;
+  return v ? String(v) : '';
 }
 function isValidScheduleDate(v){return /^\d{4}-\d{2}-\d{2}$/.test(String(v||''));}
 function hasCompletedExamResult(results,examId){
@@ -3945,7 +3992,14 @@ async function startEx(id){
     }
   }
   if(!ex||!ex.questions||!ex.questions.length)return tt('Ujian belum dipilihkan soal oleh Admin Sekolah untuk kelas/rombel Anda.','er');
-  if(!D.isPusat && !ex.isRemedial && !ex.schoolAssignmentId)return tt('Ujian ini belum diatur untuk Kelas/Rombel Anda.','er');
+  /*
+     Ujian Susulan berasal langsung dari paket Pusat. Karena itu Susulan
+     TIDAK membutuhkan schoolAssignmentId seperti Ujian Utama.
+     Remedial juga tetap memakai aturan lamanya.
+  */
+  if(!D.isPusat && !ex.isRemedial && !ex.isSusulan && !ex.schoolAssignmentId){
+    return tt('Ujian ini belum diatur untuk Kelas/Rombel Anda.','er');
+  }
   if(!isStudentEligibleForExam(D.st,ex))return tt(isSimulasiExam(ex)?'Ujian Simulasi hanya untuk siswa Kelas 3, 4, 5, atau 6.':'Ujian ini bukan untuk kelas Anda.','er');
   if(D.st&&!isExamScheduledTodayForStudent(ex,D.st))return tt('Mapel ini belum dijadwalkan untuk hari ini.','er');
 
