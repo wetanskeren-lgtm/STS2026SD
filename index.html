@@ -8278,47 +8278,119 @@ function normalizeRemedialEssayRows(r){
 async function loadPendingRemedialCorrections(npsn){
   if(!npsn)return [];
   const otherDb=(db===backupDb?dbMigrationPrimary:backupDb);
+
+  // Ambil hasil dari database sekolah berdasarkan NPSN yang sedang login.
+  // Kita juga membaca data siswa dan paket remedial agar data lama yang
+  // kurang lengkap (misalnya rombel/mapel kosong) tetap bisa dipetakan.
   const snaps=await Promise.allSettled([
     rR(npsn).get(),
-    otherDb.collection('schools').doc(npsn).collection('results').get()
+    otherDb.collection('schools').doc(npsn).collection('results').get(),
+    wR(npsn).get(),
+    remedialR(npsn).get()
   ]);
+
   const rowsById=new Map();
-  snaps.forEach(x=>{
-    if(x.status!=='fulfilled')return;
-    x.value.docs.forEach(d=>{
+  const studentByNis=new Map();
+  const remedialById=new Map();
+
+  const addRows=(snap)=>{
+    if(!snap || !snap.docs)return;
+    snap.docs.forEach(d=>{
       const data=d.data()||{};
-      const row={id:d.id,...data,mapel:canonicalMapel(data.mapel)};
+      const row={id:d.id,...data,mapel:canonicalMapel(data.mapel),schoolNpsn:String(npsn)};
       const old=rowsById.get(String(d.id));
       const oldHas=old && (remedialEssayArray(old).length || old.remedialPendingCorrection===true);
       const newHas=remedialEssayArray(row).length || row.remedialPendingCorrection===true;
-      if(!old || (!oldHas&&newHas) || Number(row.remedialCompletedAt||0)>Number(old.remedialCompletedAt||0))rowsById.set(String(d.id),row);
+      if(!old || (!oldHas&&newHas) || Number(row.remedialCompletedAt||0)>Number(old.remedialCompletedAt||0)){
+        rowsById.set(String(d.id),row);
+      }
     });
-  });
+  };
+
+  const resultSnaps=snaps.slice(0,2);
+  resultSnaps.forEach(x=>{if(x.status==='fulfilled')addRows(x.value);});
+
+  if(snaps[2]?.status==='fulfilled'){
+    snaps[2].value.docs.forEach(d=>{
+      const st=d.data()||{};
+      const nis=String(st.nis??d.id??'');
+      if(nis)studentByNis.set(nis,{id:d.id,...st});
+    });
+  }
+
+  if(snaps[3]?.status==='fulfilled'){
+    snaps[3].value.docs.forEach(d=>remedialById.set(String(d.id),{id:d.id,...(d.data()||{})}));
+  }
+
   const rows=[...rowsById.values()];
   const byId=new Map(rows.map(r=>[String(r.id),r]));
   const baseRows=rows.filter(r=>!r.isRemedial);
+
+  // Isi data yang kosong dari dokumen siswa. Ini penting untuk filter
+  // Kelas/Rombel ketika dokumen hasil remedial lama tidak membawa rombel.
+  const enrichFromStudent=(r)=>{
+    const st=studentByNis.get(String(r.nis||''));
+    if(st){
+      if(r.kelas===undefined||r.kelas===null||r.kelas==='')r.kelas=st.kelas;
+      if(!r.rombel||r.rombel==='-')r.rombel=st.rombel||'-';
+      if(!r.nama)r.nama=st.nama||'';
+    }
+    r.schoolNpsn=String(npsn);
+    r.mapel=canonicalMapel(r.mapel);
+    return r;
+  };
+  rows.forEach(enrichFromStudent);
+
   const byNisMapel=new Map();
   baseRows.forEach(r=>{
+    enrichFromStudent(r);
     const key=String(r.nis||'')+'|'+canonicalMapel(r.mapel).toLowerCase();
     const old=byNisMapel.get(key);
     if(!old || Number(r.timestamp||0)>Number(old.timestamp||0))byNisMapel.set(key,r);
   });
+
+  // Pemetaan tambahan dari paket remedial berdasarkan remedialExamId.
+  const applyRemedialMeta=(r,old)=>{
+    const remId=String(r.remedialExamId||r.examId||old?.remedialExamId||old?.examId||'');
+    const rem=remId?remedialById.get(remId):null;
+    if(rem){
+      if(r.kelas===undefined||r.kelas===null||r.kelas==='')r.kelas=rem.kelas;
+      if(!r.rombel||r.rombel==='-')r.rombel=rem.rombel||'-';
+      if(!r.mapel)r.mapel=canonicalMapel(rem.mapel||rem.sourceExamName||'');
+      if(!r.nama){
+        const st=studentByNis.get(String(r.nis||''));
+        if(st)r.nama=st.nama||'';
+      }
+      r.remedialExamId=rem.id||r.remedialExamId;
+    }
+    return enrichFromStudent(r);
+  };
+
   const pending=[];
+
   baseRows.forEach(r=>{
+    applyRemedialMeta(r);
     const arr=remedialEssayArray(r);
     if(arr.length && !Array.isArray(r.remedialEssays))r.remedialEssays=normalizeRemedialEssayRows(r);
     if(isRemedialEssayPending(r))pending.push(r);
   });
+
+  // Dokumen legacy isRemedial:true juga dibaca. Jika ada hasil awalnya,
+  // jawaban remedial ditempelkan ke hasil awal agar koreksi tetap 1 siswa.
   rows.filter(r=>r.isRemedial===true).forEach(old=>{
+    applyRemedialMeta(old);
     const oldEssays=normalizeRemedialEssayRows(old);
     if(!oldEssays.length || !isRemedialEssayPending(old))return;
+
     let base=null;
     if(old.remedialResultId)base=byId.get(String(old.remedialResultId))||null;
     if(!base){
       const key=String(old.nis||'')+'|'+canonicalMapel(old.mapel).toLowerCase();
       base=byNisMapel.get(key)||null;
     }
+
     if(base){
+      applyRemedialMeta(base,old);
       if(!Array.isArray(base.remedialEssays)||!base.remedialEssays.length)base.remedialEssays=oldEssays;
       if(!Array.isArray(base.remedialPg)||!base.remedialPg.length)base.remedialPg=JSON.parse(JSON.stringify(old.remedialPg||old.pg||[]));
       base.remedialPendingCorrection=true;
@@ -8329,14 +8401,19 @@ async function loadPendingRemedialCorrections(npsn){
     }else{
       old.remedialEssays=oldEssays;
       old.remedialPg=JSON.parse(JSON.stringify(old.remedialPg||old.pg||[]));
+      old.remedialPendingCorrection=true;
+      old.hasRemedial=true;
+      applyRemedialMeta(old);
       pending.push(old);
     }
   });
+
   const normal=D.rs||[];
   const merged=new Map(normal.map(r=>[String(r.id),r]));
   pending.forEach(r=>merged.set(String(r.id),r));
   D.rs=[...merged.values()];
-  return pending.filter(isRemedialEssayPending);
+
+  return pending.filter(isRemedialEssayPending).map(enrichFromStudent);
 }
 
 async function renderKoreksiRemedial(c){
@@ -8347,34 +8424,62 @@ async function renderKoreksiRemedial(c){
 
   let listAll=[];
   if(D.sch?.npsn){
-    listAll=await loadPendingRemedialCorrections(D.sch.npsn);
+    try{
+      listAll=await loadPendingRemedialCorrections(String(D.sch.npsn));
+    }catch(e){
+      console.error('[KOREKSI REMEDIAL] Gagal memuat data:',e);
+      c.innerHTML='<div class="asu"><div class="cd" style="padding:30px;text-align:center;color:var(--er)">Gagal membaca data koreksi remedial: '+String(e.message||e)+'</div></div>';
+      return;
+    }
   }else{
     listAll=(D.rs||[]).filter(isRemedialEssayPending);
   }
-  const kOpts=[...new Set(listAll.map(r=>r.kelas))].sort((a,b)=>a-b);
-  const state=D.remedialCorrectionFilter||{kelas:'',rombel:'',mapel:''};
+
+  // NPSN sekolah selalu menjadi batas utama. Admin Sekolah tidak boleh
+  // menampilkan data remedial milik sekolah lain.
+  listAll=listAll.filter(r=>String(r.schoolNpsn||D.sch?.npsn||'')===String(D.sch?.npsn||''));
+
+  const state=D.remedialCorrectionFilter||{npsn:String(D.sch?.npsn||''),kelas:'',rombel:'',mapel:''};
+  if(!state.npsn)state.npsn=String(D.sch?.npsn||'');
+  const fn=String(state.npsn||'');
   const fk=state.kelas||'',fr=state.rombel||'',fm=state.mapel||'';
-  const rOpts=fk?[...new Set(listAll.filter(r=>String(r.kelas)===String(fk)).map(r=>r.rombel||'-'))].sort():[];
-  const mOpts=(fk&&fr)?[...new Set(listAll.filter(r=>String(r.kelas)===String(fk)&&(r.rombel||'-')===fr).map(r=>canonicalMapel(r.mapel)))].sort():[];
+
+  const schoolOpts=[String(D.sch?.npsn||'')].filter(Boolean);
+  const kOpts=[...new Set(listAll.map(r=>String(r.kelas)).filter(Boolean))].sort((a,b)=>Number(a)-Number(b));
+  const rOpts=[...new Set(listAll.filter(r=>!fk||String(r.kelas)===String(fk)).map(r=>String(r.rombel||'-')))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  const mOpts=[...new Set(listAll
+    .filter(r=>!fk||String(r.kelas)===String(fk))
+    .filter(r=>!fr||String(r.rombel||'-')===String(fr))
+    .map(r=>canonicalMapel(r.mapel))
+    .filter(Boolean))].sort((a,b)=>a.localeCompare(b,'id'));
+
+  const list=listAll
+    .filter(r=>!fn||String(r.schoolNpsn||D.sch?.npsn||'')===fn)
+    .filter(r=>!fk||String(r.kelas)===String(fk))
+    .filter(r=>!fr||String(r.rombel||'-')===String(fr))
+    .filter(r=>!fm||canonicalMapel(r.mapel)===canonicalMapel(fm));
+
   let h=`<div class="asu">
     <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
       <div><h2 style="font-size:1.5rem;margin-bottom:4px"><i class="fas fa-pen-to-square mr-2" style="color:var(--pr)"></i>Koreksi Uraian Remedial</h2>
       <p style="font-size:.8rem;color:var(--mt)">Menu ini khusus untuk mengoreksi jawaban uraian remedial. Koreksi ujian utama tetap berada di menu <b>Hasil Ujian</b>.</p></div>
-      <span style="background:#EEF2FF;color:#4338CA;border-radius:999px;padding:7px 12px;font-size:.75rem;font-weight:800">${listAll.length} menunggu koreksi</span>
+      <span style="background:#EEF2FF;color:#4338CA;border-radius:999px;padding:7px 12px;font-size:.75rem;font-weight:800">${list.length} menunggu koreksi</span>
     </div>
     <div class="cd mb-5" style="padding:16px 20px;border-color:#C7D2FE;background:#F8FAFF">
       <div class="flex gap-3 flex-wrap items-end">
-        <div style="flex:1;min-width:150px"><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas</label><select class="ip" onchange="D.remedialCorrectionFilter.kelas=this.value;D.remedialCorrectionFilter.rombel='';D.remedialCorrectionFilter.mapel='';renderKoreksiRemedial($('aC'))"><option value="">-- Semua Kelas --</option>${kOpts.map(k=>`<option value="${k}" ${String(fk)===String(k)?'selected':''}>Kelas ${k}</option>`).join('')}</select></div>
-        <div style="flex:1;min-width:150px"><label class="block mb-1 font-bold" style="font-size:.82rem">Rombel</label><select class="ip" ${fk?'':'disabled'} onchange="D.remedialCorrectionFilter.rombel=this.value;D.remedialCorrectionFilter.mapel='';renderKoreksiRemedial($('aC'))"><option value="">-- Semua Rombel --</option>${rOpts.map(v=>`<option value="${v}" ${fr===v?'selected':''}>Rombel ${v}</option>`).join('')}</select></div>
-        <div style="flex:1;min-width:180px"><label class="block mb-1 font-bold" style="font-size:.82rem">Mata Pelajaran</label><select class="ip" ${(fk&&fr)?'':'disabled'} onchange="D.remedialCorrectionFilter.mapel=this.value;renderKoreksiRemedial($('aC'))"><option value="">-- Semua Mapel --</option>${mOpts.map(m=>`<option value="${m}" ${fm===m?'selected':''}>${m}</option>`).join('')}</select></div>
-        ${(fk||fr||fm)?`<button class="bt bt3 bts" onclick="D.remedialCorrectionFilter={kelas:'',rombel:'',mapel:''};renderKoreksiRemedial($('aC'))"><i class="fas fa-times"></i> Reset</button>`:''}
+        <div style="flex:1;min-width:150px"><label class="block mb-1 font-bold" style="font-size:.82rem">NPSN Sekolah</label><select class="ip" onchange="D.remedialCorrectionFilter.npsn=this.value;D.remedialCorrectionFilter.kelas='';D.remedialCorrectionFilter.rombel='';D.remedialCorrectionFilter.mapel='';renderKoreksiRemedial($('aC'))"><option value="">-- Semua Sekolah --</option>${schoolOpts.map(v=>`<option value="${v}" ${fn===v?'selected':''}>${v}</option>`).join('')}</select></div>
+        <div style="flex:1;min-width:150px"><label class="block mb-1 font-bold" style="font-size:.82rem">Kelas</label><select class="ip" ${fn?'':'disabled'} onchange="D.remedialCorrectionFilter.kelas=this.value;D.remedialCorrectionFilter.rombel='';D.remedialCorrectionFilter.mapel='';renderKoreksiRemedial($('aC'))"><option value="">-- Semua Kelas --</option>${kOpts.map(k=>`<option value="${k}" ${String(fk)===String(k)?'selected':''}>Kelas ${k}</option>`).join('')}</select></div>
+        <div style="flex:1;min-width:150px"><label class="block mb-1 font-bold" style="font-size:.82rem">Rombel</label><select class="ip" ${fn?'':'disabled'} onchange="D.remedialCorrectionFilter.rombel=this.value;D.remedialCorrectionFilter.mapel='';renderKoreksiRemedial($('aC'))"><option value="">-- Semua Rombel --</option>${rOpts.map(v=>`<option value="${v}" ${fr===v?'selected':''}>Rombel ${v}</option>`).join('')}</select></div>
+        <div style="flex:1;min-width:180px"><label class="block mb-1 font-bold" style="font-size:.82rem">Mata Pelajaran</label><select class="ip" ${fn?'':'disabled'} onchange="D.remedialCorrectionFilter.mapel=this.value;renderKoreksiRemedial($('aC'))"><option value="">-- Semua Mapel --</option>${mOpts.map(m=>`<option value="${m}" ${fm===m?'selected':''}>${m}</option>`).join('')}</select></div>
+        ${(fn||fk||fr||fm)?`<button class="bt bt3 bts" onclick="D.remedialCorrectionFilter={npsn:'${String(D.sch?.npsn||'')}',kelas:'',rombel:'',mapel:''};renderKoreksiRemedial($('aC'))"><i class="fas fa-times"></i> Reset</button>`:''}
       </div>
     </div>`;
-  const list=listAll.filter(r=>!fk||String(r.kelas)===String(fk)).filter(r=>!fr||(r.rombel||'-')===fr).filter(r=>!fm||canonicalMapel(r.mapel)===canonicalMapel(fm));
+
   if(!list.length){
     h+=`<div class="cd" style="padding:45px 20px;text-align:center"><div style="font-size:3rem;color:var(--mt);opacity:.35;margin-bottom:12px"><i class="fas fa-circle-check"></i></div><h3 style="margin-bottom:6px">Tidak ada uraian remedial yang menunggu koreksi</h3><p style="font-size:.84rem;color:var(--mt)">${(fk||fr||fm)?'Coba ubah filter yang dipilih.':'Jika siswa sudah mengerjakan remedial uraian, data yang belum dikoreksi akan muncul di sini.'}</p></div></div>`;
     c.innerHTML=h;return;
   }
+
   h+=`<div class="cd" style="padding:18px"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem"><thead><tr style="background:var(--bg)"><th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--bd)">No</th><th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--bd)">Siswa</th><th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--bd)">Kelas / Rombel</th><th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--bd)">Mapel</th><th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--bd)">Uraian Remedial</th><th style="padding:8px 10px;text-align:center;border-bottom:2px solid var(--bd)">Aksi</th></tr></thead><tbody>`;
   list.forEach((r,i)=>{
     const cnt=(r.remedialEssays||[]).length;
