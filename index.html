@@ -5322,7 +5322,18 @@ function aTab(t,el){
     })();
   }
 
-  else if(t==='r')renderRemedial(c);else if(t==='kr'){renderKoreksiRemedial(c);if(!D.isPusat&&D.sch?.npsn){(async()=>{try{const snap=await rR(D.sch.npsn).get();D.rs=filterDisplayResults(snap.docs.map(d=>{const data=d.data();return {id:d.id,...data,mapel:canonicalMapel(data.mapel)};}));renderKoreksiRemedial(c);}catch(e){console.warn('[KOREKSI REMEDIAL] Gagal menyegarkan hasil:',e);}})();}}else if(t==='w')renderSiswa(c);else if(t==='k')renderDaftarSekolah(c);else if(t==='c')renderSetting(c);
+  else if(t==='r')renderRemedial(c);
+  else if(t==='kr'){
+    c.innerHTML='<div class="asu"><div class="cd" style="padding:30px;text-align:center"><div class="spn"></div><p style="margin-top:12px;font-weight:800">Mencari jawaban uraian remedial di database...</p></div></div>';
+    (async()=>{
+      try{
+        await renderKoreksiRemedial(c);
+      }catch(e){
+        console.error('[KOREKSI REMEDIAL] Gagal menyegarkan:',e);
+        c.innerHTML='<div class="asu"><div class="cd" style="padding:30px;text-align:center;color:var(--er)">Gagal membaca data remedial: '+escHasil(e.message||e)+'</div></div>';
+      }
+    })();
+  }else if(t==='w')renderSiswa(c);else if(t==='k')renderDaftarSekolah(c);else if(t==='c')renderSetting(c);
 
 }
 
@@ -8221,19 +8232,115 @@ async function hapusRemedial(id){if(!confirm('Hapus paket remedial ini?'))return
 async function editJadwalRemedial(id){if(D.isPusat)return tt('Jadwal remedial hanya dapat diedit Admin Sekolah.','er');const ex=(D.remedialExams||[]).find(x=>String(x.id)===String(id));if(!ex)return tt('Paket remedial tidak ditemukan.','er');const sekarang=String(ex.scheduleDate||todayRemedialDate());const tanggal=prompt('Edit tanggal remedial\n\nTanggal saat ini: '+sekarang+'\nMasukkan tanggal baru (YYYY-MM-DD):',sekarang);if(tanggal===null)return;const baru=String(tanggal).trim();if(!/^\d{4}-\d{2}-\d{2}$/.test(baru))return tt('Format tanggal harus YYYY-MM-DD.','er');const src=(D.ex||[]).find(e=>String(e.id)===String(ex.sourceExamId)&&!e.isRemedial);if(baru===sekarang)return tt('Tanggal remedial tidak berubah.','in');const payload={scheduleDate:baru,updatedAt:Date.now()};try{ld('Menyimpan perubahan jadwal remedial...');const other=(db===backupDb?dbMigrationPrimary:backupDb);await Promise.all([remedialR(D.sch.npsn).doc(id).set(payload,{merge:true}),other.collection('schools').doc(D.sch.npsn).collection('remedialExams').doc(id).set(payload,{merge:true})]);ex.scheduleDate=baru;ex.updatedAt=payload.updatedAt;hd();renderRemedial($('aC'));tt('Jadwal remedial berhasil diubah menjadi '+baru+'.','ok');}catch(e){hd();tt('Gagal mengubah jadwal remedial: '+e.message,'er');}}
 function renderRemedial(c){if(D.isPusat){c.innerHTML='<div class="asu"><div class="cd" style="padding:30px;text-align:center"><b>Remedial dikelola Admin Sekolah.</b></div></div>';return;}if(!D.remedialForm||!D.remedialForm.scheduleDate)remedialFormReset();const f=D.remedialForm,k=f.kelas||'',rb=f.rombel||'',m=f.mapel||'',srcId=f.sourceExamId||'',classes=remedialClassList(),roms=k?remedialRombelList(k):[],maps=k?remedialMapelList(k):[],sources=(k&&m)?remedialSourceList(k,m):[],src=sources.find(e=>String(e.id)===String(srcId))||null,students=(k&&rb&&m)?remedialStudents(k,rb,m):[];if(!f.studentNis.length)f.studentNis=students.filter(s=>Number(s.baseResult?.score??999)<70).map(s=>String(s.nis));let h=`<div class="asu"><div class="mb-4"><h2 style="font-size:1.5rem">Soal Remedial</h2><p style="color:var(--mt);font-size:.8rem">Semua pengaturan dilakukan Admin Sekolah. Soal hanya referensi dari paket Admin Pusat lalu dipilih beberapa soal untuk Kelas/Rombel dan siswa tertentu.</p></div><div class="cd" style="padding:18px;margin-bottom:16px"><div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))"><div><label class="block mb-1 font-bold">Kelas</label><select class="ip" onchange="D.remedialForm.kelas=this.value;D.remedialForm.rombel='';D.remedialForm.mapel='';D.remedialForm.sourceExamId='';D.remedialForm.studentNis=[];D.remedialForm.questionIds=[];renderRemedial($('aC'))"><option value="">-- Pilih Kelas --</option>${classes.map(x=>`<option value="${x}" ${String(k)===String(x)?'selected':''}>Kelas ${x}</option>`).join('')}</select></div><div><label class="block mb-1 font-bold">Rombel</label><select class="ip" ${k?'':'disabled'} onchange="D.remedialForm.rombel=this.value;D.remedialForm.studentNis=[];renderRemedial($('aC'))"><option value="">-- Pilih Rombel --</option>${roms.map(x=>`<option value="${x}" ${String(rb)===String(x)?'selected':''}>Rombel ${x}</option>`).join('')}</select></div><div><label class="block mb-1 font-bold">Mata Pelajaran</label><select class="ip" ${k&&rb?'':'disabled'} onchange="D.remedialForm.mapel=this.value;D.remedialForm.sourceExamId='';D.remedialForm.studentNis=[];D.remedialForm.questionIds=[];renderRemedial($('aC'))"><option value="">-- Pilih Mapel --</option>${maps.map(x=>`<option value="${x}" ${m===x?'selected':''}>${x}</option>`).join('')}</select></div><div><label class="block mb-1 font-bold">Tanggal Remedial</label><input class="ip" type="date" value="${f.scheduleDate}" onchange="D.remedialForm.scheduleDate=this.value"></div></div></div>`;if(k&&rb&&m){h+=`<div class="cd" style="padding:18px;margin-bottom:16px"><label class="block mb-1 font-bold">Paket Soal Admin Pusat sebagai Referensi</label><select class="ip" onchange="D.remedialForm.sourceExamId=this.value;D.remedialForm.questionIds=[];renderRemedial($('aC'))"><option value="">-- Pilih Paket Soal --</option>${sources.map(e=>`<option value="${e.id}" ${srcId===String(e.id)?'selected':''}>${e.mapel} · ${e.questions.length} soal</option>`).join('')}</select></div>`;h+=`<div class="cd" style="padding:18px;margin-bottom:16px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><div><b>Siswa yang akan remedial</b><p style="font-size:.74rem;color:var(--mt)">Yang nilai terakhirnya di bawah 70 otomatis dicentang.</p></div><div class="flex gap-2"><button class="bt bt3 bts" onclick="toggleAllRemedialStudents(true)">Cek Semua</button><button class="bt bt4 bts" onclick="toggleAllRemedialStudents(false)">Kosongkan</button></div></div>${students.length?students.map(s=>{const checked=f.studentNis.map(String).includes(String(s.nis));const sc=s.baseResult?String(s.baseResult.score):'-';return `<label class="cd" style="padding:9px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px"><input type="checkbox" class="rem-stu" value="${s.nis}" ${checked?'checked':''} onchange="remedialSyncChecks()"><span style="flex:1"><b>${s.nama}</b><small style="display:block;color:var(--mt)">NIS ${s.nis} · Nilai ${sc}</small></span></label>`}).join(''):`<p style="color:var(--mt);text-align:center;padding:20px">Belum ada siswa pada kelas/rombel ini.</p>`}</div>`;h+=`<div class="cd" style="padding:18px;margin-bottom:16px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><div><b>Pilih Soal Remedial</b><p style="font-size:.74rem;color:var(--mt)">Ceklis beberapa soal saja dari paket Admin Pusat.</p></div><div class="flex gap-2"><button class="bt bt3 bts" onclick="toggleAllRemedialQuestions(true)">Cek Semua</button><button class="bt bt4 bts" onclick="toggleAllRemedialQuestions(false)">Kosongkan</button></div></div>${src?(src.questions||[]).map((q,i)=>`<label class="cd" style="padding:10px 12px;margin-bottom:7px;display:flex;gap:10px;align-items:flex-start"><input type="checkbox" class="rem-q" value="${q.id}" ${f.questionIds.map(String).includes(String(q.id))?'checked':''} onchange="remedialSyncChecks()"><span><b>Soal ${i+1}</b><small style="display:block;margin-top:3px">${String(q.text||'').slice(0,220)}${String(q.text||'').length>220?'…':''}</small></span></label>`).join(''):`<p style="color:var(--mt);text-align:center;padding:20px">Pilih paket soal terlebih dahulu.</p>`}</div><div class="flex justify-end"><button class="bt bt1" onclick="simpanRemedial()"><i class="fas fa-save"></i> Simpan & Tampilkan ke Login Siswa</button></div>`;}const mine=(D.remedialExams||[]).filter(e=>!k||String(e.kelas)===String(k)).filter(e=>!rb||String(e.rombel||'-')===String(rb));h+=`<div style="margin-top:24px"><h3 style="font-size:1.05rem;margin-bottom:10px">Paket Remedial yang Sudah Dibuat</h3>${mine.length?mine.map(e=>`<div class="cd" style="padding:12px 15px;margin-bottom:7px;display:flex;justify-content:space-between;gap:10px;align-items:center"><div><b>${e.title||('Remedial '+e.mapel)}</b><small style="display:block;color:var(--mt)">Kelas ${e.kelas} · Rombel ${e.rombel} · ${e.questions?.length||0} soal · ${e.assignedNis?.length||0} siswa</small></div><button class="bt bt2 btx" onclick="editJadwalRemedial('${e.id}')" title="Edit tanggal jadwal remedial"><i class="fas fa-calendar-alt"></i></button><button class="bt bt4 btx" onclick="hapusRemedial('${e.id}')" title="Hapus paket remedial"><i class="fas fa-trash"></i></button></div>`).join(''):`<div class="cd" style="padding:18px;text-align:center;color:var(--mt)">Belum ada paket remedial.</div>`}</div></div>`;c.innerHTML=h;}
 function isRemedialEssayPending(r){
-  const arr=Array.isArray(r?.remedialEssays)?r.remedialEssays:[];
+  // Dukung data baru maupun data remedial lama yang mungkin tersimpan
+  // sebagai dokumen results terpisah dengan isRemedial:true.
+  const arr=Array.isArray(r?.remedialEssays)
+    ?r.remedialEssays
+    :(r?.isRemedial&&Array.isArray(r?.essays)?r.essays:[]);
   if(!arr.length)return false;
-  // Flag ini menjadi sumber utama karena ditulis saat siswa selesai remedial.
   if(r.remedialPendingCorrection===true)return true;
-  // Jika data lama belum memiliki flag, cek status setiap uraian.
-  if(arr.some(e=>e && e.graded!==true))return true;
-  // Jika semua uraian sudah graded, anggap selesai walaupun field timestamp lama belum ada.
-  return false;
+  if(r.isRemedial&&r.remedialPendingCorrection!==false)return true;
+  return arr.some(e=>e && e.graded!==true);
 }
 
-function renderKoreksiRemedial(c){
-  if(D.isPusat){c.innerHTML='<div class="asu"><div class="cd" style="padding:30px;text-align:center"><b>Koreksi uraian remedial hanya tersedia untuk Admin Sekolah.</b></div></div>';return;}
-  const listAll=(D.rs||[]).filter(r=>isRemedialEssayPending(r)&&!r.isRemedial);
+/*
+ * Ambil ulang langsung dari Firestore ketika menu Koreksi Uraian Remedial
+ * dibuka. Jangan hanya mengandalkan D.rs karena D.rs sengaja menyaring
+ * dokumen isRemedial:true untuk tampilan Hasil Ujian.
+ *
+ * Data yang didukung:
+ *  1) format baru: uraian remedial berada di dokumen hasil ujian utama;
+ *  2) format lama: hasil remedial masih berupa dokumen terpisah
+ *     isRemedial:true.
+ *
+ * Jika dokumen lama punya pasangan hasil ujian utama, jawaban remedial
+ * ditempelkan ke hasil utama sehingga proses koreksi dan nilai manual
+ * tetap memakai satu dokumen hasil siswa.
+ */
+async function loadPendingRemedialCorrections(npsn){
+  if(!npsn)return [];
+  try{
+    const snap=await rR(npsn).get();
+    const rows=snap.docs.map(d=>({id:d.id,...d.data(),mapel:canonicalMapel(d.data().mapel)}));
+    const byId=new Map(rows.map(r=>[String(r.id),r]));
+    const baseRows=rows.filter(r=>!r.isRemedial);
+    const byNisMapel=new Map();
+
+    baseRows.forEach(r=>{
+      const key=String(r.nis||'')+'|'+canonicalMapel(r.mapel).toLowerCase();
+      const old=byNisMapel.get(key);
+      if(!old || Number(r.timestamp||0)>Number(old.timestamp||0))byNisMapel.set(key,r);
+    });
+
+    // Format baru: remedialEssays langsung berada di hasil ujian utama.
+    const pending=[];
+    baseRows.forEach(r=>{
+      if(isRemedialEssayPending(r)){
+        pending.push(r);
+      }
+    });
+
+    // Format lama: remedial masih tersimpan sebagai dokumen terpisah.
+    rows.filter(r=>r.isRemedial===true).forEach(old=>{
+      const oldEssays=Array.isArray(old.remedialEssays)
+        ?old.remedialEssays
+        :(Array.isArray(old.essays)?old.essays:[]);
+      if(!oldEssays.length || !isRemedialEssayPending(old))return;
+
+      let base=null;
+      if(old.remedialResultId)base=byId.get(String(old.remedialResultId))||null;
+      if(!base){
+        const key=String(old.nis||'')+'|'+canonicalMapel(old.mapel).toLowerCase();
+        base=byNisMapel.get(key)||null;
+      }
+
+      if(base){
+        // Jangan menimpa jawaban yang sudah ada pada format baru.
+        if(!Array.isArray(base.remedialEssays)||!base.remedialEssays.length){
+          base.remedialEssays=JSON.parse(JSON.stringify(oldEssays));
+        }
+        if(!Array.isArray(base.remedialPg)||!base.remedialPg.length){
+          base.remedialPg=JSON.parse(JSON.stringify(old.remedialPg||old.pg||[]));
+        }
+        base.remedialPendingCorrection=true;
+        base.hasRemedial=true;
+        base.remedialExamId=base.remedialExamId||old.remedialExamId||old.examId||old.id;
+        base._legacyRemedialId=old.id;
+        if(!pending.some(x=>String(x.id)===String(base.id)))pending.push(base);
+      }else{
+        // Jika hasil utama sudah tidak ada, tetap tampilkan dokumen remedial
+        // agar jawaban siswa tidak hilang dan guru tetap dapat mengoreksinya.
+        old.remedialEssays=JSON.parse(JSON.stringify(oldEssays));
+        old.remedialPg=JSON.parse(JSON.stringify(old.remedialPg||old.pg||[]));
+        pending.push(old);
+      }
+    });
+
+    // Simpan ke D.rs supaya koreksiEssay() dapat menemukan baris yang dipilih.
+    const normal=D.rs||[];
+    const merged=new Map(normal.map(r=>[String(r.id),r]));
+    pending.forEach(r=>merged.set(String(r.id),r));
+    D.rs=[...merged.values()];
+
+    return pending.filter(isRemedialEssayPending);
+  }catch(e){
+    console.error('[KOREKSI REMEDIAL] Gagal membaca database results:',e);
+    return [];
+  }
+}
+
+async function renderKoreksiRemedial(c){
+  if(D.isPusat){
+    c.innerHTML='<div class="asu"><div class="cd" style="padding:30px;text-align:center"><b>Koreksi uraian remedial hanya tersedia untuk Admin Sekolah.</b></div></div>';
+    return;
+  }
+
+  let listAll=[];
+  if(D.sch?.npsn){
+    listAll=await loadPendingRemedialCorrections(D.sch.npsn);
+  }else{
+    listAll=(D.rs||[]).filter(isRemedialEssayPending);
+  }
   const kOpts=[...new Set(listAll.map(r=>r.kelas))].sort((a,b)=>a-b);
   const state=D.remedialCorrectionFilter||{kelas:'',rombel:'',mapel:''};
   const fk=state.kelas||'',fr=state.rombel||'',fm=state.mapel||'';
@@ -8731,8 +8838,21 @@ async function simpanKoreksi(rid,npsn,mode='normal'){
     Object.assign(r,payload);
     ld('Menyimpan koreksi uraian remedial...');
     const otherDb=(db===backupDb?dbMigrationPrimary:backupDb);
-    const writes=await Promise.allSettled([rR(npsn).doc(rid).update(payload),otherDb.collection('schools').doc(npsn).collection('results').doc(rid).update(payload)]);
-    if(writes.every(x=>x.status==='rejected'))throw writes[0].reason;
+    const writeTargets=[
+      rR(npsn).doc(rid).update(payload),
+      otherDb.collection('schools').doc(npsn).collection('results').doc(rid).update(payload)
+    ];
+    // Jika data ditemukan dari format lama, perbarui juga dokumen remedial
+    // asalnya agar kedua format database tetap konsisten.
+    if(r._legacyRemedialId && String(r._legacyRemedialId)!==String(rid)){
+      const legacyId=String(r._legacyRemedialId);
+      writeTargets.push(
+        rR(npsn).doc(legacyId).update(payload),
+        otherDb.collection('schools').doc(npsn).collection('results').doc(legacyId).update(payload)
+      );
+    }
+    const writes=await Promise.allSettled(writeTargets);
+    if(writes.every(x=>x.status==='rejected'))throw writes.find(x=>x.status==='rejected')?.reason||new Error('Gagal menyimpan koreksi remedial.');
     hd();cMo();renderKoreksiRemedial($('aC'));tt('Koreksi uraian remedial disimpan! Nilai remedial: '+remedialScore+' · Nilai akhir: '+finalScore,'ok');return;
   }
   let totalEssay=0,cor=0;
