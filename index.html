@@ -8731,7 +8731,7 @@ function renderHasil(c){
   h+=`<div class="flex items-center justify-between flex-wrap gap-2 mb-4"> 
     <p style="font-size:.88rem;color:var(--mt)"><i class="fas ${mf.ic} mr-1" style="color:${mf.c}"></i><b style="color:var(--fg)">${fm} &mdash; Kelas ${fk} Rombel ${fr}</b> &middot; ${list.length} siswa &middot; Rata-rata: ${avg}</p> 
      
-  <div class="flex gap-2 flex-wrap"><button class="bt bt3 bts" onclick="cetakFilterRekap()"><i class="fas fa-print"></i> Cetak Rekap Awal Ujian</button><button class="bt bt1 bts" onclick="cetakRekapNilaiAkhirRemedial()"><i class="fas fa-file-invoice"></i> Cetak Nilai Setelah Remedial</button>${!D.isPusat?`<button class="bt bt4 bts" onclick="contohHapus2NilaiRemedial()" title="Uji penghapusan nilai remedial pada maksimal 2 siswa"><i class="fas fa-eraser"></i> Contoh Hapus 2 Nilai Remedial</button>`:''}</div></div>`; 
+  <div class="flex gap-2 flex-wrap"><button class="bt bt3 bts" onclick="cetakFilterRekap()"><i class="fas fa-print"></i> Cetak Rekap Awal Ujian</button><button class="bt bt1 bts" onclick="cetakRekapNilaiAkhirRemedial()"><i class="fas fa-file-invoice"></i> Cetak Nilai Setelah Remedial</button><button class="bt bt2 bts" onclick="cetakRekapNilaiAkhirRemedialImage()" title="Cetak rekap dalam format gambar seperti contoh"><i class="fas fa-image"></i> Cetak Gambar</button>${!D.isPusat?`<button class="bt bt4 bts" onclick="contohHapus2NilaiRemedial()" title="Uji penghapusan nilai remedial pada maksimal 2 siswa"><i class="fas fa-eraser"></i> Contoh Hapus 2 Nilai Remedial</button>`:''}</div></div>`; 
  
   const grouped={}; 
   list.forEach(r=>{const k=D.isPusat?(r.schoolNpsn||'-'):'-';if(!grouped[k])grouped[k]={schoolName:r.schoolName||D.sch.nama,schoolNpsn:r.schoolNpsn||D.sch.npsn,items:[]};grouped[k].items.push(r);}); 
@@ -8804,6 +8804,125 @@ async function cetakRekapNilaiAkhirRemedial(){
     await html2pdf().set({margin:[8,8,8,8],filename:'Rekap_Nilai_Akhir_Setelah_Remedial_Kelas_'+String(f.kelas)+'_'+String(f.rombel)+'_'+String(f.mapel||'Mapel').replace(/[^a-z0-9_-]/gi,'_')+'.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},pagebreak:{mode:['css','legacy']},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from($('pdRekapNilaiAkhir')).save();
     hd();tt('Rekap nilai akhir setelah remedial berhasil dicetak.','ok');b.style.left='-9999px';b.style.zIndex='-1';
   }catch(e){hd();tt('Gagal mencetak rekap nilai akhir: '+(e.message||e),'er');}
+}
+
+
+/* ===== CETAK REKAP NILAI AKHIR SEBAGAI GAMBAR =====
+   Tampilan dibuat menyerupai kartu/infografis pada contoh pengguna.
+   Data tetap dinamis mengikuti Kelas, Rombel dan Mapel yang dipilih. */
+async function cetakRekapNilaiAkhirRemedialImage(){
+  const f=D.hasilFilter||{};
+  if(!f.kelas||!f.rombel||!f.mapel) return tt('Pilih Kelas, Rombel & Mapel dulu!','er');
+  ld('Menyiapkan gambar rekap nilai...');
+  try{
+    let sumber=[];
+    if(D.isPusat) sumber=D.allResults||[];
+    else{
+      try{const snap=await rR(D.sch.npsn).get();sumber=snap.docs.map(d=>({id:d.id,...d.data()}));}
+      catch(_e){sumber=D.rs||[];}
+    }
+    const mapelFilter=canonicalMapel(f.mapel);
+    const list=sumber.filter(r=>!r.isRemedial)
+      .filter(r=>String(r.kelas)===String(f.kelas))
+      .filter(r=>String(r.rombel||'-')===String(f.rombel))
+      .filter(r=>canonicalMapel(r.mapel)===mapelFilter)
+      .sort((a,b)=>String(a.nama||'').localeCompare(String(b.nama||''),'id'));
+    if(!list.length){hd();return tt('Belum ada hasil siswa untuk filter tersebut.','er');}
+
+    const sekolah=D.sch||{};
+    const hasRemedial=r=>r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!=='';
+    const nilaiAwal=r=>nilaiDasarRemedial(r);
+    const nilaiRem=r=>hasRemedial(r)?Number(r.nilaiRemedial):null;
+    const nilaiAkhir=r=>nilaiAkhirDenganRemedial(r);
+    const keterangan=r=>{
+      const akhir=nilaiAkhir(r);
+      if(hasRemedial(r)) return akhir>=70?'Tuntas Hasil Remedial':'Belum Tuntas Hasil Remedial';
+      return akhir>=70?'Tuntas Murni':'Belum Tuntas';
+    };
+    const avg=Math.round(list.reduce((sum,r)=>sum+nilaiAkhir(r),0)/list.length*10)/10;
+    const jumlahRemedial=list.filter(hasRemedial).length;
+    const jumlahTuntas=list.filter(r=>nilaiAkhir(r)>=70).length;
+
+    const rows=list.map((r,i)=>{
+      const awal=nilaiAwal(r),rem=nilaiRem(r),akhir=nilaiAkhir(r),ket=keterangan(r);
+      const badge=ket==='Tuntas Murni'?'&#10003;':ket==='Tuntas Hasil Remedial'?'&#10003;':'!';
+      const badgeCls=ket==='Tuntas Murni'?'murni':ket==='Tuntas Hasil Remedial'?'remedial':'belum';
+      return `<tr>
+        <td class="c no">${i+1}</td>
+        <td class="nama">${escHasil(r.nama||'-')}</td>
+        <td class="c nis">${escHasil(r.nis||r.nisn||'-')}</td>
+        <td class="c">${String(awal).replace('.',',')}</td>
+        <td class="c">${rem===null?'-':String(rem).replace('.',',')}</td>
+        <td class="c akhir">${String(akhir).replace('.',',')}</td>
+        <td class="ket"><span class="badge ${badgeCls}">${badge}</span> ${escHasil(ket)}</td>
+      </tr>`;
+    }).join('');
+
+    const guru=getGuruFor(f.kelas,f.rombel,f.mapel);
+    const namaGuru=namaGuruCetak(f.mapel,guru,(guru&&guru.nama)||'');
+    const namaSekolah=String(sekolah.nama||'SD NEGERI MAJALENGKA WETAN VIII').toUpperCase();
+    const prov=sekolah.prov||'JAWA BARAT';
+    const b=$('pB');
+    b.style.left='0';b.style.top='0';b.style.zIndex='9999';
+    b.innerHTML=`<div id="pdRekapNilaiAkhirImage" style="font-family:Arial,Helvetica,sans-serif;width:1120px;background:#f7f1df;color:#17251d;box-sizing:border-box;padding:0;overflow:hidden;position:relative">
+      <style>
+        #pdRekapNilaiAkhirImage *{box-sizing:border-box}
+        #pdRekapNilaiAkhirImage .img-border{border:10px solid #173f2a;outline:5px solid #d4a84b;outline-offset:-18px;min-height:100%;padding:28px 30px 24px;background:linear-gradient(135deg,#fbf7e9 0%,#f4edd8 100%)}
+        #pdRekapNilaiAkhirImage .batik{height:48px;margin:-28px -30px 18px;background:repeating-linear-gradient(135deg,#3b2318 0 10px,#d5a34b 10px 14px,#1d412c 14px 24px,#e6c36c 24px 28px);border-bottom:5px solid #d4a84b}
+        #pdRekapNilaiAkhirImage .head{text-align:center;padding:2px 30px 12px;border-bottom:4px double #193d2b}
+        #pdRekapNilaiAkhirImage .school{font-size:31px;font-weight:900;letter-spacing:.8px;color:#1762a4;margin:0 0 3px}
+        #pdRekapNilaiAkhirImage .prov{font-size:18px;font-weight:700;color:#222;margin-bottom:9px}
+        #pdRekapNilaiAkhirImage .title{font-size:28px;font-weight:900;color:#176f39;letter-spacing:.5px}
+        #pdRekapNilaiAkhirImage .sub{font-size:19px;font-weight:700;margin-top:5px;color:#222}
+        #pdRekapNilaiAkhirImage .hero{margin:18px auto 16px;max-width:760px;border-radius:30px;background:linear-gradient(135deg,#0d6b3a,#1d8a4e);border:8px solid #d2a843;box-shadow:0 4px 0 #7d5d1d;padding:13px;text-align:center;color:#fff}
+        #pdRekapNilaiAkhirImage .hero-label{font-size:18px;font-weight:800;opacity:.95}
+        #pdRekapNilaiAkhirImage .hero-value{font-size:46px;line-height:1;font-weight:900;color:#ffe15a;margin-top:5px}
+        #pdRekapNilaiAkhirImage .mini{display:flex;justify-content:center;gap:12px;margin:10px auto 18px;flex-wrap:wrap}
+        #pdRekapNilaiAkhirImage .mini span{background:#fff;border:2px solid #c7b36e;border-radius:18px;padding:7px 15px;font-size:15px;font-weight:800}
+        #pdRekapNilaiAkhirImage table{width:100%;border-collapse:collapse;background:rgba(255,255,255,.88);font-size:15px}
+        #pdRekapNilaiAkhirImage th{background:linear-gradient(#1168a8,#0a4d82);color:#fff;border:1px solid #17384d;padding:10px 7px;text-align:center;font-size:15px}
+        #pdRekapNilaiAkhirImage td{border:1px solid #1f2c29;padding:8px 7px;height:38px}
+        #pdRekapNilaiAkhirImage tr:nth-child(even) td{background:#f8f3e7}
+        #pdRekapNilaiAkhirImage .c{text-align:center;font-weight:700}.nama{font-weight:800}.nis{font-size:14px}.akhir{font-size:18px;font-weight:900}.ket{font-weight:700;white-space:nowrap}
+        #pdRekapNilaiAkhirImage .badge{display:inline-flex;width:25px;height:25px;border-radius:50%;align-items:center;justify-content:center;font-weight:900;border:2px solid #a98a35;margin-right:4px}
+        #pdRekapNilaiAkhirImage .murni,#pdRekapNilaiAkhirImage .remedial{background:#e9f5d9;color:#267c2b}.belum{background:#ffe0d8;color:#a52d1d}
+        #pdRekapNilaiAkhirImage .legend{display:flex;gap:22px;align-items:center;justify-content:center;margin:14px 0 6px;font-size:14px;font-weight:800}
+        #pdRekapNilaiAkhirImage .legend-item{display:flex;align-items:center;gap:7px}.legend-dot{width:24px;height:24px;border-radius:50%;border:2px solid #a98a35;display:inline-flex;align-items:center;justify-content:center;background:#e9f5d9;color:#267c2b}
+        #pdRekapNilaiAkhirImage .note{text-align:center;font-size:13px;margin:8px 0 14px;color:#3c443e}
+        #pdRekapNilaiAkhirImage .sign{display:flex;justify-content:space-between;gap:50px;margin-top:25px;padding:0 55px 5px}
+        #pdRekapNilaiAkhirImage .signbox{width:42%;text-align:center;font-size:15px;font-weight:800}.space{height:58px}
+        #pdRekapNilaiAkhirImage .footbatik{height:38px;margin:20px -30px -24px;background:repeating-linear-gradient(135deg,#3b2318 0 10px,#d5a34b 10px 14px,#1d412c 14px 24px,#e6c36c 24px 28px);border-top:5px solid #d4a84b}
+      </style>
+      <div class="img-border">
+        <div class="batik"></div>
+        <div class="head"><div class="school">${escHasil(namaSekolah)}</div><div class="prov">${escHasil(prov)}</div><div class="title">REKAP NILAI AKHIR SETELAH REMEDIAL</div><div class="sub">Kelas ${escHasil(f.kelas)} &nbsp;|&nbsp; Rombel ${escHasil(f.rombel)} &nbsp;|&nbsp; ${escHasil(f.mapel)}</div></div>
+        <div class="hero"><div class="hero-label">Rata-rata Nilai Akhir</div><div class="hero-value">${String(avg).replace('.',',')}</div></div>
+        <div class="mini"><span>Total Siswa: ${list.length}</span><span>Remedial: ${jumlahRemedial}</span><span>Tuntas: ${jumlahTuntas}</span></div>
+        <table><thead><tr><th style="width:5%">No</th><th>Nama Siswa</th><th style="width:14%">NIS</th><th style="width:11%">Nilai Awal</th><th style="width:11%">Remedial</th><th style="width:12%">Nilai Akhir</th><th style="width:25%">Keterangan</th></tr></thead><tbody>${rows}</tbody></table>
+        <div class="legend"><div class="legend-item"><span class="legend-dot">✓</span>Tuntas Murni</div><div class="legend-item"><span class="legend-dot">✓</span>Tuntas Hasil Remedial</div></div>
+        <div class="note">Tuntas Murni = tuntas tanpa remedial &nbsp;•&nbsp; Tuntas Hasil Remedial = nilai akhir mencapai ketuntasan setelah remedial.</div>
+        <div class="sign"><div class="signbox">${escHasil(/pai|agama/i.test(String(f.mapel||''))?'Guru PAI':/pjok|jasmani|olahraga/i.test(String(f.mapel||''))?'Guru PJOK':'Guru Kelas')}<div class="space"></div>(${escHasil(namaGuru||'........................................')})</div><div class="signbox">Majalengka, ....................<br>Kepala Sekolah<div class="space"></div>(........................................)</div></div>
+        <div class="footbatik"></div>
+      </div>
+    </div>`;
+
+    const target=$('pdRekapNilaiAkhirImage');
+    await new Promise(resolve=>setTimeout(resolve,250));
+    const canvas=await html2canvas(target,{scale:2,useCORS:true,backgroundColor:'#f7f1df',logging:false});
+    const dataUrl=canvas.toDataURL('image/png');
+    const namaFile='Rekap_Nilai_Akhir_Setelah_Remedial_'+String(f.kelas)+'_'+String(f.rombel)+'_'+String(f.mapel||'Mapel').replace(/[^a-z0-9_-]/gi,'_')+'.png';
+
+    // Simpan sebagai gambar dan langsung buka dialog cetak gambar.
+    const a=document.createElement('a');a.href=dataUrl;a.download=namaFile;a.style.display='none';document.body.appendChild(a);a.click();a.remove();
+    const win=window.open('','_blank','width=1200,height=900');
+    if(win){
+      win.document.open();
+      win.document.write(`<!doctype html><html><head><title>${escHasil(namaFile)}</title><style>@page{size:A4 portrait;margin:8mm}html,body{margin:0;background:#fff;text-align:center}img{max-width:100%;height:auto;display:block;margin:auto}@media print{body{background:#fff}img{width:100%;max-height:277mm;object-fit:contain}}</style></head><body><img src="${dataUrl}" onload="setTimeout(()=>window.print(),300)"></body></html>`);
+      win.document.close();
+    }
+    hd();tt('Gambar rekap berhasil dibuat dan dialog cetak dibuka.','ok');
+    b.style.left='-9999px';b.style.zIndex='-1';
+  }catch(e){hd();tt('Gagal membuat gambar rekap: '+(e.message||e),'er');}
 }
 
 function cetakFilterRekap(){ 
