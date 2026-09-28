@@ -8850,9 +8850,28 @@ async function cetakRekapNilaiAkhirRemedialImage(){
 
     const guru=getGuruFor(f.kelas,f.rombel,f.mapel);
     const namaGuru=namaGuruCetak(f.mapel,guru,(guru&&guru.nama)||'');
-    const namaSekolah=String(sekolah.nama||'SD NEGERI MAJALENGKA WETAN VIII').toUpperCase();
-    const prov=String(sekolah.prov||'JAWA BARAT').toUpperCase();
-    const alamat=String(sekolah.alamat||sekolah.address||'Jln. K.H. Abdul Halim Nomor 5, Komplek Neglasari, Kel. Majalengka Wetan, Kec. Majalengka');
+    // SEMUA IDENTITAS SEKOLAH diambil dari data sekolah yang sudah dibaca saat LOGIN.
+    // Hanya aset dekorasi/gambar di bawah ini yang sengaja dibuat tetap seperti contoh.
+    const namaSekolah=String(sekolah.nama||'').trim().toUpperCase();
+    const prov=String(sekolah.prov||'').trim().toUpperCase();
+    const kota=String(sekolah.kota||'').trim();
+    const npsnSekolah=String(sekolah.npsn||'').trim();
+    const alamatParts=[
+      sekolah.alamat,
+      sekolah.address,
+      sekolah.jalan,
+      sekolah.jl,
+      sekolah.komplek,
+      sekolah.kelurahan?('Kel. '+sekolah.kelurahan):'',
+      sekolah.kecamatan?('Kec. '+sekolah.kecamatan):'',
+      kota,
+      prov
+    ].map(v=>String(v||'').trim()).filter(Boolean);
+    const alamat=[...new Set(alamatParts)].join(', ');
+    const kepalaSekolah=String(
+      sekolah.kepalaSekolah||sekolah.namaKepalaSekolah||sekolah.kepala||sekolah.kepalaNama||''
+    ).trim();
+    const tanggalKota=kota||String(sekolah.kabupaten||sekolah.kabupatenKota||'').trim();
 
     // <=17 siswa = 1 PNG. >17 siswa = tepat 2 PNG, dibagi seimbang.
     const total=list.length;
@@ -8936,6 +8955,9 @@ async function cetakRekapNilaiAkhirRemedialImage(){
           }
           #pdRekapNilaiAkhirImage .address{
             margin-top:9px;font-size:16px;line-height:1.35;font-weight:700;color:#173b70;
+          }
+          #pdRekapNilaiAkhirImage .npsn{
+            margin-top:4px;font-size:13px;line-height:1.2;font-weight:800;color:#45617f;
           }
           #pdRekapNilaiAkhirImage .title-ribbon{
             position:relative;margin:16px 18px 0;padding:15px 35px 13px;border-radius:24px;
@@ -9035,7 +9057,8 @@ async function cetakRekapNilaiAkhirRemedialImage(){
             <img class="books" src="${booksData}" alt="">
             <div class="school">${escHasil(namaSekolah)}</div>
             <div class="prov">${escHasil(prov)}</div>
-            <div class="address">${escHasil(alamat)}</div>
+            <div class="address">${escHasil(alamat||'-')}</div>
+            ${npsnSekolah?`<div class="npsn">NPSN: ${escHasil(npsnSekolah)}</div>`:''}
           </div>
 
           <div class="title-ribbon">REKAP NILAI AKHIR SETELAH REMEDIAL</div>
@@ -9075,9 +9098,9 @@ async function cetakRekapNilaiAkhirRemedialImage(){
               (${escHasil(namaGuru||'........................................')})
             </div>
             <div class="signbox">
-              Majalengka, ....................<br>Kepala Sekolah
+              ${escHasil(tanggalKota)}, ....................<br>Kepala Sekolah
               <div class="space"></div>
-              (........................................)
+              (${escHasil(kepalaSekolah||'........................................')})
             </div>
           </div>
 
@@ -9092,12 +9115,20 @@ async function cetakRekapNilaiAkhirRemedialImage(){
       await new Promise(resolve=>setTimeout(resolve,250));
 
       // Render bagian ini menjadi PNG saja. TIDAK membuka window.print() dan TIDAK membuka menu print.
-      const canvas=await html2canvas(target,{
-        scale:2,
-        useCORS:true,
-        backgroundColor:'#f8f2df',
-        logging:false
-      });
+      // Gunakan html2canvas yang dibawa oleh html2pdf.js.
+      // Tidak memanggil html2canvas() global agar tidak muncul error
+      // "html2canvas is not defined" pada browser tertentu.
+      if(typeof html2pdf!=='function') throw new Error('Library pembuat gambar belum termuat. Muat ulang aplikasi lalu coba lagi.');
+      const canvas=await html2pdf().set({
+        html2canvas:{
+          scale:2,
+          useCORS:true,
+          backgroundColor:'#f8f2df',
+          logging:false,
+          scrollX:0,
+          scrollY:0
+        }
+      }).from(target).toCanvas().get('canvas');
 
       const filename='Rekap_Nilai_Akhir_Setelah_Remedial_'+
         safeFilePart(f.kelas)+'_'+safeFilePart(f.rombel)+'_'+safeFilePart(f.mapel||'Mapel')+
