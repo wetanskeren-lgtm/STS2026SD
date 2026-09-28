@@ -3342,10 +3342,32 @@ async function updNamaList(){
   const tersedia=[];
 
   for(const siswa of semuaSiswa){
+    /*
+      PENTING:
+      Nama siswa yang hanya memiliki Ujian Susulan TETAP dimunculkan
+      bersama siswa yang memiliki Remedial. Jangan hanya mencari siswa
+      yang mempunyai Remedial.
+
+      Satu nama siswa boleh memiliki lebih dari satu pilihan ujian:
+      - Ujian Susulan = paket Pusat (contoh 40 soal)
+      - Ujian Remedial = paket remedial sekolah (contoh 10 soal)
+
+      Saat nama dipilih, pilihan tersebut dipisahkan di dropdown sM.
+    */
     const hasilSiswa=filterDisplayResults(semuaHasil.filter(x=>String(x.nis||'')===String(siswa.nis||'')));
     D.rs=hasilSiswa;
     const ujianHariIni=getStudentTodayExams(siswa);
-    if(ujianHariIni.length>0){
+
+    const adaSusulan=ujianHariIni.some(e=>!!e && e.isSusulan && !e.isRemedial);
+    const adaRemedial=ujianHariIni.some(e=>!!e && e.isRemedial);
+    const adaUtama=ujianHariIni.some(e=>!!e && !e.isSusulan && !e.isRemedial);
+
+    /*
+      Jika ada salah satu dari tiga jenis ujian, nama siswa harus tampil.
+      Khusus siswa yang belum Ujian Utama dan masuk jadwal Susulan, nama
+      tetap tampil walaupun dia juga mempunyai/tidak mempunyai Remedial.
+    */
+    if(adaUtama || adaSusulan || adaRemedial){
       tersedia.push({siswa,ujianHariIni});
     }
   }
@@ -3405,9 +3427,34 @@ async function updMapelList(){
   if(exs.length===0){
     $('sM').innerHTML='<option value="">-- Belum ada ujian/susulan hari ini --</option>';$('sM').disabled=true;return;
   }
+  /*
+    Nama siswa yang sama dapat mempunyai SUSULAN dan REMEDIAL sekaligus.
+    Jangan memilih berdasarkan jumlah soal atau posisi array.
+    Penentu jenis ujian WAJIB memakai flag isSusulan / isRemedial.
+
+    Contoh:
+      40 soal dari Pusat  -> Ujian Susulan
+      10 soal dari Remedial -> Ujian Remedial
+  */
+  const urutanJenis={utama:1,susulan:2,remedial:3};
+  const labelUjian=e=>{
+    if(e && e.isRemedial) return 'Ujian Remedial';
+    if(e && e.isSusulan) return 'Ujian Susulan';
+    return 'Ujian Utama';
+  };
+  const jenisUjian=e=>e&&e.isRemedial?'remedial':(e&&e.isSusulan?'susulan':'utama');
+
+  exs.sort((a,b)=>{
+    const ja=urutanJenis[jenisUjian(a)]||99;
+    const jb=urutanJenis[jenisUjian(b)]||99;
+    if(ja!==jb)return ja-jb;
+    return String(a.mapel||'').localeCompare(String(b.mapel||''));
+  });
+
   $('sM').innerHTML=exs.map(e=>{
-    const label=e.isRemedial?'Ujian Remedial':(e.isSusulan?'Ujian Susulan':'Ujian Utama');
-    return `<option value="${e.id}">${e.mapel} · ${label} · ${e.questions.length} Soal</option>`;
+    const label=labelUjian(e);
+    const jumlahSoal=Array.isArray(e.questions)?e.questions.length:0;
+    return `<option value="${e.id}">${e.mapel} · ${label} · ${jumlahSoal} Soal</option>`;
   }).join('');
   $('sM').disabled=false;
 }
@@ -3595,6 +3642,14 @@ function getStudentTodayExams(stu){
     !regularIds.has(String(e.id))
   );
 
+  /*
+    JANGAN menghapus salah satu jenis jika siswa memiliki keduanya.
+    Seorang siswa bisa sekaligus:
+      - belum Ujian Utama -> mendapat Ujian Susulan (paket Pusat, mis. 40 soal)
+      - mendapat Remedial -> mendapat Ujian Remedial (paket mis. 10 soal)
+
+    Keduanya ditampilkan pada dropdown ujian setelah nama siswa dipilih.
+  */
   return [
     ...regular,
     ...susulanFinal,
