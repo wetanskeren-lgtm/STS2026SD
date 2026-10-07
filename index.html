@@ -8702,7 +8702,7 @@ function renderHasil(c){
   const rOpts=fk?[...new Set(listAll.filter(r=>String(r.kelas)===String(fk)).map(r=>r.rombel||'-'))].sort():[]; 
   const mOpts=(fk&&fr)?[...new Set(listAll.filter(r=>String(r.kelas)===String(fk)&&(r.rombel||'-')===fr).map(r=>r.mapel))].sort():[]; 
  
-  let h=`<div class="asu"><h2 style="font-size:1.5rem;margin-bottom:16px">Hasil Ujian ${D.isPusat?'(Semua Sekolah)':''}</h2> 
+  let h=`<div class="asu"><div class="flex items-center justify-between flex-wrap gap-3 mb-4"><h2 style="font-size:1.5rem;margin:0">Hasil Ujian ${D.isPusat?'(Semua Sekolah)':''}</h2>${!D.isPusat?`<button class="bt bt2 bts" onclick="renderCetakSemuaMapelSiswa($('aC'))" title="Cetak semua mata pelajaran per siswa"><i class="fas fa-print"></i> Cetak Semua Mapel</button>`:''}</div> 
     <div class="cd mb-6" style="padding:16px 20px;border-color:var(--ac);border-style:dashed"> 
       <p class="mb-3 font-bold" style="font-size:.85rem"><i class="fas fa-filter mr-2" style="color:var(--ac)"></i>Filter Hasil Ujian <span style="color:var(--er)">*</span> <span style="font-weight:400;color:var(--mt);font-size:.75rem">(hasil disembunyikan dulu &mdash; pilih Kelas, Rombel & Mapel agar rapi dan mudah diperiksa)</span></p> 
       <div class="flex gap-3 flex-wrap"> 
@@ -8775,36 +8775,76 @@ function statusSemuaMapelCetak(r){
   return akhir>=70?'Tuntas':'Belum Tuntas';
 }
 
-async function bukaCetakSemuaMapelSiswa(){
+function renderCetakSemuaMapelSiswa(c){
   if(D.isPusat)return tt('Fitur ini khusus Admin Sekolah.','er');
-  const f=D.hasilFilter||{};
-  if(!f.kelas||!f.rombel)return tt('Pilih Kelas dan Rombel dulu!','er');
+  if(!D.cetakSemuaMapelFilter)D.cetakSemuaMapelFilter={kelas:'',rombel:''};
+  const f=D.cetakSemuaMapelFilter;
+  const listAll=Array.isArray(D.rs)?D.rs.filter(r=>!r.isRemedial):[];
+  const kOpts=[...new Set([
+    ...listAll.map(r=>String(r.kelas||'')).filter(Boolean),
+    ...(D.ss||[]).map(s=>String(s.kelas||'')).filter(Boolean)
+  ])].sort((a,b)=>Number(a)-Number(b));
+  const rOpts=f.kelas?[...new Set([
+    ...listAll.filter(r=>String(r.kelas)===String(f.kelas)).map(r=>String(r.rombel||'-')),
+    ...(D.ss||[]).filter(s=>String(s.kelas)===String(f.kelas)).map(s=>String(s.rombel||'-'))
+  ])].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})):[];
 
-  const list=(D.rs||[])
-    .filter(r=>!r.isRemedial&&String(r.kelas)===String(f.kelas)&&(r.rombel||'-')===String(f.rombel))
-    .sort((a,b)=>String(a.nama||'').localeCompare(String(b.nama||''),'id'));
+  let h=`<div class="asu">
+    <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
+      <div>
+        <h2 style="font-size:1.5rem;margin-bottom:4px"><i class="fas fa-print mr-2" style="color:var(--ac)"></i>Cetak Semua Mata Pelajaran</h2>
+        <p style="font-size:.82rem;color:var(--mt);margin:0">Pilih kelas, rombel, lalu klik <b>Cetak</b> pada nama siswa. Tidak perlu memasukkan NIS/NISN.</p>
+      </div>
+      <button class="bt bt3 bts" onclick="renderHasil($('aC'))"><i class="fas fa-arrow-left"></i> Kembali ke Hasil Ujian</button>
+    </div>
+
+    <div class="cd mb-5" style="padding:16px 20px;border-color:var(--ac);border-style:dashed">
+      <div class="flex gap-3 flex-wrap items-end">
+        <div style="flex:1;min-width:170px;max-width:240px">
+          <label class="block mb-1 font-bold" style="font-size:.82rem">Kelas</label>
+          <select class="ip" onchange="D.cetakSemuaMapelFilter.kelas=this.value;D.cetakSemuaMapelFilter.rombel='';renderCetakSemuaMapelSiswa($('aC'))">
+            <option value="">-- Pilih Kelas --</option>${kOpts.map(k=>`<option value="${escHasil(k)}" ${String(f.kelas)===String(k)?'selected':''}>Kelas ${escHasil(k)}</option>`).join('')}
+          </select>
+        </div>
+        <div style="flex:1;min-width:170px;max-width:240px">
+          <label class="block mb-1 font-bold" style="font-size:.82rem">Rombel</label>
+          <select class="ip" ${f.kelas?'':'disabled'} onchange="D.cetakSemuaMapelFilter.rombel=this.value;renderCetakSemuaMapelSiswa($('aC'))">
+            <option value="">${f.kelas?'-- Pilih Rombel --':'-- Pilih Kelas Dulu --'}</option>${rOpts.map(r=>`<option value="${escHasil(r)}" ${String(f.rombel)===String(r)?'selected':''}>Rombel ${escHasil(r)}</option>`).join('')}
+          </select>
+        </div>
+        ${(f.kelas||f.rombel)?`<button class="bt bt3 bts" onclick="D.cetakSemuaMapelFilter={kelas:'',rombel:''};renderCetakSemuaMapelSiswa($('aC'))"><i class="fas fa-times"></i> Reset</button>`:''}
+      </div>
+    </div>`;
+
+  if(!f.kelas||!f.rombel){
+    h+=`<div class="cd" style="padding:42px 20px;text-align:center"><div style="font-size:3rem;color:var(--mt);opacity:.35;margin-bottom:12px"><i class="fas fa-users"></i></div><h3 style="margin-bottom:6px">Pilih Kelas dan Rombel</h3><p style="font-size:.84rem;color:var(--mt);margin:0">Setelah dipilih, daftar nama siswa akan muncul dan Anda tinggal klik tombol <b>Cetak</b>.</p></div></div>`;
+    c.innerHTML=h;return;
+  }
 
   const siswaMap=new Map();
-  list.forEach(r=>{
-    const key=hasilSiswaSemuaMapelKey(r);
-    if(key&&!siswaMap.has(key))siswaMap.set(key,{nis:key,nama:r.nama||'-',kelas:r.kelas,rombel:r.rombel||'-'});
+  listAll.filter(r=>String(r.kelas)===String(f.kelas)&&(r.rombel||'-')===String(f.rombel)).forEach(r=>{
+    const key=String(r.nis||r.nisn||'').trim();
+    if(key&&!siswaMap.has(key))siswaMap.set(key,{key,nama:r.nama||'-',kelas:r.kelas,rombel:r.rombel||'-'});
   });
   (D.ss||[]).filter(s=>String(s.kelas)===String(f.kelas)&&(s.rombel||'-')===String(f.rombel)).forEach(s=>{
-    const key=hasilSiswaSemuaMapelKey(s);
-    if(key&&!siswaMap.has(key))siswaMap.set(key,{nis:key,nama:s.nama||'-',kelas:s.kelas,rombel:s.rombel||'-'});
+    const key=String(s.nis||s.nisn||'').trim();
+    if(key&&!siswaMap.has(key))siswaMap.set(key,{key,nama:s.nama||'-',kelas:s.kelas,rombel:s.rombel||'-'});
   });
+  const siswa=[...siswaMap.values()].sort((a,b)=>String(a.nama).localeCompare(String(b.nama),'id'));
 
-  const arr=[...siswaMap.values()];
-  if(!arr.length)return tt('Belum ada siswa pada Kelas/Rombel tersebut.','er');
-
-  const pilihan=prompt(
-    'Ketik NIS/NISN siswa yang akan dicetak.\\n\\n'+
-    arr.map(x=>`${x.nis} — ${x.nama}`).join('\\n')
-  );
-  if(pilihan===null)return;
-  const nis=String(pilihan).trim();
-  if(!arr.some(x=>String(x.nis)===nis))return tt('NIS/NISN tidak ditemukan pada Kelas/Rombel tersebut.','er');
-  await cetakSemuaMapelSiswa(nis,D.sch.npsn);
+  h+=`<div class="cd" style="padding:18px"><div class="flex items-center justify-between flex-wrap gap-2 mb-3"><div><h3 style="margin:0;font-size:1rem">Daftar Siswa</h3><p style="font-size:.78rem;color:var(--mt);margin:4px 0 0">Kelas ${escHasil(f.kelas)} · Rombel ${escHasil(f.rombel)}</p></div><span class="tag">${siswa.length} siswa</span></div>`;
+  if(!siswa.length){
+    h+=`<div style="padding:35px 15px;text-align:center;color:var(--mt)"><i class="fas fa-user-slash" style="font-size:2.2rem;opacity:.4"></i><p style="margin:10px 0 0">Belum ada siswa pada Kelas/Rombel tersebut.</p></div>`;
+  }else{
+    h+=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.84rem"><thead><tr style="background:var(--bg)"><th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--bd);width:55px">No</th><th style="padding:9px 10px;text-align:left;border-bottom:2px solid var(--bd)">Nama Siswa</th><th style="padding:9px 10px;text-align:center;border-bottom:2px solid var(--bd);width:130px">Aksi</th></tr></thead><tbody>`;
+    siswa.forEach((s,i)=>{
+      const safeKey=String(s.key).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      h+=`<tr><td style="padding:9px 10px;text-align:center;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:9px 10px;border-bottom:1px solid var(--bd);font-weight:700">${escHasil(s.nama)}</td><td style="padding:9px 10px;text-align:center;border-bottom:1px solid var(--bd)"><button class="bt bt2 bts" onclick="cetakSemuaMapelSiswa('${safeKey}','${String(D.sch.npsn).replace(/'/g,"\\'")}')"><i class="fas fa-print"></i> Cetak</button></td></tr>`;
+    });
+    h+=`</tbody></table></div>`;
+  }
+  h+=`</div></div>`;
+  c.innerHTML=h;
 }
 
 async function cetakSemuaMapelSiswa(nis,npsn){
