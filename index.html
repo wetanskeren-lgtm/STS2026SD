@@ -8731,7 +8731,7 @@ function renderHasil(c){
   h+=`<div class="flex items-center justify-between flex-wrap gap-2 mb-4"> 
     <p style="font-size:.88rem;color:var(--mt)"><i class="fas ${mf.ic} mr-1" style="color:${mf.c}"></i><b style="color:var(--fg)">${fm} &mdash; Kelas ${fk} Rombel ${fr}</b> &middot; ${list.length} siswa &middot; Rata-rata: ${avg}</p> 
      
-  <div class="flex gap-2 flex-wrap"><button class="bt bt3 bts" onclick="cetakFilterRekap()"><i class="fas fa-print"></i> Cetak Rekap Awal Ujian</button><button class="bt bt1 bts" onclick="cetakRekapNilaiAkhirRemedial()"><i class="fas fa-file-invoice"></i> Cetak Nilai Setelah Remedial</button>${!D.isPusat?`<button class="bt bt4 bts" onclick="contohHapus2NilaiRemedial()" title="Uji penghapusan nilai remedial pada maksimal 2 siswa"><i class="fas fa-eraser"></i> Contoh Hapus 2 Nilai Remedial</button>`:''}</div></div>`; 
+  <div class="flex gap-2 flex-wrap"><button class="bt bt3 bts" onclick="cetakFilterRekap()"><i class="fas fa-print"></i> Cetak Rekap Awal Ujian</button><button class="bt bt1 bts" onclick="cetakRekapNilaiAkhirRemedial()"><i class="fas fa-file-invoice"></i> Cetak Nilai Setelah Remedial</button><button class="bt bt2 bts" onclick="bukaCetakSemuaMapelSiswa()"><i class="fas fa-users"></i> Cetak Per Siswa — Semua Mapel</button>${!D.isPusat?`<button class="bt bt4 bts" onclick="contohHapus2NilaiRemedial()" title="Uji penghapusan nilai remedial pada maksimal 2 siswa"><i class="fas fa-eraser"></i> Contoh Hapus 2 Nilai Remedial</button>`:''}</div></div>`; 
  
   const grouped={}; 
   list.forEach(r=>{const k=D.isPusat?(r.schoolNpsn||'-'):'-';if(!grouped[k])grouped[k]={schoolName:r.schoolName||D.sch.nama,schoolNpsn:r.schoolNpsn||D.sch.npsn,items:[]};grouped[k].items.push(r);}); 
@@ -8746,11 +8746,211 @@ function renderHasil(c){
       else if(r.essays&&r.essays.length>0){const isGraded=r.essays.every(e=>e.graded===true);if(isGraded){if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}}else{stC='var(--inf)';stL='Menunggu';}}
       else if(sc>=70){stC='var(--ok)';stL='Tuntas';}else{stC='var(--er)';stL='Belum Tuntas';}
       const pgSc=r.autoScore||0;const esSc=(r.essays&&r.essays.length>0)?(r.essayScore!==undefined?r.essayScore:'?'):'-';const dasarSc=nilaiDasarRemedial(r);const remSc=remedialEssayPending?'Menunggu Koreksi':((r.nilaiRemedial===undefined||r.nilaiRemedial===null||r.nilaiRemedial==='')?'-':r.nilaiRemedial);const finalSc=Number(r.score||dasarSc);if(remedialEssayPending){stL='MENUNGGU KOREKSI URAIAN REMEDIAL';stC='var(--inf)';}else if(r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''){stL='SETELAH REMEDIAL';stC=finalSc>=70?'var(--ok)':'var(--er)';} 
-      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700">${String(dasarSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700;color:${r.nilaiRemedial!==undefined?'var(--ac)':'var(--mt)'}">${remSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${String(finalSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&remedialEssayPending?`<button class="bt bt1 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}','remedial')" title="KOREKSI URAIAN REMEDIAL" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen-to-square"></i></button>`:''}${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" title="Koreksi Ujian Pertama / Jawaban" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}${!D.isPusat&&(Number(r.nilaiRemedial??-1)>=0||nilaiDasarRemedial(r)<70)?`<button class="bt bt5 btx" onclick="inputNilaiRemedial('${r.id}','${g.schoolNpsn}')" title="Input/Ubah Nilai Remedial" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-user-check"></i></button>`:''}${!D.isPusat&&r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''?`<button class="bt bt4 btx" onclick="hapusNilaiRemedial('${r.id}','${g.schoolNpsn}')" title="Hapus Nilai Remedial (kembali ke nilai murni)" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-eraser"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button></div></td></tr>`;}); 
+      h+=`<tr><td style="padding:5px 10px;border-bottom:1px solid var(--bd)">${i+1}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)">${r.foto?`<img src="${r.foto}" alt="Foto" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">`:`<div style="width:38px;height:38px;border-radius:50%;margin:auto;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mt)"><i class="fas fa-user"></i></div>`}</td><td style="padding:5px 10px;border-bottom:1px solid var(--bd);font-weight:600">${r.nama}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#00B4D8;font-weight:700">${pgSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);color:#A855F7;font-weight:700">${esSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700">${String(dasarSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:700;color:${r.nilaiRemedial!==undefined?'var(--ac)':'var(--mt)'}">${remSc}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd);font-weight:800">${String(finalSc).replace('.',',')}</td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><span style="color:${stC};font-weight:700;font-size:.72rem">${stL}</span></td><td style="padding:5px 10px;text-align:center;border-bottom:1px solid var(--bd)"><div class="flex gap-1 justify-center">${!D.isPusat&&remedialEssayPending?`<button class="bt bt1 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}','remedial')" title="KOREKSI URAIAN REMEDIAL" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen-to-square"></i></button>`:''}${!D.isPusat&&((r.essays&&r.essays.length>0)||(r.pg&&r.pg.length>0))?`<button class="bt bt5 btx" onclick="koreksiEssay('${r.id}','${g.schoolNpsn}')" title="Koreksi Ujian Pertama / Jawaban" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-pen"></i></button>`:''}${!D.isPusat&&r.pg&&r.pg.length?`<button class="bt bt2 btx" onclick="hitungUlangHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Hitung ulang dengan kunci terbaru" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-rotate"></i></button>`:''}${!D.isPusat&&(Number(r.nilaiRemedial??-1)>=0||nilaiDasarRemedial(r)<70)?`<button class="bt bt5 btx" onclick="inputNilaiRemedial('${r.id}','${g.schoolNpsn}')" title="Input/Ubah Nilai Remedial" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-user-check"></i></button>`:''}${!D.isPusat&&r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!==''?`<button class="bt bt4 btx" onclick="hapusNilaiRemedial('${r.id}','${g.schoolNpsn}')" title="Hapus Nilai Remedial (kembali ke nilai murni)" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-eraser"></i></button>`:''}<button class="bt bt4 btx" onclick="doHapusHasil('${r.id}','${g.schoolNpsn}')" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-trash"></i></button><button class="bt bt3 btx" onclick="cetakHasilSiswa('${r.id}','${g.schoolNpsn}')" title="Cetak hasil siswa lengkap" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-print"></i></button><button class="bt bt2 btx" onclick="cetakSemuaMapelSiswa('${r.nis||r.nisn||''}','${g.schoolNpsn}')" title="Cetak semua mata pelajaran siswa" style="padding:3px 8px;font-size:.7rem"><i class="fas fa-layer-group"></i></button></div></td></tr>`;}); 
     h+=`</tbody></table></div></div>`;}); 
   h+=`</div>`;c.innerHTML=h; 
 } 
  
+
+/* ===== CETAK BARU: PER SISWA — SEMUA MATA PELAJARAN =====
+   Admin Sekolah dapat memilih satu siswa dari kelas/rombel aktif,
+   lalu mencetak seluruh hasil mapel siswa tersebut dalam satu PDF.
+   Data diambil dari seluruh koleksi results sekolah, bukan hanya mapel
+   yang sedang dipilih pada filter, sehingga mapel lain tetap ikut muncul. */
+function hasilSiswaSemuaMapelKey(r){
+  return String(r.nis||r.nisn||'').trim();
+}
+
+function formatNilaiCetakSemua(v){
+  if(v===undefined||v===null||v==='') return '-';
+  const n=Number(v);
+  return Number.isFinite(n)?String(n).replace('.',','):escHasil(v);
+}
+
+function statusSemuaMapelCetak(r){
+  if(isRemedialEssayPending(r)) return 'Menunggu Koreksi Uraian Remedial';
+  const akhir=nilaiAkhirDenganRemedial(r);
+  if(r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!=='')
+    return akhir>=70?'Tuntas Setelah Remedial':'Belum Tuntas Setelah Remedial';
+  return akhir>=70?'Tuntas':'Belum Tuntas';
+}
+
+async function bukaCetakSemuaMapelSiswa(){
+  if(D.isPusat)return tt('Fitur ini khusus Admin Sekolah.','er');
+  const f=D.hasilFilter||{};
+  if(!f.kelas||!f.rombel)return tt('Pilih Kelas dan Rombel dulu!','er');
+
+  const list=(D.rs||[])
+    .filter(r=>!r.isRemedial&&String(r.kelas)===String(f.kelas)&&(r.rombel||'-')===String(f.rombel))
+    .sort((a,b)=>String(a.nama||'').localeCompare(String(b.nama||''),'id'));
+
+  const siswaMap=new Map();
+  list.forEach(r=>{
+    const key=hasilSiswaSemuaMapelKey(r);
+    if(key&&!siswaMap.has(key))siswaMap.set(key,{nis:key,nama:r.nama||'-',kelas:r.kelas,rombel:r.rombel||'-'});
+  });
+  (D.ss||[]).filter(s=>String(s.kelas)===String(f.kelas)&&(s.rombel||'-')===String(f.rombel)).forEach(s=>{
+    const key=hasilSiswaSemuaMapelKey(s);
+    if(key&&!siswaMap.has(key))siswaMap.set(key,{nis:key,nama:s.nama||'-',kelas:s.kelas,rombel:s.rombel||'-'});
+  });
+
+  const arr=[...siswaMap.values()];
+  if(!arr.length)return tt('Belum ada siswa pada Kelas/Rombel tersebut.','er');
+
+  const pilihan=prompt(
+    'Ketik NIS/NISN siswa yang akan dicetak.\\n\\n'+
+    arr.map(x=>`${x.nis} — ${x.nama}`).join('\\n')
+  );
+  if(pilihan===null)return;
+  const nis=String(pilihan).trim();
+  if(!arr.some(x=>String(x.nis)===nis))return tt('NIS/NISN tidak ditemukan pada Kelas/Rombel tersebut.','er');
+  await cetakSemuaMapelSiswa(nis,D.sch.npsn);
+}
+
+async function cetakSemuaMapelSiswa(nis,npsn){
+  if(D.isPusat)return tt('Fitur ini khusus Admin Sekolah.','er');
+  if(!nis)return tt('NIS/NISN siswa tidak ditemukan.','er');
+
+  const backupSch=D.sch, backupSs=D.ss;
+  ld('Menyiapkan cetak semua mapel siswa...');
+  try{
+    let sumber=[];
+    try{
+      const snap=await withTimeout(rR(npsn).get(),20000,'Memuat hasil siswa terlalu lama.');
+      sumber=snap.docs.map(d=>({id:d.id,...d.data(),mapel:canonicalMapel(d.data().mapel)}));
+    }catch(e){
+      sumber=(D.rs||[]).map(r=>({...r,mapel:canonicalMapel(r.mapel)}));
+    }
+
+    const key=String(nis).trim();
+    const hasil=sumber
+      .filter(r=>!r.isRemedial)
+      .filter(r=>String(r.nis||r.nisn||'').trim()===key)
+      .sort((a,b)=>String(a.mapel||'').localeCompare(String(b.mapel||''),'id'));
+
+    if(!hasil.length){
+      hd();
+      return tt('Belum ada hasil ujian untuk siswa tersebut.','er');
+    }
+
+    const stu=(D.ss||[]).find(x=>String(x.nis||x.nisn||'').trim()===key)||{};
+    const nama=hasil[0].nama||stu.nama||'-';
+    const kelas=hasil[0].kelas||stu.kelas||'-';
+    const rombel=hasil[0].rombel||stu.rombel||'-';
+    const sekolah=D.sch||{nama:'Sekolah',npsn:npsn};
+
+    /* Gabungkan jika ada duplikat hasil pada mapel yang sama:
+       pilih dokumen terbaru berdasarkan submittedAt/updatedAt/createdAt. */
+    const byMapel=new Map();
+    hasil.forEach(r=>{
+      const m=canonicalMapel(r.mapel)||'Tanpa Mapel';
+      const t=Number(r.updatedAt||r.submittedAt||r.createdAt||0);
+      const prev=byMapel.get(m);
+      if(!prev||t>=Number(prev.updatedAt||prev.submittedAt||prev.createdAt||0))byMapel.set(m,r);
+    });
+    const rows=[...byMapel.entries()].sort((a,b)=>a[0].localeCompare(b[0],'id'));
+
+    const total=rows.length;
+    const nilaiAkhirList=rows.map(([,r])=>nilaiAkhirDenganRemedial(r)).filter(Number.isFinite);
+    const rata=nilaiAkhirList.length
+      ? Math.round((nilaiAkhirList.reduce((a,b)=>a+b,0)/nilaiAkhirList.length)*10)/10
+      : 0;
+
+    const tableRows=rows.map(([mapel,r],i)=>{
+      const awal=nilaiDasarRemedial(r);
+      const rem=(r.nilaiRemedial!==undefined&&r.nilaiRemedial!==null&&r.nilaiRemedial!=='')?Number(r.nilaiRemedial):null;
+      const akhir=nilaiAkhirDenganRemedial(r);
+      const status=statusSemuaMapelCetak(r);
+      const warna=String(status).toLowerCase().includes('tuntas')&&!String(status).toLowerCase().includes('belum')?'#15803d':'#b91c1c';
+      return `<tr>
+        <td style="border:1px solid #222;padding:6px;text-align:center">${i+1}</td>
+        <td style="border:1px solid #222;padding:6px;font-weight:700">${escHasil(mapel)}</td>
+        <td style="border:1px solid #222;padding:6px;text-align:center">${formatNilaiCetakSemua(awal)}</td>
+        <td style="border:1px solid #222;padding:6px;text-align:center">${rem===null?'-':formatNilaiCetakSemua(rem)}</td>
+        <td style="border:1px solid #222;padding:6px;text-align:center;font-weight:900">${formatNilaiCetakSemua(akhir)}</td>
+        <td style="border:1px solid #222;padding:6px;text-align:center;color:${warna};font-weight:800">${escHasil(status)}</td>
+      </tr>`;
+    }).join('');
+
+    const b=$('pB');
+    b.style.left='0';b.style.top='0';b.style.zIndex='9999';
+    b.innerHTML=`<div id="pdSemuaMapelSiswa" style="width:100%;background:#fff;color:#111;font-family:Arial,sans-serif;font-size:9pt;line-height:1.3;padding:7mm">
+      <style>
+        #pdSemuaMapelSiswa table{width:100%;border-collapse:collapse}
+        #pdSemuaMapelSiswa th,#pdSemuaMapelSiswa td{vertical-align:middle}
+        #pdSemuaMapelSiswa tr{page-break-inside:avoid!important;break-inside:avoid!important}
+        #pdSemuaMapelSiswa .blok{page-break-inside:avoid!important;break-inside:avoid!important}
+        @media print{@page{size:A4 portrait;margin:10mm}}
+      </style>
+      <div style="text-align:center;border-bottom:2px double #111;padding-bottom:8px;margin-bottom:10px">
+        <div style="font-size:14pt;font-weight:900">${escHasil(sekolah.nama||'SEKOLAH').toUpperCase()}</div>
+        <div style="font-size:11pt;font-weight:800;margin-top:3px">REKAP HASIL UJIAN PER SISWA</div>
+        <div style="font-size:9pt;margin-top:2px">SEMUA MATA PELAJARAN</div>
+      </div>
+
+      <table style="margin-bottom:10px">
+        <tr>
+          <td style="width:50%;padding:3px"><b>Nama Siswa</b>: ${escHasil(nama)}</td>
+          <td style="width:50%;padding:3px"><b>NIS/NISN</b>: ${escHasil(key)}</td>
+        </tr>
+        <tr>
+          <td style="padding:3px"><b>Kelas</b>: ${escHasil(kelas)}</td>
+          <td style="padding:3px"><b>Rombel</b>: ${escHasil(rombel)}</td>
+        </tr>
+      </table>
+
+      <table>
+        <thead>
+          <tr style="background:#e5e7eb">
+            <th style="border:1px solid #222;padding:6px;width:7%">No</th>
+            <th style="border:1px solid #222;padding:6px;width:30%">Mata Pelajaran</th>
+            <th style="border:1px solid #222;padding:6px;width:14%">Nilai Awal</th>
+            <th style="border:1px solid #222;padding:6px;width:14%">Remedial</th>
+            <th style="border:1px solid #222;padding:6px;width:14%">Nilai Akhir</th>
+            <th style="border:1px solid #222;padding:6px;width:21%">Status</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+
+      <div class="blok" style="margin-top:12px;border:1px solid #222;padding:8px">
+        <b>Ringkasan:</b> ${total} mata pelajaran tercatat &nbsp; | &nbsp;
+        <b>Rata-rata Nilai Akhir: ${String(rata).replace('.',',')}</b>
+      </div>
+
+      <div class="blok" style="display:flex;justify-content:space-between;gap:30px;margin-top:30px">
+        <div style="width:45%;text-align:center">
+          <b>Guru Kelas</b><div style="height:48px"></div>
+          (........................................)
+        </div>
+        <div style="width:45%;text-align:center">
+          <div>Majalengka, ...............</div>
+          <b>Kepala Sekolah</b><div style="height:48px"></div>
+          (........................................)
+        </div>
+      </div>
+    </div>`;
+
+    hd();
+    tt('Membuat PDF semua mapel...','in');
+    await html2pdf().set({
+      margin:[3,3,3,3],
+      filename:'Rekap_Semua_Mapel_'+String(nama).replace(/[^a-z0-9_-]/gi,'_')+'.pdf',
+      image:{type:'jpeg',quality:.98},
+      html2canvas:{scale:2,useCORS:true},
+      pagebreak:{mode:['css','legacy'],avoid:['tr','.blok']},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+    }).from($('pdSemuaMapelSiswa')).save();
+    tt('PDF semua mapel siswa berhasil dibuat!');
+    b.style.left='-9999px';b.style.zIndex='-1';
+  }catch(e){
+    hd();
+    tt('Gagal mencetak semua mapel: '+e.message,'er');
+  }finally{
+    D.sch=backupSch;D.ss=backupSs;
+  }
+}
+
 /* ===== CETAK REKAP NILAI AKHIR SETELAH REMEDIAL =====
    Fitur baru ini TERPISAH dari cetak hasil perorangan dan cetak rekap awal. */
 async function cetakRekapNilaiAkhirRemedial(){
